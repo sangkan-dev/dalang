@@ -8,6 +8,11 @@ const MODEL_PREF_KEY: &str = "model_preference";
 const ACTIVE_PROVIDER_KEY: &str = "active_provider";
 const AUTH_METHOD_KEY: &str = "auth_method";
 const GCP_PROJECT_KEY: &str = "gcp_project";
+const ENDPOINT_MODE_KEY: &str = "endpoint_mode";
+const CODEASSIST_ENDPOINT_KEY: &str = "codeassist_endpoint";
+const CODEASSIST_TIER_KEY: &str = "codeassist_tier";
+const OAUTH_CLIENT_ID_KEY: &str = "oauth_client_id";
+const OAUTH_CLIENT_SECRET_KEY: &str = "oauth_client_secret";
 
 pub fn save_tokens(access_token: &str, refresh_token: Option<&str>) -> Result<()> {
     let entry =
@@ -117,4 +122,92 @@ pub fn get_gcp_project() -> Result<String> {
     entry
         .get_password()
         .map_err(|e| anyhow!("No GCP project found: {}", e))
+}
+
+// -- Endpoint mode ("openai_compat" | "cloudcode") --
+
+pub fn save_endpoint_mode(mode: &str) -> Result<()> {
+    let entry = Entry::new(SERVICE_NAME, ENDPOINT_MODE_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(mode)
+        .map_err(|e| anyhow!("Failed to save endpoint mode: {}", e))
+}
+
+pub fn get_endpoint_mode() -> Result<String> {
+    let entry = Entry::new(SERVICE_NAME, ENDPOINT_MODE_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No endpoint mode found: {}", e))
+}
+
+// -- CloudCode Assist active endpoint --
+
+pub fn save_codeassist_endpoint(endpoint: &str) -> Result<()> {
+    let entry = Entry::new(SERVICE_NAME, CODEASSIST_ENDPOINT_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(endpoint)
+        .map_err(|e| anyhow!("Failed to save codeassist endpoint: {}", e))
+}
+
+pub fn get_codeassist_endpoint() -> Result<String> {
+    let entry = Entry::new(SERVICE_NAME, CODEASSIST_ENDPOINT_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No codeassist endpoint found: {}", e))
+}
+
+// -- CloudCode Assist tier --
+
+pub fn save_codeassist_tier(tier: &str) -> Result<()> {
+    let entry = Entry::new(SERVICE_NAME, CODEASSIST_TIER_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(tier)
+        .map_err(|e| anyhow!("Failed to save codeassist tier: {}", e))
+}
+
+pub fn get_codeassist_tier() -> Result<String> {
+    let entry = Entry::new(SERVICE_NAME, CODEASSIST_TIER_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No codeassist tier found: {}", e))
+}
+
+// -- OAuth client credentials (for Gemini CLI OAuth flow) --
+
+pub fn save_oauth_client_id(client_id: &str) -> Result<()> {
+    let entry = Entry::new(SERVICE_NAME, OAUTH_CLIENT_ID_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(client_id)
+        .map_err(|e| anyhow!("Failed to save oauth client id: {}", e))
+}
+
+pub fn get_oauth_client_id() -> Result<String> {
+    let entry = Entry::new(SERVICE_NAME, OAUTH_CLIENT_ID_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No oauth client id found: {}", e))
+}
+
+pub fn save_oauth_client_secret(secret: &str) -> Result<()> {
+    let entry = Entry::new(SERVICE_NAME, OAUTH_CLIENT_SECRET_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(secret)
+        .map_err(|e| anyhow!("Failed to save oauth client secret: {}", e))
+}
+
+pub fn get_oauth_client_secret() -> Result<String> {
+    let entry = Entry::new(SERVICE_NAME, OAUTH_CLIENT_SECRET_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No oauth client secret found: {}", e))
 }

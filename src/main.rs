@@ -51,12 +51,13 @@ async fn main() -> Result<()> {
                 println!("[-] Failed to save active provider: {}", e);
             }
 
-            use dialoguer::{Input, Password, Select, theme::ColorfulTheme};
+            use dialoguer::{Password, Select, theme::ColorfulTheme};
 
             match provider {
                 auth::AuthProvider::Gemini => {
                     let methods = vec![
                         "API Key (recommended) — paste from https://aistudio.google.com/apikey",
+                        "Gemini CLI OAuth — full Cloud Code Assist flow (no GCP project needed)",
                         "Gemini CLI — auto-extract from existing gemini-cli session",
                         "Google Cloud ADC — use gcloud Application Default Credentials",
                     ];
@@ -78,6 +79,7 @@ async fn main() -> Result<()> {
                             }
                             auth::persistence::save_tokens(api_key.trim(), None)?;
                             let _ = auth::persistence::save_auth_method("apikey");
+                            let _ = auth::persistence::save_endpoint_mode("openai_compat");
                             println!("[+] API Key saved to keyring!");
 
                             let base_url = llm::get_default_base_url("gemini");
@@ -90,31 +92,80 @@ async fn main() -> Result<()> {
                             .await;
                         }
                         1 => {
-                            // ── Gemini CLI token extraction ──
+                            // ── Gemini CLI OAuth (full Cloud Code Assist flow) ──
+                            println!("\n[!] Account safety caution:");
+                            println!("    This is an unofficial integration and is not endorsed by Google.");
+                            println!("    Some users have reported account restrictions after using");
+                            println!("    third-party Gemini CLI OAuth clients.");
+                            println!("    Proceed only if you understand and accept this risk.\n");
+
+                            let confirm = dialoguer::Confirm::with_theme(&ColorfulTheme::default())
+                                .with_prompt("Continue with Gemini CLI OAuth?")
+                                .default(false)
+                                .interact()?;
+
+                            if !confirm {
+                                println!("[*] Skipped Gemini CLI OAuth setup.");
+                                return Ok(());
+                            }
+
+                            // Prompt for OAuth client credentials if not in env
+                            if std::env::var("DALANG_GEMINI_OAUTH_CLIENT_ID").is_err()
+                                && std::env::var("GEMINI_CLI_OAUTH_CLIENT_ID").is_err()
+                                && auth::persistence::get_oauth_client_id().is_err()
+                            {
+                                println!("\n[*] OAuth client credentials required.");
+                                println!("    Create an OAuth 2.0 Client ID (Desktop app) at:");
+                                println!("    https://console.cloud.google.com/apis/credentials\n");
+
+                                let oauth_client_id: String =
+                                    dialoguer::Input::with_theme(&ColorfulTheme::default())
+                                        .with_prompt("OAuth Client ID")
+                                        .interact_text()?;
+                                let oauth_client_secret: String =
+                                    dialoguer::Password::with_theme(&ColorfulTheme::default())
+                                        .with_prompt("OAuth Client Secret")
+                                        .interact()?;
+
+                                auth::persistence::save_oauth_client_id(&oauth_client_id)?;
+                                auth::persistence::save_oauth_client_secret(&oauth_client_secret)?;
+                                println!("[+] OAuth credentials saved to keyring.");
+                            }
+
+                            match auth::gemini_codeassist::login_gemini_cli_oauth().await {
+                                Ok(result) => {
+                                    auth::gemini_codeassist::persist_oauth_result(&result)?;
+                                    println!("[+] Gemini CLI OAuth login successful!");
+                                    println!("[+] Project: {}", result.project_id);
+                                    println!("[+] Endpoint: {}", result.active_endpoint);
+
+                                    // Use the standard Gemini base URL for model selection
+                                    let base_url = llm::get_default_base_url("gemini");
+                                    interactive_model_selection(
+                                        "gemini",
+                                        &base_url,
+                                        &result.access_token,
+                                        "bearer",
+                                    )
+                                    .await;
+                                }
+                                Err(e) => {
+                                    println!("[!] Gemini CLI OAuth failed: {}", e);
+                                    println!("    You can try API key mode instead.");
+                                }
+                            }
+                        }
+                        2 => {
+                            // ── Gemini CLI token extraction (legacy) ──
                             println!("[*] Looking for Gemini CLI credentials...");
                             match auth::cli_extractor::extract_gemini_cli_token() {
                                 Ok(token) => {
                                     auth::persistence::save_tokens(&token, None)?;
                                     let _ = auth::persistence::save_auth_method("bearer");
+                                    let _ = auth::persistence::save_endpoint_mode("openai_compat");
                                     println!("[+] Gemini CLI token extracted and saved!");
 
-                                    // Prompt for GCP project ID (required for Vertex AI)
-                                    println!("\n[!] Vertex AI endpoint requires a GCP project ID.");
-                                    let project: String =
-                                        Input::with_theme(&ColorfulTheme::default())
-                                            .with_prompt("Enter your GCP Project ID")
-                                            .interact_text()?;
-
-                                    if project.trim().is_empty() {
-                                        return Err(anyhow::anyhow!(
-                                            "GCP Project ID cannot be empty."
-                                        ));
-                                    }
-                                    let _ = auth::persistence::save_gcp_project(project.trim());
-                                    println!("[+] GCP Project saved: {}", project.trim());
-
-                                    let base_url =
-                                        llm::get_vertex_base_url(project.trim(), "us-central1");
+                                    let base_url = llm::get_default_base_url("gemini");
                                     interactive_model_selection(
                                         "gemini", &base_url, &token, "bearer",
                                     )
@@ -131,35 +182,20 @@ async fn main() -> Result<()> {
                                 }
                             }
                         }
-                        2 => {
+                        3 => {
                             // ── gcloud ADC ──
                             println!("[*] Extracting token from gcloud...");
                             match auth::cli_extractor::extract_gcloud_token() {
                                 Ok(token) => {
                                     auth::persistence::save_tokens(&token, None)?;
                                     let _ = auth::persistence::save_auth_method("bearer");
+                                    let _ = auth::persistence::save_endpoint_mode("openai_compat");
                                     println!("[+] gcloud ADC token extracted and saved!");
                                     println!(
                                         "[!] Note: ADC tokens expire. Re-run login to refresh."
                                     );
 
-                                    // Prompt for GCP project ID
-                                    println!("\n[!] Vertex AI endpoint requires a GCP project ID.");
-                                    let project: String =
-                                        Input::with_theme(&ColorfulTheme::default())
-                                            .with_prompt("Enter your GCP Project ID")
-                                            .interact_text()?;
-
-                                    if project.trim().is_empty() {
-                                        return Err(anyhow::anyhow!(
-                                            "GCP Project ID cannot be empty."
-                                        ));
-                                    }
-                                    let _ = auth::persistence::save_gcp_project(project.trim());
-                                    println!("[+] GCP Project saved: {}", project.trim());
-
-                                    let base_url =
-                                        llm::get_vertex_base_url(project.trim(), "us-central1");
+                                    let base_url = llm::get_default_base_url("gemini");
                                     interactive_model_selection(
                                         "gemini", &base_url, &token, "bearer",
                                     )
@@ -253,10 +289,16 @@ async fn main() -> Result<()> {
                 println!("Skills: {}", skills.as_deref().unwrap_or("none"));
             }
 
-            let (auth, base_url, model) = resolve_runtime_config();
+            let (auth, base_url, model, endpoint_mode, codeassist_ep) = resolve_runtime_config();
 
-            let provider = llm::openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
-            let engine = core::engine::DalangEngine::new(Box::new(provider));
+            let provider = llm::create_provider(
+                &endpoint_mode,
+                base_url,
+                model,
+                auth,
+                codeassist_ep,
+            )?;
+            let engine = core::engine::DalangEngine::new(provider);
 
             if auto {
                 engine.run_autonomous_loop(&target).await?;
@@ -270,15 +312,21 @@ async fn main() -> Result<()> {
             println!("Starting interactive session...");
             println!("Target: {}", target);
 
-            let (auth, base_url, model) = resolve_runtime_config();
+            let (auth, base_url, model, endpoint_mode, codeassist_ep) = resolve_runtime_config();
             if matches!(auth, llm::AuthToken::None) {
                 return Err(anyhow::anyhow!(
                     "No API key found. Please run 'dalang login' or set LLM_API_KEY."
                 ));
             }
 
-            let provider = llm::openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
-            let engine = core::engine::DalangEngine::new(Box::new(provider));
+            let provider = llm::create_provider(
+                &endpoint_mode,
+                base_url,
+                model,
+                auth,
+                codeassist_ep,
+            )?;
+            let engine = core::engine::DalangEngine::new(provider);
 
             engine.run_interactive_loop(&target).await?;
         }
@@ -287,28 +335,27 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Resolve auth token, base URL, and model based on stored provider + auth method.
-fn resolve_runtime_config() -> (llm::AuthToken, String, String) {
+/// Resolve auth token, base URL, model, endpoint mode, and optional codeassist endpoint.
+fn resolve_runtime_config() -> (llm::AuthToken, String, String, String, Option<String>) {
     let active_provider =
         auth::persistence::get_active_provider().unwrap_or_else(|_| "gemini".to_string());
     let auth_method = auth::persistence::get_auth_method().unwrap_or_else(|_| "apikey".to_string());
+    let endpoint_mode =
+        auth::persistence::get_endpoint_mode().unwrap_or_else(|_| "openai_compat".to_string());
 
     // Resolve auth token
     let auth = resolve_auth_token(&auth_method);
 
-    // Resolve base URL — Vertex AI for bearer, standard for API Key
-    let base_url = if auth_method == "bearer"
-        && (active_provider == "gemini" || active_provider == "google")
-    {
-        if let Ok(project) = auth::persistence::get_gcp_project() {
-            llm::get_vertex_base_url(&project, "us-central1")
-        } else {
-            println!("[!] GCP project not set. Run 'dalang login --provider gemini' to configure.");
-            llm::get_default_base_url(&active_provider)
-        }
+    // Resolve base URL — for cloudcode mode, the factory handles it internally;
+    // for openai_compat, use LLM_BASE_URL or provider default
+    let base_url = std::env::var("LLM_BASE_URL")
+        .unwrap_or_else(|_| llm::get_default_base_url(&active_provider));
+
+    // Resolve codeassist endpoint (only relevant for cloudcode mode)
+    let codeassist_ep = if endpoint_mode == "cloudcode" {
+        auth::persistence::get_codeassist_endpoint().ok()
     } else {
-        std::env::var("LLM_BASE_URL")
-            .unwrap_or_else(|_| llm::get_default_base_url(&active_provider))
+        None
     };
 
     // Resolve model
@@ -317,11 +364,11 @@ fn resolve_runtime_config() -> (llm::AuthToken, String, String) {
         .unwrap_or_else(|_| llm::get_default_model(&active_provider));
 
     println!(
-        "[*] Using Provider: {} | Model: {} | Auth: {}",
-        active_provider, model, auth_method
+        "[*] Using Provider: {} | Model: {} | Auth: {} | Mode: {}",
+        active_provider, model, auth_method, endpoint_mode
     );
 
-    (auth, base_url, model)
+    (auth, base_url, model, endpoint_mode, codeassist_ep)
 }
 
 fn resolve_auth_token(auth_method: &str) -> llm::AuthToken {

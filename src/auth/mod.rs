@@ -1,4 +1,5 @@
 pub mod cli_extractor;
+pub mod gemini_codeassist;
 
 pub mod persistence;
 

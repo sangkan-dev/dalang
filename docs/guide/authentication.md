@@ -39,16 +39,30 @@ dalang login --provider anthropic
 
 API keys are stored securely in your OS keyring. After entering the key, you'll be prompted to select your preferred AI model.
 
-### OAuth (Optional — Gemini Only)
+### Gemini CLI OAuth (Recommended — Gemini)
 
-If you have a Google Cloud project with OAuth configured:
+Uses the same OAuth flow as Gemini CLI with automatic Cloud Code Assist project discovery:
 
 ```bash
-dalang login --provider gemini --oauth
+dalang login --provider gemini
+# → Select "Gemini CLI OAuth (browser login + auto-discover project)"
 ```
 
-::: warning
-OAuth requires a valid `client_secret` configured in the application. If you get a `client_secret is missing` error, use the API Key method above instead.
+This flow:
+1. Opens your browser for Google OAuth consent
+2. Exchanges the authorization code for tokens (PKCE)
+3. Calls `loadCodeAssist` with multi-endpoint fallback to discover your GCP project
+4. Onboards you if no project exists yet
+5. Persists the access token, refresh token, and discovered project
+
+::: warning Account Safety
+When selecting Gemini CLI OAuth you will see a safety notice. The OAuth tokens grant
+access to your Google Cloud resources. Only proceed on trusted machines.
+:::
+
+::: tip Environment Override
+Set `GOOGLE_CLOUD_PROJECT` to skip the automatic discovery and use a specific project.
+Set `DALANG_GEMINI_OAUTH_CLIENT_ID` / `DALANG_GEMINI_OAUTH_CLIENT_SECRET` to use custom OAuth credentials.
 :::
 
 ### Environment Variable
