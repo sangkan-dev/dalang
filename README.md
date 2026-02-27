@@ -1,3 +1,11 @@
+<p align="center">
+  <img src="assets/banner.png" alt="Dalang Cyberpunk Banner" width="100%">
+</p>
+
+<p align="center">
+  <img src="assets/logo.png" alt="Dalang Logo" width="250">
+</p>
+
 # Dalang: Autonomous AI Cyber Security Agent Framework
 
 Dalang is a modern, extensible framework written in Rust that turns Large Language Models (LLMs) into autonomous, context-aware cybersecurity orchestrators. Instead of relying on rigid, pre-programmed scripts, Dalang gives AI the ability to interpret targets, select appropriate security tools from a modular library, execute them safely on the local operating system, and chain observations together to discover vulnerabilities.
