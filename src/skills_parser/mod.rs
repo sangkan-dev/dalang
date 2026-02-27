@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+pub mod bundled;
+
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct SkillDefinition {
     pub name: String,

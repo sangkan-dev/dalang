@@ -24,30 +24,26 @@ async fn main() -> Result<()> {
                 println!("[+] Created skills/ directory.");
             }
 
-            let example_skill = skills_dir.join("example-nmap.md");
-            if !example_skill.exists() {
-                let content = r#"---
-name: nmap_scanner
-description: Basic port scanning using Nmap.
-tool_path: nmap
-args:
-  - "-sV"
-  - "{{target}}"
----
+            // Install all bundled skills
+            let bundled = skills_parser::bundled::BUNDLED_SKILLS;
+            let mut installed = 0;
+            let mut skipped = 0;
 
-### ROLE
-You are a Security Auditor.
-
-### TASK
-Identify open ports and services on the target.
-
-### CONSTRAINTS
-- Sanctioned audit environment.
-"#;
-                std::fs::write(&example_skill, content)?;
-                println!("[+] Created example skill: skills/example-nmap.md");
+            for skill in bundled {
+                let skill_path = skills_dir.join(skill.filename);
+                if skill_path.exists() {
+                    skipped += 1;
+                } else {
+                    std::fs::write(&skill_path, skill.content)?;
+                    println!("[+] Installed skill: {}", skill.filename);
+                    installed += 1;
+                }
             }
-            println!("[✓] Initialization complete!");
+
+            println!(
+                "[✓] Initialization complete! {} skills installed, {} already existed.",
+                installed, skipped
+            );
         }
         Commands::Login { provider } => {
             let provider = auth::AuthProvider::from_str(&provider)?;
