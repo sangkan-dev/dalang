@@ -447,13 +447,9 @@ async fn get_user_email(access_token: &str) -> Option<String> {
 }
 
 fn resolve_platform() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "WINDOWS"
-    } else if cfg!(target_os = "macos") {
-        "MACOS"
-    } else {
-        "LINUX"
-    }
+    // The API uses protobuf enums — "PLATFORM_UNSPECIFIED" is what the
+    // official Gemini CLI sends for all platforms.
+    "PLATFORM_UNSPECIFIED"
 }
 
 /// Discover project via loadCodeAssist with multi-endpoint fallback.
@@ -466,7 +462,7 @@ async fn discover_project(
 
     let platform = resolve_platform();
     let metadata = CodeAssistMetadata {
-        ide_type: "ANTIGRAVITY".to_string(),
+        ide_type: "IDE_UNSPECIFIED".to_string(),
         platform: platform.to_string(),
         plugin_type: "GEMINI".to_string(),
         duet_project: env_project.clone(),
@@ -501,7 +497,7 @@ async fn discover_project(
             .header(
                 "Client-Metadata",
                 serde_json::json!({
-                    "ideType": "ANTIGRAVITY",
+                    "ideType": "IDE_UNSPECIFIED",
                     "platform": platform,
                     "pluginType": "GEMINI",
                 })
