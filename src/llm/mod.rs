@@ -100,7 +100,7 @@ pub fn get_default_model(provider: &str) -> String {
 /// Create the appropriate LLM provider based on endpoint mode.
 ///
 /// - `endpoint_mode == "cloudcode"` → `GeminiCodeAssistProvider`
-///   (inference still hits generativelanguage, but auth is bearer from OAuth)
+///   (inference goes through cloudcode-pa.googleapis.com native API)
 /// - everything else → `OpenAiCompatibleProvider`
 pub fn create_provider(
     endpoint_mode: &str,
@@ -108,6 +108,7 @@ pub fn create_provider(
     model: String,
     auth: AuthToken,
     codeassist_endpoint: Option<String>,
+    gcp_project: Option<String>,
 ) -> Result<Box<dyn LlmProvider + Send + Sync>> {
     if endpoint_mode == "cloudcode" {
         let token = match &auth {
@@ -122,8 +123,12 @@ pub fn create_provider(
         let endpoint = codeassist_endpoint.unwrap_or_else(|| {
             "https://cloudcode-pa.googleapis.com".to_string()
         });
-        let provider =
-            gemini_codeassist::GeminiCodeAssistProvider::new(model, token, endpoint)?;
+        let project = gcp_project.ok_or_else(|| {
+            anyhow::anyhow!("CloudCode mode requires a GCP project (run 'dalang login' first)")
+        })?;
+        let provider = gemini_codeassist::GeminiCodeAssistProvider::new(
+            model, token, project, endpoint,
+        )?;
         Ok(Box::new(provider))
     } else {
         let provider = openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;

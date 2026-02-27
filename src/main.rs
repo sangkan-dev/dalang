@@ -266,7 +266,7 @@ async fn main() -> Result<()> {
                 println!("Skills: {}", skills.as_deref().unwrap_or("none"));
             }
 
-            let (auth, base_url, model, endpoint_mode, codeassist_ep) = resolve_runtime_config();
+            let (auth, base_url, model, endpoint_mode, codeassist_ep, gcp_project) = resolve_runtime_config();
 
             let provider = llm::create_provider(
                 &endpoint_mode,
@@ -274,6 +274,7 @@ async fn main() -> Result<()> {
                 model,
                 auth,
                 codeassist_ep,
+                gcp_project,
             )?;
             let engine = core::engine::DalangEngine::new(provider);
 
@@ -289,7 +290,7 @@ async fn main() -> Result<()> {
             println!("Starting interactive session...");
             println!("Target: {}", target);
 
-            let (auth, base_url, model, endpoint_mode, codeassist_ep) = resolve_runtime_config();
+            let (auth, base_url, model, endpoint_mode, codeassist_ep, gcp_project) = resolve_runtime_config();
             if matches!(auth, llm::AuthToken::None) {
                 return Err(anyhow::anyhow!(
                     "No API key found. Please run 'dalang login' or set LLM_API_KEY."
@@ -302,6 +303,7 @@ async fn main() -> Result<()> {
                 model,
                 auth,
                 codeassist_ep,
+                gcp_project,
             )?;
             let engine = core::engine::DalangEngine::new(provider);
 
@@ -313,7 +315,7 @@ async fn main() -> Result<()> {
 }
 
 /// Resolve auth token, base URL, model, endpoint mode, and optional codeassist endpoint.
-fn resolve_runtime_config() -> (llm::AuthToken, String, String, String, Option<String>) {
+fn resolve_runtime_config() -> (llm::AuthToken, String, String, String, Option<String>, Option<String>) {
     let active_provider =
         auth::persistence::get_active_provider().unwrap_or_else(|_| "gemini".to_string());
     let auth_method = auth::persistence::get_auth_method().unwrap_or_else(|_| "apikey".to_string());
@@ -328,11 +330,14 @@ fn resolve_runtime_config() -> (llm::AuthToken, String, String, String, Option<S
     let base_url = std::env::var("LLM_BASE_URL")
         .unwrap_or_else(|_| llm::get_default_base_url(&active_provider));
 
-    // Resolve codeassist endpoint (only relevant for cloudcode mode)
-    let codeassist_ep = if endpoint_mode == "cloudcode" {
-        auth::persistence::get_codeassist_endpoint().ok()
+    // Resolve codeassist endpoint and GCP project (only relevant for cloudcode mode)
+    let (codeassist_ep, gcp_project) = if endpoint_mode == "cloudcode" {
+        (
+            auth::persistence::get_codeassist_endpoint().ok(),
+            auth::persistence::get_gcp_project().ok(),
+        )
     } else {
-        None
+        (None, None)
     };
 
     // Resolve model
@@ -345,7 +350,7 @@ fn resolve_runtime_config() -> (llm::AuthToken, String, String, String, Option<S
         active_provider, model, auth_method, endpoint_mode
     );
 
-    (auth, base_url, model, endpoint_mode, codeassist_ep)
+    (auth, base_url, model, endpoint_mode, codeassist_ep, gcp_project)
 }
 
 fn resolve_auth_token(auth_method: &str) -> llm::AuthToken {
