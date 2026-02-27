@@ -9,6 +9,12 @@ pub struct SkillDefinition {
     pub description: String,
     #[serde(skip)]
     pub system_prompt: String,
+    #[serde(skip)]
+    pub role: Option<String>,
+    #[serde(skip)]
+    pub task: Option<String>,
+    #[serde(skip)]
+    pub constraints: Option<String>,
 }
 
 /// Parse a markdown file with YAML frontmatter to extract the skill definition
@@ -59,12 +65,68 @@ pub fn parse_skill_content(content: &str) -> Result<SkillDefinition> {
     // The rest is the system prompt
     definition.system_prompt = markdown_content.trim().to_string();
 
+    // Extract specific sections if they exist
+    definition.role = extract_section(&markdown_content, "Role");
+    definition.task = extract_section(&markdown_content, "Task");
+    definition.constraints = extract_section(&markdown_content, "Constraints");
+
     Ok(definition)
+}
+
+fn extract_section(content: &str, section_name: &str) -> Option<String> {
+    let header = format!("# {}", section_name);
+    let lines: Vec<&str> = content.lines().collect();
+
+    let mut start_idx = None;
+    for (i, line) in lines.iter().enumerate() {
+        if line.trim().to_lowercase() == header.to_lowercase() {
+            start_idx = Some(i + 1);
+            break;
+        }
+    }
+
+    let start = start_idx?;
+    let mut section_lines = Vec::new();
+
+    for line in &lines[start..] {
+        if line.trim().starts_with('#') {
+            break;
+        }
+        section_lines.push(*line);
+    }
+
+    let joined = section_lines.join("\n").trim().to_string();
+    if joined.is_empty() {
+        None
+    } else {
+        Some(joined)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_valid_skill_parsing_with_sections() {
+        let content = r#"---
+name: nmap_scanner
+description: Port scan
+---
+# Role
+Pentester handal.
+
+# Task
+Lakukan scan.
+
+# Constraints
+Jangan merusak.
+"#;
+        let skill = parse_skill_content(content).unwrap();
+        assert_eq!(skill.role, Some("Pentester handal.".to_string()));
+        assert_eq!(skill.task, Some("Lakukan scan.".to_string()));
+        assert_eq!(skill.constraints, Some("Jangan merusak.".to_string()));
+    }
 
     #[test]
     fn test_valid_skill_parsing() {
@@ -82,6 +144,7 @@ Silahkan ambil informasi dari URL yang diberikan.
             skill.system_prompt,
             "Kamu adalah ahli dalam mengambil data dari halaman web.\nSilahkan ambil informasi dari URL yang diberikan."
         );
+        assert_eq!(skill.role, None);
     }
 
     #[test]
