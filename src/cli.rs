@@ -18,10 +18,6 @@ pub enum Commands {
         /// Provider name (gemini, anthropic, openai)
         #[arg(short, long)]
         provider: String,
-
-        /// Use OAuth flow instead of API Key (Gemini/Google only)
-        #[arg(long, default_value_t = false)]
-        oauth: bool,
     },
 
     /// Run an automated scan against a target
