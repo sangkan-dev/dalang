@@ -137,3 +137,16 @@ Berikut adalah rincian Sprint Planning awal (Sprint 1-3) untuk mengimplementasik
 - **[DAL-1103] - Feature - Implement `interact` Command (`src/main.rs`)**
   - Gantikan `// TODO: Implement interactive logic` dengan sebuah REPL (_Read-Eval-Print Loop_) interaktif.
   - Alih-alih mengeksekusi satu command `scan` lalu selesai, mode `interact` memungkinkan user me-maintain sebuah sesi obrolan (chat) dengan _DalangEngine_. Pengguna bisa bertanya, _"Coba kamu check port 80"_, lalu Dalang akan merespons dengan tool, dan pengguna bisa merespons lagi. Ini mirip dengan _Auto-Pilot_ tetapi bersifat _Human-in-the-Loop_ (HITL).
+
+## Sprint 12: Interactive Model Selection
+
+**Goal:** Memberikan pengalaman interaktif bagi pengguna untuk memilih model AI secara dinamis setelah mereka berhasil melakukan autentikasi (login), baik melalui API Key maupun OAuth.
+
+- **[DAL-1201] - Feature - Implement Provider Model Fetching (`src/llm/` & Provider API)**
+  - Implementasikan endpoint/metode untuk mengambil daftar model yang didukung secara langsung dari API Provider (misalnya endpoint `/v1/models` untuk list model) menggunakan token/auth yang baru saja didapatkan.
+- **[DAL-1202] - UX - Interactive CLI Prompt (`src/main.rs`)**
+  - Integrasikan _crate_ CLI interaktif (seperti `dialoguer` atau `inquire`) ke dalam alur `dalang login`.
+  - Setelah token berhasil diperoleh dan divalidasi, program tidak langsung _exit_, melainkan menampilkan _loading spinner_ saat menarik daftar model, lalu menampilkan antarmuka pilihan _dropdown_ di terminal (contoh: `gemini-1.5-pro`, `gemini-1.5-flash`, dll) untuk dipilih oleh _user_.
+- **[DAL-1203] - Feature - Persist User Model Preference (`src/auth/persistence.rs` atau Config)**
+  - Setelah pengguna memilih model, simpan preferensi ini secara lokal (misalnya di _keyring_ atau _config file_ default di dalam direktori `~/.dalang/`).
+  - Ubah perilaku default eksekusi CLI (seperti command `scan` dan `interact`) agar membaca dari preferensi tersimpan ini jika _environment variable_ `LLM_MODEL` tidak disediakan.

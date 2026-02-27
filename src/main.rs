@@ -67,6 +67,44 @@ Identify open ports and services on the target.
                         let refresh = token_data.get("refresh_token").and_then(|v| v.as_str());
                         auth::persistence::save_tokens(access, refresh)?;
                         println!("[+] Login successful and tokens saved to keyring!");
+
+                        // SPRINT 12: Interactive Model Selection
+                        println!("[*] Fetching available models for {}...", provider.as_str());
+                        let auth_token = llm::AuthToken::Bearer(access.to_string());
+                        let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| {
+                            "https://generativelanguage.googleapis.com/v1beta".to_string()
+                        });
+
+                        // We use a dummy model just to instantiate the provider for fetching
+                        if let Ok(llm_provider) = llm::openai::OpenAiCompatibleProvider::new(
+                            base_url,
+                            "gemini-1.5-pro".to_string(),
+                            auth_token,
+                        ) {
+                            use crate::llm::LlmProvider;
+                            if let Ok(models) = llm_provider.get_available_models().await {
+                                if !models.is_empty() {
+                                    use dialoguer::{Select, theme::ColorfulTheme};
+                                    let selection = Select::with_theme(&ColorfulTheme::default())
+                                        .with_prompt("Select your preferred AI Model")
+                                        .default(0)
+                                        .items(&models)
+                                        .interact()
+                                        .unwrap_or(0);
+
+                                    let chosen_model = &models[selection];
+                                    if auth::persistence::save_model_preference(chosen_model)
+                                        .is_ok()
+                                    {
+                                        println!("[+] Default model set to: {}", chosen_model);
+                                    }
+                                } else {
+                                    println!("[-] No models returned from provider API.");
+                                }
+                            } else {
+                                println!("[-] Failed to fetch models from provider API.");
+                            }
+                        }
                     }
                 }
                 _ => {
@@ -107,7 +145,13 @@ Identify open ports and services on the target.
 
             let base_url = std::env::var("LLM_BASE_URL")
                 .unwrap_or_else(|_| "https://generativelanguage.googleapis.com/v1beta".to_string());
-            let model = std::env::var("LLM_MODEL").unwrap_or_else(|_| "gemini-1.5-pro".to_string());
+
+            // SPRINT 12: Load preferred model from ENV -> Persistence -> Default
+            let model = std::env::var("LLM_MODEL")
+                .or_else(|_| auth::persistence::get_model_preference())
+                .unwrap_or_else(|_| "gemini-1.5-pro".to_string());
+
+            println!("[*] Using Model: {}", model);
 
             let provider = llm::openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
             let engine = core::engine::DalangEngine::new(Box::new(provider));
@@ -141,7 +185,13 @@ Identify open ports and services on the target.
 
             let base_url = std::env::var("LLM_BASE_URL")
                 .unwrap_or_else(|_| "https://generativelanguage.googleapis.com/v1beta".to_string());
-            let model = std::env::var("LLM_MODEL").unwrap_or_else(|_| "gemini-1.5-pro".to_string());
+
+            // SPRINT 12: Load preferred model from ENV -> Persistence -> Default
+            let model = std::env::var("LLM_MODEL")
+                .or_else(|_| auth::persistence::get_model_preference())
+                .unwrap_or_else(|_| "gemini-1.5-pro".to_string());
+
+            println!("[*] Using Model: {}", model);
 
             let provider = llm::openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
             let engine = core::engine::DalangEngine::new(Box::new(provider));

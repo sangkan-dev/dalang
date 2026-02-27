@@ -4,6 +4,7 @@ use keyring::Entry;
 const SERVICE_NAME: &str = "dalang";
 const ACCESS_TOKEN_KEY: &str = "access_token";
 const REFRESH_TOKEN_KEY: &str = "refresh_token";
+const MODEL_PREF_KEY: &str = "model_preference";
 
 pub fn save_tokens(access_token: &str, refresh_token: Option<&str>) -> Result<()> {
     let entry =
@@ -49,4 +50,20 @@ pub fn delete_tokens() -> Result<()> {
     let _ = entry.delete_password();
 
     Ok(())
+}
+
+pub fn save_model_preference(model: &str) -> Result<()> {
+    let entry =
+        Entry::new(SERVICE_NAME, MODEL_PREF_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(model)
+        .map_err(|e| anyhow!("Failed to save model preference: {}", e))
+}
+
+pub fn get_model_preference() -> Result<String> {
+    let entry =
+        Entry::new(SERVICE_NAME, MODEL_PREF_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No model preference found: {}", e))
 }

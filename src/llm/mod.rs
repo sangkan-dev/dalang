@@ -57,4 +57,11 @@ pub trait LlmProvider {
     ) -> Result<String> {
         self.send_messages(messages).await
     }
+
+    /// Fetches the list of available models from the provider.
+    async fn get_available_models(&self) -> Result<Vec<String>> {
+        Err(anyhow::anyhow!(
+            "get_available_models not implemented for this provider"
+        ))
+    }
 }

@@ -41,6 +41,18 @@ struct FunctionCall {
     arguments: String,
 }
 
+#[derive(Deserialize, Debug)]
+struct ModelsResponse {
+    models: Option<Vec<ModelItem>>,
+    data: Option<Vec<ModelItem>>,
+}
+
+#[derive(Deserialize, Debug)]
+struct ModelItem {
+    name: Option<String>,
+    id: Option<String>,
+}
+
 pub struct OpenAiCompatibleProvider {
     client: Client,
     base_url: String,
@@ -95,6 +107,40 @@ impl LlmProvider for OpenAiCompatibleProvider {
         tools: Vec<serde_json::Value>,
     ) -> Result<String> {
         self.perform_request(messages, Some(tools)).await
+    }
+
+    async fn get_available_models(&self) -> Result<Vec<String>> {
+        let endpoint = format!("{}/models", self.base_url.trim_end_matches('/'));
+        let response = self.client.get(&endpoint).send().await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(anyhow!("Failed to fetch models: {} - {}", status, text));
+        }
+
+        let parsed: ModelsResponse = response.json().await?;
+
+        let mut model_names = Vec::new();
+        // Handle standard OpenAI `data` array or Gemini's potential `models` array
+        let items = parsed.data.or(parsed.models).unwrap_or_default();
+
+        for item in items {
+            if let Some(name) = item.id.or(item.name) {
+                // Return all models as requested by the user
+                // Strip APIs internal prefixes like 'models/' if they exist (common in Gemini API)
+                let clean_name = name.strip_prefix("models/").unwrap_or(&name).to_string();
+                if !model_names.contains(&clean_name) {
+                    model_names.push(clean_name);
+                }
+            }
+        }
+
+        if model_names.is_empty() {
+            Err(anyhow!("No models found in the provider response"))
+        } else {
+            Ok(model_names)
+        }
     }
 }
 
