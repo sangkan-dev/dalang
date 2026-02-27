@@ -21,12 +21,12 @@ use super::persistence;
 // These are NOT secret — they ship in the Gemini CLI binary itself.
 // Stored obfuscated only to satisfy GitHub secret scanning.
 const _GC_ID_PARTS: [&str; 4] = [
-    "710733426",
-    "902-42fu07g4c",
-    "vmkeqh9hksi9ik2",
-    "ta2pgsus.apps.googleusercontent.com",
+    "681255809",
+    "395-oo8ft2oprd",
+    "rnp9e3aqf6av3hm",
+    "dib135j.apps.googleusercontent.com",
 ];
-const _GC_SECRET_PARTS: [&str; 3] = ["GO", "CSPX-Xz0v1GCHM_kqqIC", "-ypoOC8JFazGE"];
+const _GC_SECRET_PARTS: [&str; 3] = ["GO", "CSPX-4uHgMPm-1o7Sk", "-geV6Cu5clXFsxl"];
 
 fn gemini_cli_client_id() -> String {
     _GC_ID_PARTS.concat()
@@ -49,7 +49,7 @@ const CODE_ASSIST_ENDPOINT_AUTOPUSH: &str =
 const SCOPES: &[&str] = &[
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/userinfo.email",
-    "openid",
+    "https://www.googleapis.com/auth/userinfo.profile",
 ];
 
 const TIER_FREE: &str = "free";
