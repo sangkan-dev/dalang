@@ -8,8 +8,8 @@ impl ContextManager {
     }
 
     pub fn add_observation(&mut self, observation: String) {
-        // We limit memory to last 5 significant observations for now
-        if self.memory.len() >= 5 {
+        // Retain last 20 significant observations for multi-stage pentests
+        if self.memory.len() >= 20 {
             self.memory.remove(0);
         }
         self.memory.push(observation);

@@ -1,7 +1,7 @@
 ---
 name: nmap_scanner
 description: Menjalankan port scanning menggunakan nmap untuk mencari layanan yang berjalan.
-tool_path: /usr/bin/nmap
+tool_path: nmap
 args: ["-sV", "-T4", "{{target}}"]
 requires_root: false
 ---

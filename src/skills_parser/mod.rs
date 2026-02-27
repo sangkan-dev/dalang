@@ -45,7 +45,7 @@ pub fn load_all_skills() -> anyhow::Result<Vec<SkillDefinition>> {
 
 /// Menghasilkan string katalog berisi informasi seluruh skill untuk LLM Meta-Prompt
 pub fn generate_skills_catalog_prompt(skills: &[SkillDefinition]) -> String {
-    let mut prompt = String::from("BERIKUT ADALAH DAFTAR SKILL (TOOL) YANG ANDA MILIKI:\n\n");
+    let mut prompt = String::from("AVAILABLE SKILLS (TOOLS) IN YOUR ARSENAL:\n\n");
 
     for (i, skill) in skills.iter().enumerate() {
         prompt.push_str(&format!(
@@ -56,7 +56,7 @@ pub fn generate_skills_catalog_prompt(skills: &[SkillDefinition]) -> String {
         ));
     }
 
-    prompt.push_str("\nAnda dapat memanggil tool ini menggunakan fungsi `execute_skill` dengan menyertakan `skill_name`.");
+    prompt.push_str("\nYou can invoke these tools using the `execute_skill` function with the `skill_name` parameter.");
     prompt
 }
 
@@ -117,14 +117,19 @@ pub fn parse_skill_content(content: &str) -> Result<SkillDefinition> {
 }
 
 fn extract_section(content: &str, section_name: &str) -> Option<String> {
-    let header = format!("# {}", section_name);
     let lines: Vec<&str> = content.lines().collect();
+    let target = section_name.to_lowercase();
 
     let mut start_idx = None;
     for (i, line) in lines.iter().enumerate() {
-        if line.trim().to_lowercase() == header.to_lowercase() {
-            start_idx = Some(i + 1);
-            break;
+        let trimmed = line.trim();
+        // Match any heading level: # Role, ## Role, ### ROLE, etc.
+        if trimmed.starts_with('#') {
+            let header_text = trimmed.trim_start_matches('#').trim().to_lowercase();
+            if header_text == target {
+                start_idx = Some(i + 1);
+                break;
+            }
         }
     }
 

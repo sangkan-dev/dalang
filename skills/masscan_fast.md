@@ -1,7 +1,7 @@
 ---
 name: masscan_fast
 description: Pemindaian port ekstrim cepat menggunakan Masscan.
-tool_path: /usr/bin/masscan
+tool_path: masscan
 args: ["-p1-65535", "--rate=1000", "{{target}}"]
 requires_root: true
 ---

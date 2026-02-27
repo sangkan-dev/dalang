@@ -1,12 +1,25 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
+/// Detect common AI safety refusal patterns across major LLM providers.
 pub fn is_safety_refusal(text: &str) -> bool {
     let text = text.to_lowercase();
     text.contains("i cannot assist")
         || text.contains("i am unable to")
         || text.contains("my safety guidelines")
         || text.contains("i can't fulfill this request")
+        || text.contains("i'm sorry, but")
+        || text.contains("i must decline")
+        || text.contains("as an ai")
+        || text.contains("i can't help with")
+        || text.contains("i'm not able to")
+        || text.contains("against my guidelines")
+        || text.contains("i cannot provide")
+        || text.contains("i can't provide")
+        || text.contains("i cannot help")
+        || text.contains("potentially harmful")
+        || text.contains("violates my")
+        || text.contains("i'm unable to assist")
 }
 
 lazy_static! {

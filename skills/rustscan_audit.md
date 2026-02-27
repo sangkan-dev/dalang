@@ -1,7 +1,7 @@
 ---
 name: rustscan_audit
 description: Pemindaian port modern dan cepat menggunakan Rustscan.
-tool_path: /usr/bin/rustscan
+tool_path: rustscan
 args: ["-a", "{{target}}", "--", "-sV"]
 requires_root: false
 ---

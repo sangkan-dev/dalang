@@ -53,6 +53,15 @@ Identify open ports and services on the target.
             let provider = auth::AuthProvider::from_str(&provider)?;
             println!("Logging in to {}...", provider.as_str());
 
+            // FIX-04: Use dynamic provider-aware base URL
+            let base_url = std::env::var("LLM_BASE_URL")
+                .unwrap_or_else(|_| llm::get_default_base_url(provider.as_str()));
+
+            // SPRINT 13: Save active provider immediately
+            if let Err(e) = auth::persistence::save_active_provider(provider.as_str()) {
+                println!("[-] Failed to save active provider: {}", e);
+            }
+
             match provider {
                 auth::AuthProvider::Gemini => {
                     let config = auth::oauth::OauthConfig::gemini_default();
@@ -68,55 +77,28 @@ Identify open ports and services on the target.
                         auth::persistence::save_tokens(access, refresh)?;
                         println!("[+] Login successful and tokens saved to keyring!");
 
-                        // SPRINT 13: Save active provider
-                        if let Err(e) = auth::persistence::save_active_provider(provider.as_str()) {
-                            println!("[-] Failed to save active provider: {}", e);
-                        }
-
-                        // SPRINT 12: Interactive Model Selection
-                        println!("[*] Fetching available models for {}...", provider.as_str());
-                        let auth_token = llm::AuthToken::Bearer(access.to_string());
-                        let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| {
-                            "https://generativelanguage.googleapis.com/v1beta".to_string()
-                        });
-
-                        // We use a dummy model just to instantiate the provider for fetching
-                        if let Ok(llm_provider) = llm::openai::OpenAiCompatibleProvider::new(
-                            base_url,
-                            "gemini-1.5-pro".to_string(),
-                            auth_token,
-                        ) {
-                            use crate::llm::LlmProvider;
-                            if let Ok(models) = llm_provider.get_available_models().await {
-                                if !models.is_empty() {
-                                    use dialoguer::{Select, theme::ColorfulTheme};
-                                    let selection = Select::with_theme(&ColorfulTheme::default())
-                                        .with_prompt("Select your preferred AI Model")
-                                        .default(0)
-                                        .items(&models)
-                                        .interact()
-                                        .unwrap_or(0);
-
-                                    let chosen_model = &models[selection];
-                                    if auth::persistence::save_model_preference(chosen_model)
-                                        .is_ok()
-                                    {
-                                        println!("[+] Default model set to: {}", chosen_model);
-                                    }
-                                } else {
-                                    println!("[-] No models returned from provider API.");
-                                }
-                            } else {
-                                println!("[-] Failed to fetch models from provider API.");
-                            }
-                        }
+                        // Interactive Model Selection
+                        interactive_model_selection(provider.as_str(), &base_url, access).await;
                     }
                 }
-                _ => {
-                    println!(
-                        "[!] Provider {} OAuth not yet fully implemented in MVP.",
-                        provider.as_str()
-                    );
+                // FIX-01: API Key login for OpenAI and Anthropic
+                auth::AuthProvider::OpenAi | auth::AuthProvider::Anthropic => {
+                    use dialoguer::{Password, theme::ColorfulTheme};
+
+                    let api_key = Password::with_theme(&ColorfulTheme::default())
+                        .with_prompt(format!("Enter your {} API Key", provider.as_str()))
+                        .interact()?;
+
+                    if api_key.is_empty() {
+                        return Err(anyhow::anyhow!("API Key cannot be empty."));
+                    }
+
+                    // Save API key as access token in keyring
+                    auth::persistence::save_tokens(&api_key, None)?;
+                    println!("[+] API Key saved to keyring!");
+
+                    // Interactive Model Selection
+                    interactive_model_selection(provider.as_str(), &base_url, &api_key).await;
                 }
             }
         }
@@ -134,19 +116,7 @@ Identify open ports and services on the target.
             }
 
             // Try to find auth: CLI Extractor -> Keyring -> Env -> None
-            let auth = if let Some(token) = auth::cli_extractor::try_all_cli_extractors() {
-                llm::AuthToken::Bearer(token)
-            } else if let Ok(token) = auth::persistence::get_access_token() {
-                println!("[+] Using stored session from keyring");
-                llm::AuthToken::Bearer(token)
-            } else if let Ok(key) = std::env::var("LLM_API_KEY") {
-                llm::AuthToken::ApiKey(key)
-            } else {
-                println!(
-                    "[!] No active session found. Please run 'dalang login' or set LLM_API_KEY"
-                );
-                llm::AuthToken::None
-            };
+            let auth = resolve_auth_token();
 
             // SPRINT 13: Get active provider and resolve defaults
             let active_provider =
@@ -156,7 +126,6 @@ Identify open ports and services on the target.
 
             let base_url = std::env::var("LLM_BASE_URL").unwrap_or(default_base_url);
 
-            // SPRINT 12/13: Load preferred model from ENV -> Persistence -> Provider Default
             let model = std::env::var("LLM_MODEL")
                 .or_else(|_| auth::persistence::get_model_preference())
                 .unwrap_or(default_model);
@@ -178,20 +147,12 @@ Identify open ports and services on the target.
             println!("Starting interactive session...");
             println!("Target: {}", target);
 
-            let auth_str = auth::cli_extractor::try_all_cli_extractors()
-                .or_else(|| auth::persistence::get_access_token().ok())
-                .or_else(|| std::env::var("LLM_API_KEY").ok())
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "No API key found. Please run 'dalang login' or set LLM_API_KEY."
-                    )
-                })?;
-
-            let auth = if auth_str.len() > 64 {
-                llm::AuthToken::Bearer(auth_str)
-            } else {
-                llm::AuthToken::ApiKey(auth_str)
-            };
+            let auth = resolve_auth_token();
+            if matches!(auth, llm::AuthToken::None) {
+                return Err(anyhow::anyhow!(
+                    "No API key found. Please run 'dalang login' or set LLM_API_KEY."
+                ));
+            }
 
             // SPRINT 13: Get active provider and resolve defaults
             let active_provider =
@@ -201,7 +162,6 @@ Identify open ports and services on the target.
 
             let base_url = std::env::var("LLM_BASE_URL").unwrap_or(default_base_url);
 
-            // SPRINT 12/13: Load preferred model from ENV -> Persistence -> Provider Default
             let model = std::env::var("LLM_MODEL")
                 .or_else(|_| auth::persistence::get_model_preference())
                 .unwrap_or(default_model);
@@ -216,4 +176,70 @@ Identify open ports and services on the target.
     }
 
     Ok(())
+}
+
+/// FIX-11: Resolve auth token using provider-aware detection instead of string length heuristic.
+fn resolve_auth_token() -> llm::AuthToken {
+    // Priority: CLI Extractor -> Keyring -> Env -> None
+    if let Some(token) = auth::cli_extractor::try_all_cli_extractors() {
+        return llm::AuthToken::Bearer(token);
+    }
+
+    if let Ok(token) = auth::persistence::get_access_token() {
+        println!("[+] Using stored session from keyring");
+        // Determine token type based on active provider
+        let provider = auth::persistence::get_active_provider().unwrap_or_default();
+        return match provider.as_str() {
+            // OpenAI/Anthropic use API Keys (stored as access_token in keyring)
+            "openai" | "anthropic" => llm::AuthToken::ApiKey(token),
+            // Gemini/Google use Bearer tokens from OAuth
+            _ => llm::AuthToken::Bearer(token),
+        };
+    }
+
+    if let Ok(key) = std::env::var("LLM_API_KEY") {
+        return llm::AuthToken::ApiKey(key);
+    }
+
+    println!("[!] No active session found. Please run 'dalang login' or set LLM_API_KEY");
+    llm::AuthToken::None
+}
+
+/// Interactive model selection after successful login.
+async fn interactive_model_selection(provider_name: &str, base_url: &str, token: &str) {
+    println!("[*] Fetching available models for {}...", provider_name);
+
+    // Determine auth token type based on provider
+    let auth_token = match provider_name {
+        "openai" | "anthropic" => llm::AuthToken::ApiKey(token.to_string()),
+        _ => llm::AuthToken::Bearer(token.to_string()),
+    };
+
+    if let Ok(llm_provider) = llm::openai::OpenAiCompatibleProvider::new(
+        base_url.to_string(),
+        "dummy".to_string(),
+        auth_token,
+    ) {
+        use crate::llm::LlmProvider;
+        if let Ok(models) = llm_provider.get_available_models().await {
+            if !models.is_empty() {
+                use dialoguer::{Select, theme::ColorfulTheme};
+                let selection = Select::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Select your preferred AI Model")
+                    .default(0)
+                    .items(&models)
+                    .interact()
+                    .unwrap_or(0);
+
+                let chosen_model = &models[selection];
+                if auth::persistence::save_model_preference(chosen_model).is_ok() {
+                    println!("[+] Default model set to: {}", chosen_model);
+                }
+            } else {
+                println!("[-] No models returned from provider API.");
+            }
+        } else {
+            println!("[-] Failed to fetch models from provider API.");
+        }
+    }
 }

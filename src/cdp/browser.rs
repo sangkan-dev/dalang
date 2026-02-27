@@ -14,7 +14,7 @@ impl DalangBrowser {
     /// Initialize headless browser and spawn its event handler loop
     pub async fn new() -> Result<Self> {
         let config = BrowserConfig::builder()
-            .with_head() // For testing visibility if needed, or omit for true headless
+            // True headless mode for server/CI environments
             // .disable_default_args() // Sometimes needed to bypass some detections
             .build()
             .map_err(|e| anyhow!("Failed to build browser config: {:?}", e))?;

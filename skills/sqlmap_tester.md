@@ -1,7 +1,7 @@
 ---
 name: sqlmap_tester
 description: Validasi kerentanan SQL Injection.
-tool_path: /usr/bin/sqlmap
+tool_path: sqlmap
 args: ["-u", "{{target}}", "--batch", "--random-agent", "--dbs"]
 requires_root: false
 ---

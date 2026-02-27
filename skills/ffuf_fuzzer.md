@@ -1,7 +1,7 @@
 ---
 name: ffuf_fuzzer
 description: Web directory fuzzing untuk mencari endpoint tersembunyi.
-tool_path: /usr/bin/ffuf
+tool_path: ffuf
 args:
   [
     "-w",
