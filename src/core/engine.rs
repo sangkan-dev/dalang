@@ -551,27 +551,6 @@ impl DalangEngine {
             let full_input = format!("{}\n\nUser: {}", summary, input);
             messages.push(Message::user(&full_input));
 
-            // SPRINT 11: Prepare native tool definition
-            let execute_skill_tool = serde_json::json!({
-                "type": "function",
-                "function": {
-                    "name": "execute_skill",
-                    "description": "Execute a specific security skill from the catalog.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "skill_name": { "type": "string", "description": "Name of the skill to execute." },
-                            "custom_args": {
-                                "type": "array",
-                                "items": { "type": "string" },
-                                "description": "Optional flags to append."
-                            },
-                            "reasoning": { "type": "string", "description": "Reasoning for the action." }
-                        },
-                        "required": ["skill_name", "reasoning"]
-                    }
-                }
-            });
             println!("\n[...] Strategic Reasoning...");
             // SPRINT 11: Prepare native tool definition
             let execute_skill_tool = serde_json::json!({

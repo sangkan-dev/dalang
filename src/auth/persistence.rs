@@ -5,6 +5,7 @@ const SERVICE_NAME: &str = "dalang";
 const ACCESS_TOKEN_KEY: &str = "access_token";
 const REFRESH_TOKEN_KEY: &str = "refresh_token";
 const MODEL_PREF_KEY: &str = "model_preference";
+const ACTIVE_PROVIDER_KEY: &str = "active_provider";
 
 pub fn save_tokens(access_token: &str, refresh_token: Option<&str>) -> Result<()> {
     let entry =
@@ -66,4 +67,20 @@ pub fn get_model_preference() -> Result<String> {
     entry
         .get_password()
         .map_err(|e| anyhow!("No model preference found: {}", e))
+}
+
+pub fn save_active_provider(provider: &str) -> Result<()> {
+    let entry = Entry::new(SERVICE_NAME, ACTIVE_PROVIDER_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(provider)
+        .map_err(|e| anyhow!("Failed to save active provider: {}", e))
+}
+
+pub fn get_active_provider() -> Result<String> {
+    let entry = Entry::new(SERVICE_NAME, ACTIVE_PROVIDER_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No active provider found: {}", e))
 }

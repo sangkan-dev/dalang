@@ -150,3 +150,14 @@ Berikut adalah rincian Sprint Planning awal (Sprint 1-3) untuk mengimplementasik
 - **[DAL-1203] - Feature - Persist User Model Preference (`src/auth/persistence.rs` atau Config)**
   - Setelah pengguna memilih model, simpan preferensi ini secara lokal (misalnya di _keyring_ atau _config file_ default di dalam direktori `~/.dalang/`).
   - Ubah perilaku default eksekusi CLI (seperti command `scan` dan `interact`) agar membaca dari preferensi tersimpan ini jika _environment variable_ `LLM_MODEL` tidak disediakan.
+
+## Sprint 13: Dynamic Provider Configuration
+
+**Goal:** Menggantikan konfigurasi statis/hardcoded `LLM_BASE_URL` dan `LLM_MODEL` dengan resolusi dinamis berdasarkan _provider_ yang sedang aktif.
+
+- **[DAL-1301] - Refactor - Provider-Aware Defaults (`src/llm/mod.rs` & `src/main.rs`)**
+  - Buat mekanisme resolusi URL default secara dinamis. Jika provider adalah `openai`, maka default `LLM_BASE_URL` haruslah `https://api.openai.com/v1` dan `LLM_MODEL` haruslah `gpt-4o` (buka lagi `gemini-1.5-pro`).
+  - Lakukan hal yang sama untuk provider lain (misal Anthropic, local Ollama).
+- **[DAL-1302] - Feature - Persist Active Provider (`src/auth/persistence.rs` & `src/main.rs`)**
+  - Saat `dalang login --provider <NAME>`, simpan nama provider ke dalam `keyring` (atau config lokal) bersamaan dengan token.
+  - Saat mengeksekusi `dalang scan` atau `dalang interact`, CLI harus mencari tahu provider mana yang aktif dari persistensi, lalu menerapkan resolusi dinamis untuk `LLM_BASE_URL` jika _environment variable_ tidak disediakan.

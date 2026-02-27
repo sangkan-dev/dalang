@@ -65,3 +65,23 @@ pub trait LlmProvider {
         ))
     }
 }
+
+pub fn get_default_base_url(provider: &str) -> String {
+    match provider {
+        "openai" => "https://api.openai.com/v1".to_string(),
+        "anthropic" => "https://api.anthropic.com/v1".to_string(),
+        "gemini" | "google" => "https://generativelanguage.googleapis.com/v1beta".to_string(),
+        "ollama" | "local" => "http://localhost:11434/api".to_string(),
+        _ => "https://generativelanguage.googleapis.com/v1beta".to_string(),
+    }
+}
+
+pub fn get_default_model(provider: &str) -> String {
+    match provider {
+        "openai" => "gpt-4o".to_string(),
+        "anthropic" => "claude-3-5-sonnet-20241022".to_string(),
+        "gemini" | "google" => "gemini-1.5-pro".to_string(),
+        "ollama" | "local" => "llama3.1:latest".to_string(),
+        _ => "gemini-1.5-pro".to_string(),
+    }
+}

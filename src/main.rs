@@ -68,6 +68,11 @@ Identify open ports and services on the target.
                         auth::persistence::save_tokens(access, refresh)?;
                         println!("[+] Login successful and tokens saved to keyring!");
 
+                        // SPRINT 13: Save active provider
+                        if let Err(e) = auth::persistence::save_active_provider(provider.as_str()) {
+                            println!("[-] Failed to save active provider: {}", e);
+                        }
+
                         // SPRINT 12: Interactive Model Selection
                         println!("[*] Fetching available models for {}...", provider.as_str());
                         let auth_token = llm::AuthToken::Bearer(access.to_string());
@@ -143,15 +148,20 @@ Identify open ports and services on the target.
                 llm::AuthToken::None
             };
 
-            let base_url = std::env::var("LLM_BASE_URL")
-                .unwrap_or_else(|_| "https://generativelanguage.googleapis.com/v1beta".to_string());
+            // SPRINT 13: Get active provider and resolve defaults
+            let active_provider =
+                auth::persistence::get_active_provider().unwrap_or_else(|_| "gemini".to_string());
+            let default_base_url = llm::get_default_base_url(&active_provider);
+            let default_model = llm::get_default_model(&active_provider);
 
-            // SPRINT 12: Load preferred model from ENV -> Persistence -> Default
+            let base_url = std::env::var("LLM_BASE_URL").unwrap_or(default_base_url);
+
+            // SPRINT 12/13: Load preferred model from ENV -> Persistence -> Provider Default
             let model = std::env::var("LLM_MODEL")
                 .or_else(|_| auth::persistence::get_model_preference())
-                .unwrap_or_else(|_| "gemini-1.5-pro".to_string());
+                .unwrap_or(default_model);
 
-            println!("[*] Using Model: {}", model);
+            println!("[*] Using Provider: {} | Model: {}", active_provider, model);
 
             let provider = llm::openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
             let engine = core::engine::DalangEngine::new(Box::new(provider));
@@ -183,15 +193,20 @@ Identify open ports and services on the target.
                 llm::AuthToken::ApiKey(auth_str)
             };
 
-            let base_url = std::env::var("LLM_BASE_URL")
-                .unwrap_or_else(|_| "https://generativelanguage.googleapis.com/v1beta".to_string());
+            // SPRINT 13: Get active provider and resolve defaults
+            let active_provider =
+                auth::persistence::get_active_provider().unwrap_or_else(|_| "gemini".to_string());
+            let default_base_url = llm::get_default_base_url(&active_provider);
+            let default_model = llm::get_default_model(&active_provider);
 
-            // SPRINT 12: Load preferred model from ENV -> Persistence -> Default
+            let base_url = std::env::var("LLM_BASE_URL").unwrap_or(default_base_url);
+
+            // SPRINT 12/13: Load preferred model from ENV -> Persistence -> Provider Default
             let model = std::env::var("LLM_MODEL")
                 .or_else(|_| auth::persistence::get_model_preference())
-                .unwrap_or_else(|_| "gemini-1.5-pro".to_string());
+                .unwrap_or(default_model);
 
-            println!("[*] Using Model: {}", model);
+            println!("[*] Using Provider: {} | Model: {}", active_provider, model);
 
             let provider = llm::openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
             let engine = core::engine::DalangEngine::new(Box::new(provider));
