@@ -36,11 +36,21 @@ impl LazyBrowser {
 
 pub struct DalangEngine {
     llm: Box<dyn LlmProvider + Send + Sync>,
+    cmd_timeout: u64,
 }
 
 impl DalangEngine {
-    pub fn new(llm: Box<dyn LlmProvider + Send + Sync>) -> Self {
-        Self { llm }
+    pub fn new(llm: Box<dyn LlmProvider + Send + Sync>, cmd_timeout: u64) -> Self {
+        Self { llm, cmd_timeout }
+    }
+
+    /// Resolve the effective timeout value. 0 means unlimited (u64::MAX).
+    fn effective_timeout(&self) -> u64 {
+        if self.cmd_timeout == 0 {
+            u64::MAX
+        } else {
+            self.cmd_timeout
+        }
     }
 
     fn build_system_prompt(&self, skill: &SkillDefinition) -> String {
@@ -190,7 +200,7 @@ impl DalangEngine {
                 .iter()
                 .map(|s| s.as_str())
                 .collect::<Vec<&str>>(),
-            60,
+            self.effective_timeout(),
         )
         .await
         {
@@ -387,7 +397,7 @@ impl DalangEngine {
                                         .iter()
                                         .map(|s| s.as_str())
                                         .collect::<Vec<&str>>(),
-                                    60,
+                                    self.effective_timeout(),
                                 )
                                 .await
                                 {
@@ -440,7 +450,7 @@ impl DalangEngine {
     // ─────────────────────────────────────
     // AUTONOMOUS AUTO-PILOT LOOP
     // ─────────────────────────────────────
-    pub async fn run_autonomous_loop(&self, target: &str) -> Result<()> {
+    pub async fn run_autonomous_loop(&self, target: &str, max_iter: u32) -> Result<()> {
         let skills = crate::skills_parser::load_all_skills()?;
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
 
@@ -475,15 +485,19 @@ impl DalangEngine {
             )),
         ];
 
-        let max_iterations = 15;
-        let mut i = 0;
+        let unlimited = max_iter == 0;
+        let mut i: u32 = 0;
 
-        while i < max_iterations {
+        while unlimited || i < max_iter {
             i += 1;
-            println!(
-                "\n[...] Strategic Reasoning (Iteration {}/{})...",
-                i, max_iterations
-            );
+            if unlimited {
+                println!("\n[...] Strategic Reasoning (Iteration {})...", i);
+            } else {
+                println!(
+                    "\n[...] Strategic Reasoning (Iteration {}/{})...",
+                    i, max_iter
+                );
+            }
 
             // Inject persistent memory
             if i > 1 {
@@ -573,8 +587,8 @@ impl DalangEngine {
             // If text but not report, continue (likely reasoning)
         }
 
-        if i >= max_iterations {
-            println!("[!] Auto-Pilot reached maximum action limit.");
+        if !unlimited && i >= max_iter {
+            println!("[!] Auto-Pilot reached maximum action limit ({}).", max_iter);
         }
         Ok(())
     }

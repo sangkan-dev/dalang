@@ -257,6 +257,8 @@ async fn main() -> Result<()> {
             target,
             skills,
             auto,
+            max_iter,
+            cmd_timeout,
         } => {
             println!("Starting automated scan...");
             println!("Target: {}", target);
@@ -276,17 +278,17 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine = core::engine::DalangEngine::new(provider);
+            let engine = core::engine::DalangEngine::new(provider, cmd_timeout);
 
             if auto {
-                engine.run_autonomous_loop(&target).await?;
+                engine.run_autonomous_loop(&target, max_iter).await?;
             } else {
                 let skills_list = skills
                     .ok_or_else(|| anyhow::anyhow!("Either specify --skills or use --auto"))?;
                 engine.run_scan_loop(&target, &skills_list).await?;
             }
         }
-        Commands::Interact { target } => {
+        Commands::Interact { target, cmd_timeout } => {
             println!("Starting interactive session...");
             println!("Target: {}", target);
 
@@ -305,7 +307,7 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine = core::engine::DalangEngine::new(provider);
+            let engine = core::engine::DalangEngine::new(provider, cmd_timeout);
 
             engine.run_interactive_loop(&target).await?;
         }
