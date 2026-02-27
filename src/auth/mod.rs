@@ -1,5 +1,5 @@
 pub mod cli_extractor;
-pub mod oauth;
+
 pub mod persistence;
 
 use anyhow::Result;
