@@ -309,6 +309,44 @@ async fn main() -> Result<()> {
 
             engine.run_interactive_loop(&target).await?;
         }
+        Commands::Model { set } => {
+            let active_provider =
+                auth::persistence::get_active_provider().unwrap_or_else(|_| "gemini".to_string());
+            let current_model = auth::persistence::get_model_preference()
+                .unwrap_or_else(|_| llm::get_default_model(&active_provider));
+
+            println!("[*] Provider: {}", active_provider);
+            println!("[*] Current model: {}", current_model);
+
+            if let Some(model_name) = set {
+                // Direct set via --set flag
+                auth::persistence::save_model_preference(&model_name)?;
+                println!("[+] Model switched to: {}", model_name);
+            } else {
+                // Interactive picker
+                use dialoguer::{Select, theme::ColorfulTheme};
+
+                let mut models = get_fallback_models(&active_provider);
+
+                // If current model isn't in the list, prepend it
+                if !models.contains(&current_model) {
+                    models.insert(0, current_model.clone());
+                }
+
+                // Find current model index for default selection
+                let default_idx = models.iter().position(|m| m == &current_model).unwrap_or(0);
+
+                let selection = Select::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Select AI model")
+                    .default(default_idx)
+                    .items(&models)
+                    .interact()?;
+
+                let chosen = &models[selection];
+                auth::persistence::save_model_preference(chosen)?;
+                println!("[+] Model switched to: {}", chosen);
+            }
+        }
     }
 
     Ok(())
@@ -427,15 +465,13 @@ async fn interactive_model_selection(
 fn get_fallback_models(provider: &str) -> Vec<String> {
     match provider {
         "gemini" | "google" => vec![
-            "gemini-3.1-pro-preview".to_string(),
-            "gemini-3-pro-preview".to_string(),
+            // Source: @google/gemini-cli-core config/models.js VALID_GEMINI_MODELS
             "gemini-2.5-flash".to_string(),
-            "gemini-2.5-pro-preview-05-06".to_string(),
-            "gemini-2.5-flash-preview-05-20".to_string(),
-            "gemini-2.0-flash".to_string(),
-            "gemini-2.0-flash-lite".to_string(),
-            "gemini-1.5-pro".to_string(),
-            "gemini-1.5-flash".to_string(),
+            "gemini-2.5-pro".to_string(),
+            "gemini-2.5-flash-lite".to_string(),
+            "gemini-3-pro-preview".to_string(),
+            "gemini-3-flash-preview".to_string(),
+            "gemini-3.1-pro-preview".to_string(),
         ],
         "openai" => vec![
             "gpt-4o".to_string(),

@@ -41,4 +41,11 @@ pub enum Commands {
         #[arg(short, long)]
         target: String,
     },
+
+    /// Switch the active AI model (no re-login required)
+    Model {
+        /// Set model directly (skip interactive picker)
+        #[arg(short, long)]
+        set: Option<String>,
+    },
 }

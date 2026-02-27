@@ -13,14 +13,14 @@ use serde::{Deserialize, Serialize};
 // Request types (Google generateContent via CloudCode)
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 struct CloudCodeRequest {
     model: String,
     project: String,
     request: InnerGenerateContentRequest,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct InnerGenerateContentRequest {
     contents: Vec<Content>,
@@ -61,7 +61,7 @@ struct FunctionResponsePart {
     response: serde_json::Value,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct GenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -70,13 +70,13 @@ struct GenerationConfig {
     max_output_tokens: Option<u32>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ToolSpec {
     function_declarations: Vec<FunctionDeclaration>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 struct FunctionDeclaration {
     name: String,
     description: String,
@@ -121,6 +121,13 @@ struct ResponsePart {
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
+
+/// Fallback model order matching Gemini CLI behavior:
+/// Pro models fall back to flash, flash falls back to other flash variants.
+const FALLBACK_MODELS: &[&str] = &[
+    "gemini-3-flash-preview",
+    "gemini-2.5-flash",
+];
 
 pub struct GeminiCodeAssistProvider {
     client: Client,
@@ -281,40 +288,78 @@ impl GeminiCodeAssistProvider {
             .filter(|t| !t.is_empty())
             .map(|t| Self::convert_tools(t));
 
-        let req_body = CloudCodeRequest {
-            model: self.model.clone(),
-            project: self.project.clone(),
-            request: InnerGenerateContentRequest {
-                contents,
-                system_instruction,
-                generation_config: Some(GenerationConfig {
-                    temperature: Some(0.0),
-                    max_output_tokens: Some(65536),
-                }),
-                tools: google_tools,
-            },
-        };
-
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.access_token))
-            .header("Content-Type", "application/json")
-            .header("User-Agent", "google-api-rust-client/dalang")
-            .header("X-Goog-Api-Client", "gl-rust/dalang")
-            .json(&req_body)
-            .timeout(std::time::Duration::from_secs(120))
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            return Err(anyhow!("LLM request failed with {}: {}", status, text));
+        // Build list of models to try: primary first, then fallbacks
+        let mut models_to_try: Vec<String> = vec![self.model.clone()];
+        for fb in FALLBACK_MODELS {
+            if *fb != self.model {
+                models_to_try.push(fb.to_string());
+            }
         }
 
-        let parsed: CloudCodeResponse = response.json().await?;
-        Self::parse_response(parsed)
+        let mut last_error = String::new();
+
+        for (attempt, model) in models_to_try.iter().enumerate() {
+            let req_body = CloudCodeRequest {
+                model: model.clone(),
+                project: self.project.clone(),
+                request: InnerGenerateContentRequest {
+                    contents: contents.clone(),
+                    system_instruction: system_instruction.clone(),
+                    generation_config: Some(GenerationConfig {
+                        temperature: Some(0.0),
+                        max_output_tokens: None,
+                    }),
+                    tools: google_tools.clone(),
+                },
+            };
+
+            let response = self
+                .client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", self.access_token))
+                .header("Content-Type", "application/json")
+                .header("User-Agent", "google-api-rust-client/dalang")
+                .header("X-Goog-Api-Client", "gl-rust/dalang")
+                .json(&req_body)
+                .timeout(std::time::Duration::from_secs(120))
+                .send()
+                .await?;
+
+            let status = response.status();
+
+            if status.is_success() {
+                if attempt > 0 {
+                    eprintln!(
+                        "[!] Model {} unavailable, using fallback: {}",
+                        self.model, model
+                    );
+                }
+                let parsed: CloudCodeResponse = response.json().await?;
+                return Self::parse_response(parsed);
+            }
+
+            let body = response.text().await.unwrap_or_default();
+
+            // Only retry on 429 (capacity exhausted) — other errors are fatal
+            if status.as_u16() == 429 {
+                eprintln!(
+                    "[!] Model {} returned 429 (capacity exhausted), trying next fallback...",
+                    model
+                );
+                last_error = format!("LLM request failed with {}: {}", status, body);
+                // Brief pause before trying next model
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                continue;
+            }
+
+            // Non-429 error — fail immediately
+            return Err(anyhow!("LLM request failed with {}: {}", status, body));
+        }
+
+        Err(anyhow!(
+            "All models exhausted (429). Last error: {}. Try again later or switch model with: dalang model",
+            last_error
+        ))
     }
 }
 
