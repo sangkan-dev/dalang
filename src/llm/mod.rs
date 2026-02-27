@@ -47,4 +47,14 @@ impl Message {
 pub trait LlmProvider {
     /// Sends a conversation history and returns the text response (or JSON tool call string).
     async fn send_messages(&self, messages: &[Message]) -> Result<String>;
+
+    /// Sends a conversation history with explicit tool definitions.
+    /// Default implementation falls back to regular send_messages.
+    async fn send_messages_with_tools(
+        &self,
+        messages: &[Message],
+        _tools: Vec<serde_json::Value>,
+    ) -> Result<String> {
+        self.send_messages(messages).await
+    }
 }

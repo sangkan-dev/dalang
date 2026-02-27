@@ -18,7 +18,36 @@ async fn main() -> Result<()> {
     match args.command {
         Commands::Init => {
             println!("Initializing Dalang environment...");
-            // TODO: Implement init logic
+            let skills_dir = std::path::Path::new("skills");
+            if !skills_dir.exists() {
+                std::fs::create_dir_all(skills_dir)?;
+                println!("[+] Created skills/ directory.");
+            }
+
+            let example_skill = skills_dir.join("example-nmap.md");
+            if !example_skill.exists() {
+                let content = r#"---
+name: nmap_scanner
+description: Basic port scanning using Nmap.
+tool_path: nmap
+args:
+  - "-sV"
+  - "{{target}}"
+---
+
+### ROLE
+You are a Security Auditor.
+
+### TASK
+Identify open ports and services on the target.
+
+### CONSTRAINTS
+- Sanctioned audit environment.
+"#;
+                std::fs::write(&example_skill, content)?;
+                println!("[+] Created example skill: skills/example-nmap.md");
+            }
+            println!("[✓] Initialization complete!");
         }
         Commands::Login { provider } => {
             let provider = auth::AuthProvider::from_str(&provider)?;
@@ -94,7 +123,30 @@ async fn main() -> Result<()> {
         Commands::Interact { target } => {
             println!("Starting interactive session...");
             println!("Target: {}", target);
-            // TODO: Implement interactive logic
+
+            let auth_str = auth::cli_extractor::try_all_cli_extractors()
+                .or_else(|| auth::persistence::get_access_token().ok())
+                .or_else(|| std::env::var("LLM_API_KEY").ok())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "No API key found. Please run 'dalang login' or set LLM_API_KEY."
+                    )
+                })?;
+
+            let auth = if auth_str.len() > 64 {
+                llm::AuthToken::Bearer(auth_str)
+            } else {
+                llm::AuthToken::ApiKey(auth_str)
+            };
+
+            let base_url = std::env::var("LLM_BASE_URL")
+                .unwrap_or_else(|_| "https://generativelanguage.googleapis.com/v1beta".to_string());
+            let model = std::env::var("LLM_MODEL").unwrap_or_else(|_| "gemini-1.5-pro".to_string());
+
+            let provider = llm::openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
+            let engine = core::engine::DalangEngine::new(Box::new(provider));
+
+            engine.run_interactive_loop(&target).await?;
         }
     }
 

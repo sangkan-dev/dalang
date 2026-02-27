@@ -123,3 +123,17 @@ Berikut adalah rincian Sprint Planning awal (Sprint 1-3) untuk mengimplementasik
   - LLM tidak hanya menyuap ulang seluruh _history_ chat, melainkan meringkas observasi sebelumnya ("Saya baru saja port scan, menemukan X dan Y") dan menaruhnya di slot memori _System Prompt_.
 - **[DAL-1003] - Feature - Project README & Documentation Polish**
   - Buat `README.md` utama berbahasa Inggris ringkas dan formal yang menjelaskan apa itu Dalang, cara instalasi, dependensi, dan showcase perintah `dalang scan --auto`.
+
+## Sprint 11: Addressing TODOs & Code Cleanup
+
+**Goal:** Membersihkan dan melengkapi fungsionalitas yang tertunda (_technical debt_) berupa komentar `// TODO` di dalam _codebase_, sehingga framework menjadi lebih solid dan lengkap sebelum rilis 1.0.
+
+- **[DAL-1101] - Cleanup - Implement Explicit Tools Definition (`src/llm/openai.rs`)**
+  - Saat ini _tool calling_ dikelola murni via JSON di _System Prompt_.
+  - Ekstrak abstrak `SkillDefinition` menjadi skema _Native Tool Calling_ API milik OpenAI/Anthropic/Gemini (menggunakan parameter `tools` pada JSON payload HTTP request) agar deteksi _tool_ oleh LLM lebih akurat dan mengurangi beban token di _System Prompt_.
+- **[DAL-1102] - Feature - Implement `init` Command (`src/main.rs`)**
+  - Gantikan `// TODO: Implement init logic` dengan logika pembuatan _scaffolding_ direktori awal.
+  - Perintah `dalang init` akan secara otomatis membuat folder `skills/` dan men-_generate_ file `skills/example-nmap.md` berisi template dasar, sehingga pengguna baru punya titik awal (_starting point_) yang terstandardisasi.
+- **[DAL-1103] - Feature - Implement `interact` Command (`src/main.rs`)**
+  - Gantikan `// TODO: Implement interactive logic` dengan sebuah REPL (_Read-Eval-Print Loop_) interaktif.
+  - Alih-alih mengeksekusi satu command `scan` lalu selesai, mode `interact` memungkinkan user me-maintain sebuah sesi obrolan (chat) dengan _DalangEngine_. Pengguna bisa bertanya, _"Coba kamu check port 80"_, lalu Dalang akan merespons dengan tool, dan pengguna bisa merespons lagi. Ini mirip dengan _Auto-Pilot_ tetapi bersifat _Human-in-the-Loop_ (HITL).
