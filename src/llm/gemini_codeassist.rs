@@ -226,6 +226,15 @@ impl GeminiCodeAssistProvider {
         }]
     }
 
+    /// Parse "Your quota will reset after Xs." from error body.
+    fn parse_retry_after(body: &str) -> Option<u64> {
+        // Look for pattern like "reset after 21s" or "after 5s"
+        let idx = body.find("after ")?;
+        let rest = &body[idx + 6..];
+        let num_str: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        num_str.parse().ok()
+    }
+
     /// Extract text content or tool call from the CloudCode response.
     fn parse_response(resp: CloudCodeResponse) -> Result<String> {
         let inner = resp
@@ -299,61 +308,85 @@ impl GeminiCodeAssistProvider {
         let mut last_error = String::new();
 
         for (attempt, model) in models_to_try.iter().enumerate() {
-            let req_body = CloudCodeRequest {
-                model: model.clone(),
-                project: self.project.clone(),
-                request: InnerGenerateContentRequest {
-                    contents: contents.clone(),
-                    system_instruction: system_instruction.clone(),
-                    generation_config: Some(GenerationConfig {
-                        temperature: Some(0.0),
-                        max_output_tokens: None,
-                    }),
-                    tools: google_tools.clone(),
-                },
-            };
+            // Per-model retry loop: handles RATE_LIMIT_EXCEEDED by waiting
+            const MAX_RATE_LIMIT_RETRIES: u32 = 3;
+            let mut rate_limit_retries = 0;
 
-            let response = self
-                .client
-                .post(&url)
-                .header("Authorization", format!("Bearer {}", self.access_token))
-                .header("Content-Type", "application/json")
-                .header("User-Agent", "google-api-rust-client/dalang")
-                .header("X-Goog-Api-Client", "gl-rust/dalang")
-                .json(&req_body)
-                .timeout(std::time::Duration::from_secs(120))
-                .send()
-                .await?;
+            loop {
+                let req_body = CloudCodeRequest {
+                    model: model.clone(),
+                    project: self.project.clone(),
+                    request: InnerGenerateContentRequest {
+                        contents: contents.clone(),
+                        system_instruction: system_instruction.clone(),
+                        generation_config: Some(GenerationConfig {
+                            temperature: Some(0.0),
+                            max_output_tokens: None,
+                        }),
+                        tools: google_tools.clone(),
+                    },
+                };
 
-            let status = response.status();
+                let response = self
+                    .client
+                    .post(&url)
+                    .header("Authorization", format!("Bearer {}", self.access_token))
+                    .header("Content-Type", "application/json")
+                    .header("User-Agent", "google-api-rust-client/dalang")
+                    .header("X-Goog-Api-Client", "gl-rust/dalang")
+                    .json(&req_body)
+                    .timeout(std::time::Duration::from_secs(120))
+                    .send()
+                    .await?;
 
-            if status.is_success() {
-                if attempt > 0 {
-                    eprintln!(
-                        "[!] Model {} unavailable, using fallback: {}",
-                        self.model, model
-                    );
+                let status = response.status();
+
+                if status.is_success() {
+                    if attempt > 0 {
+                        eprintln!(
+                            "[!] Model {} unavailable, using fallback: {}",
+                            self.model, model
+                        );
+                    }
+                    let parsed: CloudCodeResponse = response.json().await?;
+                    return Self::parse_response(parsed);
                 }
-                let parsed: CloudCodeResponse = response.json().await?;
-                return Self::parse_response(parsed);
+
+                let body = response.text().await.unwrap_or_default();
+
+                if status.as_u16() == 429 {
+                    // Distinguish RATE_LIMIT_EXCEEDED (wait+retry) from MODEL_CAPACITY_EXHAUSTED (fallback)
+                    let is_rate_limit = body.contains("RATE_LIMIT_EXCEEDED");
+
+                    if is_rate_limit && rate_limit_retries < MAX_RATE_LIMIT_RETRIES {
+                        // Parse wait time from "Your quota will reset after Xs."
+                        let wait_secs = Self::parse_retry_after(&body).unwrap_or(10);
+                        eprintln!(
+                            "[!] Rate limited on {}. Waiting {}s before retry ({}/{})...",
+                            model,
+                            wait_secs,
+                            rate_limit_retries + 1,
+                            MAX_RATE_LIMIT_RETRIES
+                        );
+                        tokio::time::sleep(std::time::Duration::from_secs(wait_secs + 2)).await;
+                        rate_limit_retries += 1;
+                        continue; // Retry same model
+                    }
+
+                    // MODEL_CAPACITY_EXHAUSTED or rate limit retries exhausted → try next model
+                    eprintln!(
+                        "[!] Model {} returned 429 ({}), trying next fallback...",
+                        model,
+                        if is_rate_limit { "rate limit exhausted" } else { "capacity exhausted" }
+                    );
+                    last_error = format!("LLM request failed with {}: {}", status, body);
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    break; // Move to next model
+                }
+
+                // Non-429 error — fail immediately
+                return Err(anyhow!("LLM request failed with {}: {}", status, body));
             }
-
-            let body = response.text().await.unwrap_or_default();
-
-            // Only retry on 429 (capacity exhausted) — other errors are fatal
-            if status.as_u16() == 429 {
-                eprintln!(
-                    "[!] Model {} returned 429 (capacity exhausted), trying next fallback...",
-                    model
-                );
-                last_error = format!("LLM request failed with {}: {}", status, body);
-                // Brief pause before trying next model
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                continue;
-            }
-
-            // Non-429 error — fail immediately
-            return Err(anyhow!("LLM request failed with {}: {}", status, body));
         }
 
         Err(anyhow!(
