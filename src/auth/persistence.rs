@@ -6,6 +6,8 @@ const ACCESS_TOKEN_KEY: &str = "access_token";
 const REFRESH_TOKEN_KEY: &str = "refresh_token";
 const MODEL_PREF_KEY: &str = "model_preference";
 const ACTIVE_PROVIDER_KEY: &str = "active_provider";
+const AUTH_METHOD_KEY: &str = "auth_method";
+const GCP_PROJECT_KEY: &str = "gcp_project";
 
 pub fn save_tokens(access_token: &str, refresh_token: Option<&str>) -> Result<()> {
     let entry =
@@ -83,4 +85,36 @@ pub fn get_active_provider() -> Result<String> {
     entry
         .get_password()
         .map_err(|e| anyhow!("No active provider found: {}", e))
+}
+
+pub fn save_auth_method(method: &str) -> Result<()> {
+    let entry =
+        Entry::new(SERVICE_NAME, AUTH_METHOD_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(method)
+        .map_err(|e| anyhow!("Failed to save auth method: {}", e))
+}
+
+pub fn get_auth_method() -> Result<String> {
+    let entry =
+        Entry::new(SERVICE_NAME, AUTH_METHOD_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No auth method found: {}", e))
+}
+
+pub fn save_gcp_project(project: &str) -> Result<()> {
+    let entry =
+        Entry::new(SERVICE_NAME, GCP_PROJECT_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(project)
+        .map_err(|e| anyhow!("Failed to save GCP project: {}", e))
+}
+
+pub fn get_gcp_project() -> Result<String> {
+    let entry =
+        Entry::new(SERVICE_NAME, GCP_PROJECT_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No GCP project found: {}", e))
 }

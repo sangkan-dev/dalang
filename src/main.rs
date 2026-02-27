@@ -47,14 +47,11 @@ async fn main() -> Result<()> {
             let provider = auth::AuthProvider::from_str(&provider)?;
             println!("Logging in to {}...\n", provider.as_str());
 
-            let base_url = std::env::var("LLM_BASE_URL")
-                .unwrap_or_else(|_| llm::get_default_base_url(provider.as_str()));
-
             if let Err(e) = auth::persistence::save_active_provider(provider.as_str()) {
                 println!("[-] Failed to save active provider: {}", e);
             }
 
-            use dialoguer::{Password, Select, theme::ColorfulTheme};
+            use dialoguer::{Input, Password, Select, theme::ColorfulTheme};
 
             match provider {
                 auth::AuthProvider::Gemini => {
@@ -72,6 +69,7 @@ async fn main() -> Result<()> {
 
                     match selection {
                         0 => {
+                            // ── API Key ──
                             let api_key = Password::with_theme(&ColorfulTheme::default())
                                 .with_prompt("Enter your Gemini API Key")
                                 .interact()?;
@@ -79,9 +77,12 @@ async fn main() -> Result<()> {
                                 return Err(anyhow::anyhow!("API Key cannot be empty."));
                             }
                             auth::persistence::save_tokens(api_key.trim(), None)?;
+                            let _ = auth::persistence::save_auth_method("apikey");
                             println!("[+] API Key saved to keyring!");
+
+                            let base_url = llm::get_default_base_url("gemini");
                             interactive_model_selection(
-                                provider.as_str(),
+                                "gemini",
                                 &base_url,
                                 api_key.trim(),
                                 "apikey",
@@ -89,16 +90,33 @@ async fn main() -> Result<()> {
                             .await;
                         }
                         1 => {
+                            // ── Gemini CLI token extraction ──
                             println!("[*] Looking for Gemini CLI credentials...");
                             match auth::cli_extractor::extract_gemini_cli_token() {
                                 Ok(token) => {
                                     auth::persistence::save_tokens(&token, None)?;
+                                    let _ = auth::persistence::save_auth_method("bearer");
                                     println!("[+] Gemini CLI token extracted and saved!");
+
+                                    // Prompt for GCP project ID (required for Vertex AI)
+                                    println!("\n[!] Vertex AI endpoint requires a GCP project ID.");
+                                    let project: String =
+                                        Input::with_theme(&ColorfulTheme::default())
+                                            .with_prompt("Enter your GCP Project ID")
+                                            .interact_text()?;
+
+                                    if project.trim().is_empty() {
+                                        return Err(anyhow::anyhow!(
+                                            "GCP Project ID cannot be empty."
+                                        ));
+                                    }
+                                    let _ = auth::persistence::save_gcp_project(project.trim());
+                                    println!("[+] GCP Project saved: {}", project.trim());
+
+                                    let base_url =
+                                        llm::get_vertex_base_url(project.trim(), "us-central1");
                                     interactive_model_selection(
-                                        provider.as_str(),
-                                        &base_url,
-                                        &token,
-                                        "bearer",
+                                        "gemini", &base_url, &token, "bearer",
                                     )
                                     .await;
                                 }
@@ -114,19 +132,36 @@ async fn main() -> Result<()> {
                             }
                         }
                         2 => {
+                            // ── gcloud ADC ──
                             println!("[*] Extracting token from gcloud...");
                             match auth::cli_extractor::extract_gcloud_token() {
                                 Ok(token) => {
                                     auth::persistence::save_tokens(&token, None)?;
+                                    let _ = auth::persistence::save_auth_method("bearer");
                                     println!("[+] gcloud ADC token extracted and saved!");
                                     println!(
                                         "[!] Note: ADC tokens expire. Re-run login to refresh."
                                     );
+
+                                    // Prompt for GCP project ID
+                                    println!("\n[!] Vertex AI endpoint requires a GCP project ID.");
+                                    let project: String =
+                                        Input::with_theme(&ColorfulTheme::default())
+                                            .with_prompt("Enter your GCP Project ID")
+                                            .interact_text()?;
+
+                                    if project.trim().is_empty() {
+                                        return Err(anyhow::anyhow!(
+                                            "GCP Project ID cannot be empty."
+                                        ));
+                                    }
+                                    let _ = auth::persistence::save_gcp_project(project.trim());
+                                    println!("[+] GCP Project saved: {}", project.trim());
+
+                                    let base_url =
+                                        llm::get_vertex_base_url(project.trim(), "us-central1");
                                     interactive_model_selection(
-                                        provider.as_str(),
-                                        &base_url,
-                                        &token,
-                                        "bearer",
+                                        "gemini", &base_url, &token, "bearer",
                                     )
                                     .await;
                                 }
@@ -161,6 +196,8 @@ async fn main() -> Result<()> {
                         .items(&methods)
                         .interact()?;
 
+                    let base_url = llm::get_default_base_url(provider.as_str());
+
                     match selection {
                         0 => {
                             let api_key = Password::with_theme(&ColorfulTheme::default())
@@ -170,6 +207,7 @@ async fn main() -> Result<()> {
                                 return Err(anyhow::anyhow!("API Key cannot be empty."));
                             }
                             auth::persistence::save_tokens(api_key.trim(), None)?;
+                            let _ = auth::persistence::save_auth_method("apikey");
                             println!("[+] API Key saved to keyring!");
                             interactive_model_selection(
                                 provider.as_str(),
@@ -182,6 +220,7 @@ async fn main() -> Result<()> {
                         1 => match std::env::var("LLM_API_KEY") {
                             Ok(key) if !key.trim().is_empty() => {
                                 auth::persistence::save_tokens(key.trim(), None)?;
+                                let _ = auth::persistence::save_auth_method("apikey");
                                 println!("[+] LLM_API_KEY imported and saved to keyring!");
                                 interactive_model_selection(
                                     provider.as_str(),
@@ -214,19 +253,7 @@ async fn main() -> Result<()> {
                 println!("Skills: {}", skills.as_deref().unwrap_or("none"));
             }
 
-            let auth = resolve_auth_token();
-
-            let active_provider =
-                auth::persistence::get_active_provider().unwrap_or_else(|_| "gemini".to_string());
-            let default_base_url = llm::get_default_base_url(&active_provider);
-            let default_model = llm::get_default_model(&active_provider);
-
-            let base_url = std::env::var("LLM_BASE_URL").unwrap_or(default_base_url);
-            let model = std::env::var("LLM_MODEL")
-                .or_else(|_| auth::persistence::get_model_preference())
-                .unwrap_or(default_model);
-
-            println!("[*] Using Provider: {} | Model: {}", active_provider, model);
+            let (auth, base_url, model) = resolve_runtime_config();
 
             let provider = llm::openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
             let engine = core::engine::DalangEngine::new(Box::new(provider));
@@ -243,24 +270,12 @@ async fn main() -> Result<()> {
             println!("Starting interactive session...");
             println!("Target: {}", target);
 
-            let auth = resolve_auth_token();
+            let (auth, base_url, model) = resolve_runtime_config();
             if matches!(auth, llm::AuthToken::None) {
                 return Err(anyhow::anyhow!(
                     "No API key found. Please run 'dalang login' or set LLM_API_KEY."
                 ));
             }
-
-            let active_provider =
-                auth::persistence::get_active_provider().unwrap_or_else(|_| "gemini".to_string());
-            let default_base_url = llm::get_default_base_url(&active_provider);
-            let default_model = llm::get_default_model(&active_provider);
-
-            let base_url = std::env::var("LLM_BASE_URL").unwrap_or(default_base_url);
-            let model = std::env::var("LLM_MODEL")
-                .or_else(|_| auth::persistence::get_model_preference())
-                .unwrap_or(default_model);
-
-            println!("[*] Using Provider: {} | Model: {}", active_provider, model);
 
             let provider = llm::openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
             let engine = core::engine::DalangEngine::new(Box::new(provider));
@@ -272,18 +287,59 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn resolve_auth_token() -> llm::AuthToken {
-    if let Some(token) = auth::cli_extractor::try_all_cli_extractors() {
-        return llm::AuthToken::Bearer(token);
-    }
+/// Resolve auth token, base URL, and model based on stored provider + auth method.
+fn resolve_runtime_config() -> (llm::AuthToken, String, String) {
+    let active_provider =
+        auth::persistence::get_active_provider().unwrap_or_else(|_| "gemini".to_string());
+    let auth_method = auth::persistence::get_auth_method().unwrap_or_else(|_| "apikey".to_string());
 
+    // Resolve auth token
+    let auth = resolve_auth_token(&auth_method);
+
+    // Resolve base URL — Vertex AI for bearer, standard for API Key
+    let base_url = if auth_method == "bearer"
+        && (active_provider == "gemini" || active_provider == "google")
+    {
+        if let Ok(project) = auth::persistence::get_gcp_project() {
+            llm::get_vertex_base_url(&project, "us-central1")
+        } else {
+            println!("[!] GCP project not set. Run 'dalang login --provider gemini' to configure.");
+            llm::get_default_base_url(&active_provider)
+        }
+    } else {
+        std::env::var("LLM_BASE_URL")
+            .unwrap_or_else(|_| llm::get_default_base_url(&active_provider))
+    };
+
+    // Resolve model
+    let model = std::env::var("LLM_MODEL")
+        .or_else(|_| auth::persistence::get_model_preference())
+        .unwrap_or_else(|_| llm::get_default_model(&active_provider));
+
+    println!(
+        "[*] Using Provider: {} | Model: {} | Auth: {}",
+        active_provider, model, auth_method
+    );
+
+    (auth, base_url, model)
+}
+
+fn resolve_auth_token(auth_method: &str) -> llm::AuthToken {
+    // Priority: Keyring -> Env -> CLI Extractor -> None
     if let Ok(token) = auth::persistence::get_access_token() {
         println!("[+] Using stored session from keyring");
-        return llm::AuthToken::ApiKey(token);
+        return match auth_method {
+            "bearer" => llm::AuthToken::Bearer(token),
+            _ => llm::AuthToken::ApiKey(token),
+        };
     }
 
     if let Ok(key) = std::env::var("LLM_API_KEY") {
         return llm::AuthToken::ApiKey(key);
+    }
+
+    if let Some(token) = auth::cli_extractor::try_all_cli_extractors() {
+        return llm::AuthToken::Bearer(token);
     }
 
     println!("[!] No active session found. Please run 'dalang login' or set LLM_API_KEY");
@@ -306,7 +362,6 @@ async fn interactive_model_selection(
 
     let mut models: Vec<String> = Vec::new();
 
-    // Try fetching from API first
     if let Ok(llm_provider) = llm::openai::OpenAiCompatibleProvider::new(
         base_url.to_string(),
         "dummy".to_string(),
@@ -318,7 +373,7 @@ async fn interactive_model_selection(
         }
     }
 
-    // Fallback: curated model list when API fetch fails (common with OAuth tokens)
+    // Fallback: curated model list when API fetch fails
     if models.is_empty() {
         println!("[!] Could not fetch models from API. Showing curated list.");
         models = get_fallback_models(provider_name);
