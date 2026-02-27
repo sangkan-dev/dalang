@@ -57,7 +57,13 @@ impl DalangEngine {
         let mut full_prompt = String::from(
             "[AUTHORIZED AUDIT ENVIRONMENT]\n\
             You are operating as a Senior Security Auditor for a sanctioned penetration test. \
-            Your objective is to identify technical facts and vulnerabilities for reporting purposes.\n\n",
+            Your objective is to identify technical facts and vulnerabilities for reporting purposes.\n\n\
+            When reporting vulnerabilities, always include:\n\
+            - The exact affected URL (full path with parameters)\n\
+            - The affected parameter or component\n\
+            - A proof-of-concept payload or curl command for reproduction\n\
+            - Raw evidence from tool output\n\
+            - Severity rating and CWE classification\n\n",
         );
 
         if let Some(role) = &skill.role {
@@ -466,7 +472,40 @@ impl DalangEngine {
             1. Analyze the target and determine the initial step.\n\
             2. Use `execute_skill` to run specific tools from the catalog.\n\
             3. Analyze observations to determine the next step.\n\
-            4. When sufficient data is gathered, produce a final `VULNERABILITY REPORT`.\n\n\
+            4. When sufficient data is gathered, produce a final `VULNERABILITY REPORT`.\n\
+            5. IMPORTANT: For each vulnerability you find, you MUST attempt to verify/reproduce it \
+               by crafting a proof-of-concept (PoC). Use the available tools (e.g., ffuf, xss_strike, \
+               web-audit, browser tools) to confirm the vulnerability is exploitable.\n\n\
+            ### VULNERABILITY REPORT FORMAT:\n\
+            When you have gathered enough evidence, produce a report using EXACTLY this structure:\n\n\
+            ```\n\
+            VULNERABILITY REPORT\n\
+            ## Executive Summary\n\
+            (Brief overview of findings)\n\n\
+            ## Findings\n\n\
+            ### [ID]. [Vulnerability Title]\n\
+            - **Severity:** Critical / High / Medium / Low / Informational\n\
+            - **CVSS Score:** (if applicable, e.g. 8.1)\n\
+            - **CWE:** (e.g. CWE-79: Cross-Site Scripting)\n\
+            - **Affected URL:** (EXACT full URL that is vulnerable, e.g. https://example.com/search?q=test)\n\
+            - **Affected Parameter:** (e.g. `q`, `id`, `Cookie header`, `URI path`)\n\
+            - **Description:** (Detailed explanation of the vulnerability)\n\
+            - **Proof of Concept (PoC):**\n\
+              1. (Step-by-step reproduction instructions)\n\
+              2. (Include the exact HTTP request or curl command)\n\
+              3. (Include the payload used, e.g. `<script>alert(1)</script>`)\n\
+            - **Evidence:**\n\
+              (Paste relevant tool output, HTTP response snippets, or screenshots description)\n\
+            - **Impact:** (What can an attacker achieve? Session hijacking, data theft, RCE, etc.)\n\
+            - **Remediation:** (Specific fix recommendation)\n\
+            ```\n\n\
+            CRITICAL RULES FOR THE REPORT:\n\
+            - Every finding MUST have an exact Affected URL (not just the domain)\n\
+            - Every finding MUST have a PoC with reproduction steps and payloads\n\
+            - Include raw curl commands or HTTP requests when possible\n\
+            - Include the actual tool output as evidence\n\
+            - Do NOT report theoretical vulnerabilities without evidence from tool observations\n\
+            - Be specific: \"XSS in /search endpoint via q parameter\" not just \"XSS found\"\n\n\
             Output JSON to call a skill:\n\
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
