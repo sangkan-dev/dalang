@@ -36,3 +36,10 @@ Untuk mendevelop "Dalang" secara efektif dan terstruktur sesuai PRD dan Dev Rule
 - **Tugas Spesifik:**
   - Melakukan instalasi package / crate (contoh: `cargo add tokio -F full`, `cargo add anyhow`, `cargo add serde -F derive`).
   - Mengeksekusi command utilitas pendukung seperti `nmap` dummy local untuk menguji integrasi Modul Executor pada fase akhir.
+
+## 5. Universal Tool Ecosystem Integration (Native Execution)
+
+- **Kemampuan:** Menjalan tool-tool cybersecurity open source bawaan sistem (`bring-your-own-tools` seperti `nmap`, `ffuf`, `nuclei`, dll) melampaui batasan dummy tool dan API.
+- **Tugas Spesifik:**
+  - Menyiapkan environment di OS/Docker lokal untuk mengetes wrapping perintah kompleks. LLM Agent Dalang tidak memanggil API SaaS pihak ketiga, melainkan menyusun argumen CLI (misal: `nmap -sV -p- <target>`) via OS shell langsung menuju eksekutor Rust lokal.
+  - Membantu menyusun file `.md` untuk skill agar framework Dalang tahu cara memanggil suatu eksekusi, mengekstrak std output (stdout) raw-nya, dan memparsingnya tanpa intervensi kode back-end yang tebal.

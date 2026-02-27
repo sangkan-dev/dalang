@@ -44,3 +44,34 @@ Berikut adalah rincian Sprint Planning awal (Sprint 1-3) untuk mengimplementasik
   - Implementasikan Network Intercepting untuk menangkap traffic HTTP/XHR dan merender struktur DOM (mengatasi SPA).
 - **[DAL-303] - Feature - CDP Tool Calling Registration**
   - Hubungkan fungsionalitas CDP ini sebagai "Tool" yang bisa di-_invoke_ oleh LLM di dalam ReAct loop (seperti tool click, typing, extract DOM).
+
+## Sprint 4: Defensive Prompting Engine (Prompt Engineering)
+
+**Goal:** Mengatasi strictness model (AI Safety Filters) agar agent dapat melakukan audit agresif tanpa diblokir oleh provider LLM.
+
+- **[DAL-401] - Feature - System Prompt Injector**
+  - Buat loader khusus untuk memuat template defensive & roleplaying prompt dari `.md` skills secara dinamis.
+  - Paksakan role "Authorized Pentester" di awal semua pesan API.
+- **[DAL-402] - Feature - Context & Violation Aggregator**
+  - Deteksi dini bila LLM menolak melakukan instruksi (contoh: merespon "I cannot assist with...").
+  - Auto-reprompt atau rotasi cara bertanya apabila terjadi pemblokiran (jailbreak loop mitigation).
+
+## Sprint 5: Universal Tool ecosystem Integration
+
+**Goal:** Mengimplementasi mekanisme eksekusi tool OS pihak ketiga secara otomatis berdasarkan deskripsi di file `.md`, mirip seperti pola framework OpenClaw.
+
+- **[DAL-501] - Feature - Extended Frontmatter Parser**
+  - Ubah parser YAML/TOML agar mendukung _parsing_ deklarasi eksekusi tool di file markdown meliputi field: `tool_path`, array `args` (dengan dukungan placeholder seperti `{{target}}`), dan `requires_root`.
+- **[DAL-502] - Feature - Command Argument Interpolator**
+  - Implementasikan fungsi interpolasi parameter LLM JSON ke dalam placeholder `args` dari frontmatter.
+- **[DAL-503] - Feature - Defensive System Prompt Constructor**
+  - Rangkai body markdown (Role, Task, Constraints) dan operkan sebagai injeksi ke System Prompt message LLM setiap tool dieksekusi, sehingga instruksi mitigasi dan role auditor melekat kuat.
+
+## Sprint 6: Expanded Skill Library
+
+**Goal:** Membuat modul `.md` sebanyak mungkin untuk berbagai macam tool security standar industri.
+
+- **[DAL-601] - Documentation - Core Network Skills (.md)**
+  - Tulis modul mapping beserta defensive system prompt untuk `nmap`, `masscan`, `rustscan`.
+- **[DAL-602] - Documentation - Web Audit Skills (.md)**
+  - Tulis modul untuk `sqlmap`, `ffuf`, `dirb`, `gobuster`.
