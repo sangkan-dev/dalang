@@ -75,3 +75,37 @@ Berikut adalah rincian Sprint Planning awal (Sprint 1-3) untuk mengimplementasik
   - Tulis modul mapping beserta defensive system prompt untuk `nmap`, `masscan`, `rustscan`.
 - **[DAL-602] - Documentation - Web Audit Skills (.md)**
   - Tulis modul untuk `sqlmap`, `ffuf`, `dirb`, `gobuster`.
+
+## Sprint 7: Local Authentication & Multi-Provider OAuth Integration
+
+**Goal:** Memudahkan _Developer Experience_ dalam menggunakan berbagai provider (Gemini, Anthropic, OpenAI) dengan memungkinkan login via OAuth (Browser Callback) atau membaca sesi CLI dari mesin host (misal `gemini-cli`, `gcloud`).
+
+- **[DAL-701] - Feature - CLI Session Token Extractor**
+  - Implementasikan rust _helper_ yang sanggup mengeksekusi command (seperti `gcloud auth print-access-token` atau membaca config `gemini-cli`) dan meretas sesi yang sedang hidup.
+- **[DAL-702] - Feature - Universal OAuth Web Server Callback**
+  - Buat handler `localhost` sederhana di port khusus (misal 38343) untuk menerima `code` oauth dari Google, Anthropic, atau provider lain dan melakukan token exchange.
+- **[DAL-703] - Feature - Auth Persistence**
+  - Buat mekanisme penyimpan _access_token_ dan _refresh_token_ secara aman (misal `keyring` rust) di `.dalang/credentials.json` untuk mencegah autentikasi manual yang berulang.
+
+## Sprint 8: Autonomous Orchestrator (Auto-Pilot Mode)
+
+**Goal:** Mengizinkan engine melakukan _chaining tool_ secara otomatis tanpa perlu di-skrip satu per satu oleh pengguna, mengubah fungsi command `dalang scan` dari eksekusi statis menjadi agen mandiri sepenuhnya.
+
+- **[DAL-801] - Feature - Skill Library Cataloger**
+  - Modifikasi _core engine_ agar memuat (load) seluruh direktori `skills/` di awal aplikasi dan mengabstraksi semuanya ke dalam _sistem prompt_ utama yang luas ("Berikut adalah Tool yang kamu miliki dan tujuannya: <List>").
+- **[DAL-802] - Feature - High-Level ReAct Loop (Meta Orchestration)**
+  - Bangun loop level-atas di mana LLM memutuskan _Path_ serangan secara runut.
+  - LLM tidak hanya me-_return_ JSON untuk OS command, tapi JSON untuk "mengamankan observasi" dan "memilih skill berikutnya", e.g., `{"next_action": "use_nmap"}` -> _loop internal Nmap jalan_ -> kembali ke _loop utama_ -> `{"next_action": "use_ffuf_from_nmap_port80"}`.
+- **[DAL-803] - Feature - Vulnerability Report Aggregation**
+  - Sediakan mekanisme pengumpul fakta untuk akhir skenario, merepresentasikan hasil celah utuh secara tertata di Terminal.
+
+## Sprint 9: Robust Skill Meta-Library
+
+**Goal:** Memanfaatkan _framework_ Autonomous Dalang dengan memproduksi file `.md` (_skills_) secara masif dan mendalam untuk menangani target infrastruktur skala enterprise.
+
+- **[DAL-901] - Documentation - Cloud & Container Auditing**
+  - Tambahkan skill `.md` khusus infrastruktur modern: `kubectl_audit`, `aws_cli_enum`, `docker_escape_check`.
+- **[DAL-902] - Documentation - Advanced Web Exploitation**
+  - Tambahkan skill `.md` lanjutan: `wpscan`, `joomscan`, `nikto_scanner`, `xss_strike`.
+- **[DAL-903] - Documentation - Network Protocols Deep Dive**
+  - Tambahkan skill untuk service spesifik: `hydra_bruteforce`, `smbclient_enum`, `snmpwalk_gather`.

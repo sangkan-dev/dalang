@@ -13,6 +13,13 @@ pub enum Commands {
     /// Initialize the Dalang environment
     Init,
 
+    /// Login to an LLM provider (Google/Gemini, Anthropic, OpenAI)
+    Login {
+        /// Provider name (gemini, anthropic, openai)
+        #[arg(short, long)]
+        provider: String,
+    },
+
     /// Run an automated scan against a target
     Scan {
         /// Target URL or IP to scan
@@ -21,7 +28,11 @@ pub enum Commands {
 
         /// Comma-separated list of skills to execute (e.g., web-basic,nmap-port)
         #[arg(short, long)]
-        skills: String,
+        skills: Option<String>,
+
+        /// Enable Autonomous Auto-Pilot mode (ignores --skills)
+        #[arg(short, long, default_value_t = false)]
+        auto: bool,
     },
 
     /// Start an interactive / copilot mode session

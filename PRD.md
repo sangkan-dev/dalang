@@ -18,8 +18,9 @@ Tujuan utama Dalang bukan sekadar menjalankan tool otomasi, namun meniru jalan p
 3. **CDP Web Crawler**
    - Integrasi headless browser secara fungsional menggunakan Chrome DevTools Protocol (CDP).
    - Memungkinkan crawler untuk melakukan bypass terhadap client-side rendering (SPA), menangkap traffic API/jaringan lewat interceptor, menyusun peta struktur DOM, dan mendeteksi injeksi kompleks (seperti DOM-based XSS) secara realistis seolah-olah dieksekusi oleh user asli.
-4. **LLM Agnostic API**
-   - Dirancang arsitektur modular yang mendukung berbagai provider LLM (seperti OpenAI (API & Oauth), Anthropic (API & Oauth), Gemini (API & Oauth), maupun open-source model lokal via Ollama/vLLM).
+4. **LLM Agnostic API & Secure Authentication**
+   - Dirancang arsitektur modular yang mendukung berbagai provider LLM (seperti OpenAI, Anthropic, Gemini, Ollama/vLLM).
+   - Mendukung autentikasi _OAuth Callback_ dan deteksi token kredensial CLI (_CLI Session Hijacking_, misal mendeteksi token `gcloud` atau `gemini-cli`), sehingga user tidak perlu mengatur _raw API Key_ secara manual setiap saat.
    - Menyediakan layer abstraksi komunikasi yang memungkinkan pengguna menukar otak AI backend tanpa harus mengubah core engine Dalang.
 5. **Defensive Prompting Layer (Bypass Strictness AI)**
    - Karena standar LLM (terutama model terkelola komersial) sangat berhati-hati merespon prompt yang berkaitan dengan "finding vulnerabilities" (Safety Filters), Dalang memiliki mekanisme internal _Defensive Prompting & Roleplay Framing_.
@@ -27,6 +28,9 @@ Tujuan utama Dalang bukan sekadar menjalankan tool otomasi, namun meniru jalan p
 6. **Universal Native Tool Execution**
    - Dalang dapat memerintahkan sistem OS secara langsung untuk mengeksekusi utilitas eksternal yang sudah terinstal di komputer pengguna (seperti `nmap`, `ffuf`, `hydra`, dsb).
    - Aturan cara menggunakan sebuah external tool, output formatnya, dan maksud tool tersebut secara keseluruhan digambarkan ke dalam bentuk deskripsi Markdown (_Skill_), sehingga mirip dengan platform automasi security universal yang mampu di-extend tanpa mendevelop kode analyzer tambahan.
+7. **Autonomous Skill Orchestration (Auto-Pilot)**
+   - Berbeda dengan sekadar pemrosesan satu _tool_ statis, Dalang dirancang dengan arsitektur orkestrasi di mana AI dapat bekerja sepenuhnya otonom.
+   - Hanya dengan menerima URL/IP target, Dalang akan membaca _metadata_ dari direktori `skills/*.md` dan merangkai (_chaining_) metodenya sendiri. Misalnya, output Nmap mendeteksi web server, AI secara dinamis akan memanggil skill _ffuf_ atau _sqlmap_ selanjutnya hingga menemukan celah.
 
 ## Architecture & Tech Stack
 
@@ -48,15 +52,23 @@ Antarmuka utama untuk Dalang adalah berbasis Command Line Interface (CLI):
 
    _Menyiapkan environment awal, membuat folder `.dalang` di direktori lokal untuk menyimpan konfigurasi kredensial (keys LLM) dan local custom Skills._
 
-2. **Run Automated Scan:**
+2. **Run Guided Scan:**
 
    ```bash
    dalang scan --target https://example.com --skills web-basic,nmap-port
    ```
 
-   _Mode utama. Agent membaca task, mencari file skill yang relevan, melakukan context reasoning, lalu memerintahkan crawler atau terminal OS untuk menggali kerentanan selangkah demi selangkah._
+   _Mode spesifik di mana user mendikte skill apa yang boleh dipakai oleh Agent._
 
-3. **Interactive / Copilot Mode:**
+3. **Run Autonomous Scan (Auto-Pilot):**
+
+   ```bash
+   dalang scan --target https://example.com --auto
+   ```
+
+   _Mode utama auto-pilot. Agent menganalisis target, memilih skill secara mandiri dan iteratif dari folder `skills/`, serta mengeksplorasi attack surface dari awal enumerasi hingga eksploitasi dan pembuatan report._
+
+4. **Interactive / Copilot Mode:**
    ```bash
    dalang interact --target https://example.com
    ```

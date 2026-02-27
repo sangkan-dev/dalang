@@ -20,6 +20,46 @@ pub struct SkillDefinition {
     pub constraints: Option<String>,
 }
 
+/// Memuat seluruh skill dari direktori standar `./skills`
+pub fn load_all_skills() -> anyhow::Result<Vec<SkillDefinition>> {
+    let mut skills = Vec::new();
+    let skills_dir = std::path::Path::new("skills");
+
+    if !skills_dir.exists() {
+        return Ok(skills);
+    }
+
+    for entry in std::fs::read_dir(skills_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) == Some("md") {
+            let content = std::fs::read_to_string(&path)?;
+            if let Ok(skill) = parse_skill_content(&content) {
+                skills.push(skill);
+            }
+        }
+    }
+
+    Ok(skills)
+}
+
+/// Menghasilkan string katalog berisi informasi seluruh skill untuk LLM Meta-Prompt
+pub fn generate_skills_catalog_prompt(skills: &[SkillDefinition]) -> String {
+    let mut prompt = String::from("BERIKUT ADALAH DAFTAR SKILL (TOOL) YANG ANDA MILIKI:\n\n");
+
+    for (i, skill) in skills.iter().enumerate() {
+        prompt.push_str(&format!(
+            "{}. `{}`: {}\n",
+            i + 1,
+            skill.name,
+            skill.description
+        ));
+    }
+
+    prompt.push_str("\nAnda dapat memanggil tool ini menggunakan fungsi `execute_skill` dengan menyertakan `skill_name`.");
+    prompt
+}
+
 /// Parse a markdown file with YAML frontmatter to extract the skill definition
 pub fn parse_skill(path: &Path) -> Result<SkillDefinition> {
     let content = fs::read_to_string(path)?;
