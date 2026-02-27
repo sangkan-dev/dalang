@@ -1,5 +1,6 @@
 use crate::cdp::browser::DalangBrowser;
-use crate::core::safety::is_safety_refusal;
+use crate::core::memory::ContextManager;
+use crate::core::safety::{is_clean_argument, is_safety_refusal};
 use crate::core::tool_call::{build_executor_args, parse_llm_tool_call};
 use crate::executor::execute_safe_command;
 use crate::llm::{LlmProvider, Message};
@@ -289,6 +290,8 @@ impl DalangEngine {
             target, skills_catalog
         );
 
+        let mut memory = ContextManager::new();
+
         let mut messages = vec![
             Message::system(&system_prompt),
             Message::user(&format!(
@@ -307,6 +310,16 @@ impl DalangEngine {
                 "\n[...] Strategic Reasoning (Iteration {}/{})...",
                 i, max_iterations
             );
+
+            // Inject Memory Summary to the last user message
+            if i > 1 {
+                let summary = memory.get_summary_prompt();
+                if let Some(msg) = messages.last_mut() {
+                    if msg.role == "user" {
+                        msg.content = format!("{}\n\n{}", summary, msg.content);
+                    }
+                }
+            }
 
             let response_text = self.llm.send_messages(&messages).await?;
 
@@ -351,7 +364,31 @@ impl DalangEngine {
                         // Execute the skill logic (simplified: for now we just run its native tool if exists)
                         if let Some(tool_path) = &skill_def.tool_path {
                             let raw_args = skill_def.args.as_ref().cloned().unwrap_or_default();
-                            let interpolated = self.interpolate_args(&raw_args, target);
+                            let mut interpolated = self.interpolate_args(&raw_args, target);
+
+                            // SPRINT 10: Handle Dynamic Argument Injection
+                            if let Some(custom_args_val) = tool_call.arguments.get("custom_args") {
+                                if let Some(custom_args_array) = custom_args_val.as_array() {
+                                    let mut additions = Vec::new();
+                                    for v in custom_args_array {
+                                        if let Some(s) = v.as_str() {
+                                            additions.push(s.to_string());
+                                        }
+                                    }
+
+                                    if is_clean_argument(&additions) {
+                                        println!(
+                                            "    [+] AI injected {} custom arguments",
+                                            additions.len()
+                                        );
+                                        interpolated.extend(additions);
+                                    } else {
+                                        println!(
+                                            "    [!] AI injected UNSAFE arguments. Blocking additions."
+                                        );
+                                    }
+                                }
+                            }
 
                             println!("    $ {} {}", tool_path, interpolated.join(" "));
 
@@ -374,6 +411,14 @@ impl DalangEngine {
                                         obs.push_str(&format!("STDERR:\n{}\n", stderr));
                                     }
                                     println!("[<] Observation received ({} bytes)", obs.len());
+
+                                    // SPRINT 10: Store in Persistent Memory
+                                    memory.add_observation(format!(
+                                        "Skill `{}` executed. Found {} lines of output.",
+                                        skill_name,
+                                        stdout.lines().count()
+                                    ));
+
                                     messages.push(Message::user(&format!("Observation:\n{}", obs)));
                                 }
                                 Err(e) => {

@@ -107,5 +107,19 @@ Berikut adalah rincian Sprint Planning awal (Sprint 1-3) untuk mengimplementasik
   - Tambahkan skill `.md` khusus infrastruktur modern: `kubectl_audit`, `aws_cli_enum`, `docker_escape_check`.
 - **[DAL-902] - Documentation - Advanced Web Exploitation**
   - Tambahkan skill `.md` lanjutan: `wpscan`, `joomscan`, `nikto_scanner`, `xss_strike`.
-- **[DAL-903] - Documentation - Network Protocols Deep Dive**
+- [DAL-903] - Documentation - Network Protocols Deep Dive
   - Tambahkan skill untuk service spesifik: `hydra_bruteforce`, `smbclient_enum`, `snmpwalk_gather`.
+
+## Sprint 10: Advanced Auto-Pilot & Persistent Context Memory
+
+**Goal:** Memaksimalkan fleksibilitas agen otonom dengan mengizinkan AI membentuk argumen command sendiri di atas path tool dasar, serta mengimplementasikan _Persistent Context_ (memori jangka panjang) agar agen tidak kehilangan orientasi logis di tengah operasi multi-tahap.
+
+- **[DAL-1001] - Feature - Dynamic Argument Injection (Free-form Args)**
+  - Modifikasi skema _Meta-Tool_ `execute_skill` agar selain menerima `skill_name`, ia juga menerima array string tambahan opsional `custom_args`.
+  - Di layer _executor_, gabungkan argumen statis dari `.md` (misal wajib `xsstrike`) dengan argumen bentukan AI (misal `--crawl -l 3 --skip-dom`).
+  - Terapkan validasi ketat/blacklist (misal blokir arg `&&` atau `;` untuk mencegah AI melakukan command injection pada OS host).
+- **[DAL-1002] - Feature - Persistent Context Memory Engine**
+  - Buat representasi memori (seperti `ContextManager`) di `src/core/memory.rs` yang menyimpan jejak observasi ringkas (bukan seluruh raw JSON/HTML) yang bisa bertahan antar-sesi atau antar-loop.
+  - LLM tidak hanya menyuap ulang seluruh _history_ chat, melainkan meringkas observasi sebelumnya ("Saya baru saja port scan, menemukan X dan Y") dan menaruhnya di slot memori _System Prompt_.
+- **[DAL-1003] - Feature - Project README & Documentation Polish**
+  - Buat `README.md` utama berbahasa Inggris ringkas dan formal yang menjelaskan apa itu Dalang, cara instalasi, dependensi, dan showcase perintah `dalang scan --auto`.
