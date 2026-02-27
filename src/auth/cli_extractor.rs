@@ -18,23 +18,34 @@ pub fn extract_gcloud_token() -> Result<String> {
     Err(anyhow!("Gcloud token not found or not logged in"))
 }
 
-/// Mencoba mengekstrak token dari konfigurasi gemini-cli (asumsi lokasi standar).
+/// Extract token from Gemini CLI credentials (checks multiple known locations).
 pub fn extract_gemini_cli_token() -> Result<String> {
-    // Lokasi standar gemini-cli biasanya di ~/.gemini/credentials.json atau serupa
-    let mut path = dirs::home_dir().ok_or_else(|| anyhow!("Could not find home directory"))?;
-    path.push(".gemini");
-    path.push("credentials.json");
+    let home = dirs::home_dir().ok_or_else(|| anyhow!("Could not find home directory"))?;
 
-    if path.exists() {
-        let content = std::fs::read_to_string(path)?;
-        // Sederhananya kita cari field access_token jika formatnya JSON
-        let json: serde_json::Value = serde_json::from_str(&content)?;
-        if let Some(token) = json.get("access_token").and_then(|v| v.as_str()) {
-            return Ok(token.to_string());
+    // Known credential file locations for gemini / gemini-cli
+    let candidates = [
+        home.join(".gemini/oauth_creds.json"), // Gemini CLI (google-gemini/gemini-cli)
+        home.join(".gemini/credentials.json"), // Alternative location
+    ];
+
+    for path in &candidates {
+        if path.exists() {
+            let content = std::fs::read_to_string(path)?;
+            let json: serde_json::Value = serde_json::from_str(&content)?;
+            if let Some(token) = json.get("access_token").and_then(|v| v.as_str()) {
+                if !token.is_empty() {
+                    println!("[+] Found credentials at: {}", path.display());
+                    return Ok(token.to_string());
+                }
+            }
         }
     }
 
-    Err(anyhow!("Gemini-CLI token not found"))
+    let checked: Vec<String> = candidates.iter().map(|p| p.display().to_string()).collect();
+    Err(anyhow!(
+        "Gemini CLI token not found. Checked:\n    - {}",
+        checked.join("\n    - ")
+    ))
 }
 
 /// Fungsi wrapper untuk mencoba semua kemungkinan CLI extraction.
