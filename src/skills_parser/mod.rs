@@ -7,6 +7,9 @@ use std::path::Path;
 pub struct SkillDefinition {
     pub name: String,
     pub description: String,
+    pub tool_path: Option<String>,
+    pub args: Option<Vec<String>>,
+    pub requires_root: Option<bool>,
     #[serde(skip)]
     pub system_prompt: String,
     #[serde(skip)]
@@ -112,6 +115,9 @@ mod tests {
         let content = r#"---
 name: nmap_scanner
 description: Port scan
+tool_path: /usr/bin/nmap
+args: ["-sV", "-T4", "{{target}}"]
+requires_root: false
 ---
 # Role
 Pentester handal.
@@ -123,6 +129,16 @@ Lakukan scan.
 Jangan merusak.
 "#;
         let skill = parse_skill_content(content).unwrap();
+        assert_eq!(skill.tool_path, Some("/usr/bin/nmap".to_string()));
+        assert_eq!(
+            skill.args,
+            Some(vec![
+                "-sV".to_string(),
+                "-T4".to_string(),
+                "{{target}}".to_string()
+            ])
+        );
+        assert_eq!(skill.requires_root, Some(false));
         assert_eq!(skill.role, Some("Pentester handal.".to_string()));
         assert_eq!(skill.task, Some("Lakukan scan.".to_string()));
         assert_eq!(skill.constraints, Some("Jangan merusak.".to_string()));

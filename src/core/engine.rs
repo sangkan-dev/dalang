@@ -41,6 +41,12 @@ impl DalangEngine {
         full_prompt
     }
 
+    fn interpolate_args(&self, args: &[String], target: &str) -> Vec<String> {
+        args.iter()
+            .map(|arg| arg.replace("{{target}}", target))
+            .collect()
+    }
+
     pub async fn run_scan_loop(&self, target: &str, skill_names: &str) -> Result<()> {
         let skills: Vec<&str> = skill_names.split(',').map(|s| s.trim()).collect();
         if skills.is_empty() {
@@ -60,11 +66,29 @@ impl DalangEngine {
 
         let system_prompt = self.build_system_prompt(&skill_def);
 
+        let mut tool_description = String::from(
+            "Keluarkan output JSON Tool Call berbentuk seperti:\n\
+            ```json\n\
+            {\"tool\": \"os-command\", \"args\": {\"program\": \"echo\", \"args\": [\"halo\"]}}\n\
+            ```\n\
+            Atau tool browser: `browser-navigate` (args: {\"url\": \"<url>\"}), `browser-evaluate-js` (args: {\"script\": \"<js>\"}), `browser-extract-dom` (args: {})\n",
+        );
+
+        if let Some(_) = &skill_def.tool_path {
+            tool_description.push_str(&format!(
+                "Anda juga dapat menggunakan tool khusus: `{}` (args: {{}}) untuk menjalankan metoditas audit ini secara otomatis.\n",
+                skill_def.name
+            ));
+        }
+
+        tool_description
+            .push_str("Bila sudah selesai, keluarkan respon final berupa teks biasa tanpa JSON.");
+
         let mut messages = vec![
             Message::system(&system_prompt),
             Message::user(&format!(
-                "Tolong eksekusi tugas ini untuk target: {}. Keluarkan output JSON Tool Call berbentuk seperti:\n```json\n{{\"tool\": \"os-command\", \"args\": {{\"program\": \"echo\", \"args\": [\"halo\"]}}}}\n```\nAtau tool: `browser-navigate` (args: {{\"url\": \"<url>\"}}), `browser-evaluate-js` (args: {{\"script\": \"<js>\"}}), `browser-extract-dom` (args: {{}})\nBila sudah selesai, keluarkan respon final berupa teks biasa tanpa JSON.",
-                target
+                "Tolong eksekusi tugas ini untuk target: {}. {}",
+                target, tool_description
             )),
         ];
 
@@ -153,6 +177,43 @@ impl DalangEngine {
                                 messages.push(Message::user(&format!("Command Error:\n{}", resp)));
                             }
                             continue;
+                        }
+
+                        // Handle skill-specific native tools
+                        if let Some(tool_path) = &skill_def.tool_path {
+                            if tool_call.name == skill_def.name {
+                                let raw_args = skill_def.args.as_ref().cloned().unwrap_or_default();
+                                let interpolated = self.interpolate_args(&raw_args, target);
+
+                                println!("    $ {} {}", tool_path, interpolated.join(" "));
+
+                                match execute_safe_command(
+                                    tool_path,
+                                    &interpolated
+                                        .iter()
+                                        .map(|s| s.as_str())
+                                        .collect::<Vec<&str>>(),
+                                    60,
+                                )
+                                .await
+                                {
+                                    Ok((stdout, stderr)) => {
+                                        let mut obs = format!("STDOUT:\n{}\n", stdout);
+                                        if !stderr.is_empty() {
+                                            obs.push_str(&format!("STDERR:\n{}\n", stderr));
+                                        }
+                                        println!("[<] Observation received ({} bytes)", obs.len());
+                                        messages
+                                            .push(Message::user(&format!("Observation:\n{}", obs)));
+                                    }
+                                    Err(e) => {
+                                        println!("[!] Command execution failed: {}", e);
+                                        messages
+                                            .push(Message::user(&format!("Command Error:\n{}", e)));
+                                    }
+                                }
+                                continue;
+                            }
                         }
 
                         let args = build_executor_args(&tool_call);
