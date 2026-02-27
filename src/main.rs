@@ -109,43 +109,6 @@ async fn main() -> Result<()> {
                                 return Ok(());
                             }
 
-                            // Resolve OAuth client credentials
-                            if std::env::var("DALANG_GEMINI_OAUTH_CLIENT_ID").is_err()
-                                && std::env::var("GEMINI_CLI_OAUTH_CLIENT_ID").is_err()
-                            {
-                                let has_saved = auth::persistence::get_oauth_client_id().is_ok();
-                                let should_prompt = if has_saved {
-                                    let reuse = dialoguer::Confirm::with_theme(&ColorfulTheme::default())
-                                        .with_prompt("Use previously saved OAuth credentials?")
-                                        .default(true)
-                                        .interact()?;
-                                    !reuse
-                                } else {
-                                    true
-                                };
-
-                                if should_prompt {
-                                    println!("\n[*] OAuth client credentials required.");
-                                    println!("    Create an OAuth 2.0 Client ID (Desktop app) at:");
-                                    println!("    https://console.cloud.google.com/apis/credentials");
-                                    println!("    (Application type: Desktop app)\n");
-
-                                    let oauth_client_id: String =
-                                        dialoguer::Input::with_theme(&ColorfulTheme::default())
-                                            .with_prompt("OAuth Client ID")
-                                            .interact_text()?;
-                                    let oauth_client_secret: String =
-                                        dialoguer::Password::with_theme(&ColorfulTheme::default())
-                                            .with_prompt("OAuth Client Secret")
-                                            .interact()?;
-
-                                    auth::persistence::delete_oauth_credentials()?;
-                                    auth::persistence::save_oauth_client_id(&oauth_client_id)?;
-                                    auth::persistence::save_oauth_client_secret(&oauth_client_secret)?;
-                                    println!("[+] OAuth credentials saved to keyring.");
-                                }
-                            }
-
                             match auth::gemini_codeassist::login_gemini_cli_oauth().await {
                                 Ok(result) => {
                                     auth::gemini_codeassist::persist_oauth_result(&result)?;
