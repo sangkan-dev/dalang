@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+pub mod gemini_codeassist;
 pub mod openai;
 
 #[derive(Debug, Clone)]
@@ -93,5 +94,39 @@ pub fn get_default_model(provider: &str) -> String {
         "gemini" | "google" => "gemini-2.5-flash".to_string(),
         "ollama" | "local" => "llama3.1:latest".to_string(),
         _ => "gemini-2.5-flash".to_string(),
+    }
+}
+
+/// Create the appropriate LLM provider based on endpoint mode.
+///
+/// - `endpoint_mode == "cloudcode"` → `GeminiCodeAssistProvider`
+///   (inference still hits generativelanguage, but auth is bearer from OAuth)
+/// - everything else → `OpenAiCompatibleProvider`
+pub fn create_provider(
+    endpoint_mode: &str,
+    base_url: String,
+    model: String,
+    auth: AuthToken,
+    codeassist_endpoint: Option<String>,
+) -> Result<Box<dyn LlmProvider + Send + Sync>> {
+    if endpoint_mode == "cloudcode" {
+        let token = match &auth {
+            AuthToken::Bearer(t) => t.clone(),
+            AuthToken::ApiKey(t) => t.clone(),
+            AuthToken::None => {
+                return Err(anyhow::anyhow!(
+                    "CloudCode mode requires a bearer token"
+                ));
+            }
+        };
+        let endpoint = codeassist_endpoint.unwrap_or_else(|| {
+            "https://cloudcode-pa.googleapis.com".to_string()
+        });
+        let provider =
+            gemini_codeassist::GeminiCodeAssistProvider::new(model, token, endpoint)?;
+        Ok(Box::new(provider))
+    } else {
+        let provider = openai::OpenAiCompatibleProvider::new(base_url, model, auth)?;
+        Ok(Box::new(provider))
     }
 }
