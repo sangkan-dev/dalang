@@ -19,22 +19,37 @@ CLI Extractor → Keyring → Environment Variable → None
 
 ## Login Methods
 
-### OAuth (Gemini/Google)
+### API Key (Default — All Providers)
+
+The simplest and recommended method for all providers:
 
 ```bash
+# Gemini (Google AI Studio)
 dalang login --provider gemini
+# → Prompts: Enter your Gemini API Key (from https://aistudio.google.com/apikey)
+
+# OpenAI
+dalang login --provider openai
+# → Prompts: Enter your OpenAI API Key (from https://platform.openai.com/api-keys)
+
+# Anthropic
+dalang login --provider anthropic
+# → Prompts: Enter your Anthropic API Key (from https://console.anthropic.com/settings/keys)
 ```
 
-This opens your browser for Google OAuth2 authentication. After authorization, tokens are stored securely in your OS keyring.
+API keys are stored securely in your OS keyring. After entering the key, you'll be prompted to select your preferred AI model.
 
-### API Key (OpenAI / Anthropic)
+### OAuth (Optional — Gemini Only)
+
+If you have a Google Cloud project with OAuth configured:
 
 ```bash
-dalang login --provider openai
-dalang login --provider anthropic
+dalang login --provider gemini --oauth
 ```
 
-You'll be prompted to enter your API key securely (input is hidden). The key is stored in your OS keyring.
+::: warning
+OAuth requires a valid `client_secret` configured in the application. If you get a `client_secret is missing` error, use the API Key method above instead.
+:::
 
 ### Environment Variable
 

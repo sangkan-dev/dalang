@@ -45,57 +45,81 @@ async fn main() -> Result<()> {
                 installed, skipped
             );
         }
-        Commands::Login { provider } => {
+        Commands::Login { provider, oauth } => {
             let provider = auth::AuthProvider::from_str(&provider)?;
             println!("Logging in to {}...", provider.as_str());
 
-            // FIX-04: Use dynamic provider-aware base URL
+            // Use dynamic provider-aware base URL
             let base_url = std::env::var("LLM_BASE_URL")
                 .unwrap_or_else(|_| llm::get_default_base_url(provider.as_str()));
 
-            // SPRINT 13: Save active provider immediately
+            // Save active provider immediately
             if let Err(e) = auth::persistence::save_active_provider(provider.as_str()) {
                 println!("[-] Failed to save active provider: {}", e);
             }
 
-            match provider {
-                auth::AuthProvider::Gemini => {
-                    let config = auth::oauth::OauthConfig::gemini_default();
-                    let url = auth::oauth::build_auth_url(&config);
-                    println!("[*] Opening browser for authentication...");
-                    open::that(&url)?;
+            if oauth {
+                // ── OAuth Flow (--oauth flag) ──
+                match provider {
+                    auth::AuthProvider::Gemini => {
+                        let config = auth::oauth::OauthConfig::gemini_default();
+                        let url = auth::oauth::build_auth_url(&config);
+                        println!("[*] Opening browser for OAuth authentication...");
+                        println!("[!] Note: OAuth requires a configured client_secret.");
+                        println!(
+                            "[!] If this fails, use API Key login instead: dalang login --provider gemini"
+                        );
+                        open::that(&url)?;
 
-                    let code = auth::oauth::run_callback_server(38343)?;
-                    let token_data = auth::oauth::perform_token_exchange(&config, &code).await?;
+                        let code = auth::oauth::run_callback_server(38343)?;
+                        let token_data =
+                            auth::oauth::perform_token_exchange(&config, &code).await?;
 
-                    if let Some(access) = token_data.get("access_token").and_then(|v| v.as_str()) {
-                        let refresh = token_data.get("refresh_token").and_then(|v| v.as_str());
-                        auth::persistence::save_tokens(access, refresh)?;
-                        println!("[+] Login successful and tokens saved to keyring!");
-
-                        // Interactive Model Selection
-                        interactive_model_selection(provider.as_str(), &base_url, access).await;
+                        if let Some(access) =
+                            token_data.get("access_token").and_then(|v| v.as_str())
+                        {
+                            let refresh = token_data.get("refresh_token").and_then(|v| v.as_str());
+                            auth::persistence::save_tokens(access, refresh)?;
+                            println!("[+] OAuth login successful!");
+                            interactive_model_selection(provider.as_str(), &base_url, access).await;
+                        }
+                    }
+                    _ => {
+                        println!(
+                            "[!] OAuth is only available for Gemini/Google. Use API Key instead."
+                        );
+                        println!("    dalang login --provider {}", provider.as_str());
                     }
                 }
-                // FIX-01: API Key login for OpenAI and Anthropic
-                auth::AuthProvider::OpenAi | auth::AuthProvider::Anthropic => {
-                    use dialoguer::{Password, theme::ColorfulTheme};
+            } else {
+                // ── API Key Flow (default for all providers) ──
+                use dialoguer::{Password, theme::ColorfulTheme};
 
-                    let api_key = Password::with_theme(&ColorfulTheme::default())
-                        .with_prompt(format!("Enter your {} API Key", provider.as_str()))
-                        .interact()?;
-
-                    if api_key.is_empty() {
-                        return Err(anyhow::anyhow!("API Key cannot be empty."));
+                let prompt_text = match provider {
+                    auth::AuthProvider::Gemini => {
+                        "Enter your Gemini API Key (from https://aistudio.google.com/apikey)"
                     }
+                    auth::AuthProvider::OpenAi => {
+                        "Enter your OpenAI API Key (from https://platform.openai.com/api-keys)"
+                    }
+                    auth::AuthProvider::Anthropic => {
+                        "Enter your Anthropic API Key (from https://console.anthropic.com/settings/keys)"
+                    }
+                };
 
-                    // Save API key as access token in keyring
-                    auth::persistence::save_tokens(&api_key, None)?;
-                    println!("[+] API Key saved to keyring!");
+                let api_key = Password::with_theme(&ColorfulTheme::default())
+                    .with_prompt(prompt_text)
+                    .interact()?;
 
-                    // Interactive Model Selection
-                    interactive_model_selection(provider.as_str(), &base_url, &api_key).await;
+                if api_key.trim().is_empty() {
+                    return Err(anyhow::anyhow!("API Key cannot be empty."));
                 }
+
+                auth::persistence::save_tokens(api_key.trim(), None)?;
+                println!("[+] API Key saved to keyring!");
+
+                // Interactive Model Selection
+                interactive_model_selection(provider.as_str(), &base_url, api_key.trim()).await;
             }
         }
         Commands::Scan {
@@ -178,19 +202,15 @@ async fn main() -> Result<()> {
 fn resolve_auth_token() -> llm::AuthToken {
     // Priority: CLI Extractor -> Keyring -> Env -> None
     if let Some(token) = auth::cli_extractor::try_all_cli_extractors() {
+        // CLI-extracted tokens (gcloud, gemini-cli) are always Bearer tokens
         return llm::AuthToken::Bearer(token);
     }
 
     if let Ok(token) = auth::persistence::get_access_token() {
         println!("[+] Using stored session from keyring");
-        // Determine token type based on active provider
-        let provider = auth::persistence::get_active_provider().unwrap_or_default();
-        return match provider.as_str() {
-            // OpenAI/Anthropic use API Keys (stored as access_token in keyring)
-            "openai" | "anthropic" => llm::AuthToken::ApiKey(token),
-            // Gemini/Google use Bearer tokens from OAuth
-            _ => llm::AuthToken::Bearer(token),
-        };
+        // Since all providers now default to API Key login,
+        // stored tokens are API keys unless from OAuth
+        return llm::AuthToken::ApiKey(token);
     }
 
     if let Ok(key) = std::env::var("LLM_API_KEY") {

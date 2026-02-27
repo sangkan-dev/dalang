@@ -8,23 +8,23 @@ Dalang supports multiple AI providers. Choose one:
 
 ::: code-group
 
-```bash [Gemini (OAuth)]
+```bash [Gemini]
 dalang login --provider gemini
-# Opens browser for Google OAuth authentication
+# Prompts for your Google AI Studio API key
 ```
 
-```bash [OpenAI (API Key)]
+```bash [OpenAI]
 dalang login --provider openai
-# Prompts for your OpenAI API key securely
+# Prompts for your OpenAI API key
 ```
 
-```bash [Anthropic (API Key)]
+```bash [Anthropic]
 dalang login --provider anthropic
-# Prompts for your Anthropic API key securely
+# Prompts for your Anthropic API key
 ```
 
 ```bash [Environment Variable]
-export LLM_API_KEY="sk-your-api-key-here"
+export LLM_API_KEY="your-api-key-here"
 # No login required
 ```
 
