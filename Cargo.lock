@@ -716,6 +716,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "base64",
  "chromiumoxide",
  "chrono",
  "clap",

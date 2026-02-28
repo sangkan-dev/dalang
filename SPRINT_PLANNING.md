@@ -581,6 +581,44 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
+## Sprint 28: Full Browser Agent Capabilities ✅
+
+**Goal:** Expand the headless browser from 3 basic tools (navigate, extract-dom, evaluate-js) to a full autonomous browser agent with ~35 tools so the AI can perform anything a cybersecurity professional does in a browser.
+
+- ✅ **[DAL-2801] - Feature - Complete DalangBrowser Rewrite (`src/cdp/browser.rs`)**
+  - Restructured from `{browser, active_page: Arc<Mutex<Option<Page>>>}` to `{browser, pages: Vec<Page>, active_idx, network_log, network_logging}` for multi-tab support
+  - **Navigation (7 methods):** navigate, get_url, get_title, get_html, go_back, go_forward, reload
+  - **DOM Query (4 methods):** query_selector, query_selector_all (with limit), get_attribute, wait_for_selector (with timeout)
+  - **Interaction (9 methods):** click, type_text (with clear), hover, focus, select_option, press_key, fill_form (JSON fields), submit_form, scroll (page or element)
+  - **Screenshots (2 methods):** screenshot (returns base64 PNG, optional full_page/selector), screenshot_to_file
+  - **Cookies (3 methods):** get_cookies (JSON), set_cookie (with domain/path/secure/httponly), delete_cookies (single or all)
+  - **Storage (3 methods):** get_storage (local/session), set_storage, clear_storage
+  - **Network (5 methods):** set_extra_headers, set_user_agent, enable_network_log (CDP event interception), get_network_log (with clear), set_viewport
+  - **Tab Management (4 methods):** new_tab, list_tabs, switch_tab, close_tab
+  - Total: ~35 public methods across 7 categories, 710 lines
+
+- ✅ **[DAL-2802] - Feature - Expanded Engine Dispatch (`src/core/engine.rs`)**
+  - Expanded `handle_browser_tool()` from 3 match arms to 35+ arms covering all browser methods
+  - Used Rust macros (`arg_str!`, `arg_bool!`, `arg_u64!`, `arg_i64!`, `wrap!`) for concise argument extraction and result wrapping
+  - Changed from `as_ref().unwrap()` to `as_mut().unwrap()` for browser methods requiring `&mut self` (network log, tab management)
+  - All 5 dispatch sites (scan CLI, autonomous CLI, interactive CLI, interactive WS, autonomous WS) automatically use the expanded handler
+
+- ✅ **[DAL-2803] - Feature - Browser Tools Catalog for System Prompts**
+  - Added `fn browser_tools_catalog() -> String` helper that generates a formatted markdown catalog of all 35 browser tools with argument schemas
+  - Injected into all 4 system prompts (scan mode, autonomous CLI, interactive CLI, interactive WS, autonomous WS) so the LLM knows all available browser capabilities
+  - Categorized by function: Navigation, DOM Extraction, DOM Query, Interaction, Screenshots, Cookies, Storage, Network & Headers, Tab Management
+
+- ✅ **[DAL-2804] - Feature - Enhanced web-audit Skill**
+  - Updated `skills/web-audit.md` to leverage full browser toolkit
+  - Added steps for: network monitoring, cookie inspection, storage analysis, interactive form testing, screenshot evidence capture, security header analysis
+  - Expanded from 3-step to 9-step audit methodology
+
+- ✅ **[DAL-2805] - Infra - Base64 Dependency**
+  - Added `base64 = "0.22"` to Cargo.toml for screenshot encoding
+  - Used by `DalangBrowser::screenshot()` to return base64-encoded PNG data
+
+---
+
 ## Ringkasan Status
 
 | Sprint | Nama | Status |
@@ -612,5 +650,6 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 25 | GitHub Copilot Provider Integration | ✅ Done |
 | 26 | Skill Tool Availability Validation & Bug Fixes | ✅ Done |
 | 27 | File-Based Session Persistence & MEMORY.md | ✅ Done |
+| 28 | Full Browser Agent Capabilities | ✅ Done |
 
-**Total: 27 Sprint — 27 ✅ Selesai**
+**Total: 28 Sprint — 28 ✅ Selesai**

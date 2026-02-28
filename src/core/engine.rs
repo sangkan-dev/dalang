@@ -124,41 +124,287 @@ impl DalangEngine {
         tool_call: &ToolCall,
         fallback_url: &str,
     ) -> (bool, String) {
-        let browser_guard = match browser.get().await {
+        let mut browser_guard = match browser.get().await {
             Ok(g) => g,
             Err(e) => return (false, format!("Failed to launch browser: {}", e)),
         };
-        let browser_ref = browser_guard.as_ref().unwrap();
+        let b = browser_guard.as_mut().unwrap();
+
+        /// Helper: extract a string arg or return a default.
+        macro_rules! arg_str {
+            ($key:expr) => {
+                tool_call.arguments.get($key).and_then(|v| v.as_str()).unwrap_or("")
+            };
+            ($key:expr, $default:expr) => {
+                tool_call.arguments.get($key).and_then(|v| v.as_str()).unwrap_or($default)
+            };
+        }
+        macro_rules! arg_bool {
+            ($key:expr) => {
+                tool_call.arguments.get($key).and_then(|v| v.as_bool()).unwrap_or(false)
+            };
+        }
+        macro_rules! arg_u64 {
+            ($key:expr, $default:expr) => {
+                tool_call.arguments.get($key).and_then(|v| v.as_u64()).unwrap_or($default)
+            };
+        }
+        macro_rules! arg_i64 {
+            ($key:expr, $default:expr) => {
+                tool_call.arguments.get($key).and_then(|v| v.as_i64()).unwrap_or($default)
+            };
+        }
+
+        /// Wrap a Result into (bool, String).
+        macro_rules! wrap {
+            ($expr:expr) => {
+                match $expr {
+                    Ok(r) => (true, r),
+                    Err(e) => (false, e.to_string()),
+                }
+            };
+        }
 
         match tool_call.name.as_str() {
+            // ── Navigation ──
             "browser-navigate" => {
-                let url = tool_call
-                    .arguments
-                    .get("url")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or(fallback_url);
-                match browser_ref.navigate(url).await {
-                    Ok(r) => (true, r),
-                    Err(e) => (false, e.to_string()),
-                }
+                let url = arg_str!("url", fallback_url);
+                wrap!(b.navigate(url).await)
             }
+            "browser-get-url" => wrap!(b.get_url().await),
+            "browser-get-title" => wrap!(b.get_title().await),
+            "browser-get-html" => wrap!(b.get_html().await),
+            "browser-go-back" => wrap!(b.go_back().await),
+            "browser-go-forward" => wrap!(b.go_forward().await),
+            "browser-reload" => wrap!(b.reload().await),
+
+            // ── DOM extraction ──
+            "browser-extract-dom" => wrap!(b.extract_dom().await),
             "browser-evaluate-js" => {
-                let script = tool_call
-                    .arguments
-                    .get("script")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("console.log('empty')");
-                match browser_ref.evaluate_js(script).await {
-                    Ok(r) => (true, r),
-                    Err(e) => (false, e.to_string()),
-                }
+                let script = arg_str!("script", "console.log('empty')");
+                wrap!(b.evaluate_js(script).await)
             }
-            "browser-extract-dom" => match browser_ref.extract_dom().await {
-                Ok(r) => (true, r),
-                Err(e) => (false, e.to_string()),
-            },
-            _ => (false, "Unknown browser command".to_string()),
+
+            // ── DOM query ──
+            "browser-query-selector" => {
+                let selector = arg_str!("selector");
+                wrap!(b.query_selector(selector).await)
+            }
+            "browser-query-selector-all" => {
+                let selector = arg_str!("selector");
+                let limit = arg_u64!("limit", 20) as usize;
+                wrap!(b.query_selector_all(selector, limit).await)
+            }
+            "browser-get-attribute" => {
+                let selector = arg_str!("selector");
+                let attribute = arg_str!("attribute");
+                wrap!(b.get_attribute(selector, attribute).await)
+            }
+            "browser-wait-for-selector" => {
+                let selector = arg_str!("selector");
+                let timeout_ms = arg_u64!("timeout_ms", 5000);
+                wrap!(b.wait_for_selector(selector, timeout_ms).await)
+            }
+
+            // ── Interaction ──
+            "browser-click" => {
+                let selector = arg_str!("selector");
+                wrap!(b.click(selector).await)
+            }
+            "browser-type-text" => {
+                let selector = arg_str!("selector");
+                let text = arg_str!("text");
+                let clear = arg_bool!("clear");
+                wrap!(b.type_text(selector, text, clear).await)
+            }
+            "browser-hover" => {
+                let selector = arg_str!("selector");
+                wrap!(b.hover(selector).await)
+            }
+            "browser-focus" => {
+                let selector = arg_str!("selector");
+                wrap!(b.focus(selector).await)
+            }
+            "browser-select-option" => {
+                let selector = arg_str!("selector");
+                let value = arg_str!("value");
+                wrap!(b.select_option(selector, value).await)
+            }
+            "browser-press-key" => {
+                let selector = arg_str!("selector");
+                let key = arg_str!("key");
+                wrap!(b.press_key(selector, key).await)
+            }
+            "browser-fill-form" => {
+                let fields = tool_call.arguments.get("fields")
+                    .cloned()
+                    .unwrap_or(serde_json::json!({}));
+                wrap!(b.fill_form(&fields).await)
+            }
+            "browser-submit-form" => {
+                let selector = arg_str!("selector", "form");
+                wrap!(b.submit_form(selector).await)
+            }
+            "browser-scroll" => {
+                let x = arg_i64!("x", 0);
+                let y = arg_i64!("y", 0);
+                let selector = tool_call.arguments.get("selector")
+                    .and_then(|v| v.as_str());
+                wrap!(b.scroll(x, y, selector).await)
+            }
+
+            // ── Screenshots ──
+            "browser-screenshot" => {
+                let full_page = arg_bool!("full_page");
+                let selector = tool_call.arguments.get("selector")
+                    .and_then(|v| v.as_str());
+                wrap!(b.screenshot(full_page, selector).await)
+            }
+            "browser-screenshot-to-file" => {
+                let path = arg_str!("path", "screenshot.png");
+                let full_page = arg_bool!("full_page");
+                wrap!(b.screenshot_to_file(path, full_page).await)
+            }
+
+            // ── Cookies ──
+            "browser-get-cookies" => wrap!(b.get_cookies().await),
+            "browser-set-cookie" => {
+                let name = arg_str!("name");
+                let value = arg_str!("value");
+                let domain = tool_call.arguments.get("domain").and_then(|v| v.as_str());
+                let path = tool_call.arguments.get("path").and_then(|v| v.as_str());
+                let http_only = tool_call.arguments.get("http_only").and_then(|v| v.as_bool());
+                let secure = tool_call.arguments.get("secure").and_then(|v| v.as_bool());
+                wrap!(b.set_cookie(name, value, domain, path, secure, http_only).await)
+            }
+            "browser-delete-cookies" => {
+                let name = tool_call.arguments.get("name").and_then(|v| v.as_str());
+                wrap!(b.delete_cookies(name).await)
+            }
+
+            // ── Storage ──
+            "browser-get-storage" => {
+                let storage_type = arg_str!("storage_type", "local");
+                wrap!(b.get_storage(storage_type).await)
+            }
+            "browser-set-storage" => {
+                let storage_type = arg_str!("storage_type", "local");
+                let key = arg_str!("key");
+                let value = arg_str!("value");
+                wrap!(b.set_storage(storage_type, key, value).await)
+            }
+            "browser-clear-storage" => {
+                let storage_type = arg_str!("storage_type", "local");
+                wrap!(b.clear_storage(storage_type).await)
+            }
+
+            // ── Network & viewport ──
+            "browser-set-extra-headers" => {
+                let headers = tool_call.arguments.get("headers")
+                    .cloned()
+                    .unwrap_or(serde_json::json!({}));
+                wrap!(b.set_extra_headers(&headers).await)
+            }
+            "browser-set-user-agent" => {
+                let ua = arg_str!("user_agent");
+                wrap!(b.set_user_agent(ua).await)
+            }
+            "browser-enable-network-log" => wrap!(b.enable_network_log().await),
+            "browser-get-network-log" => {
+                let clear = arg_bool!("clear");
+                wrap!(b.get_network_log(clear).await)
+            }
+            "browser-set-viewport" => {
+                let width = arg_u64!("width", 1280) as u32;
+                let height = arg_u64!("height", 720) as u32;
+                wrap!(b.set_viewport(width, height).await)
+            }
+
+            // ── Tab management ──
+            "browser-new-tab" => {
+                let url = tool_call.arguments.get("url").and_then(|v| v.as_str());
+                wrap!(b.new_tab(url).await)
+            }
+            "browser-list-tabs" => wrap!(b.list_tabs().await),
+            "browser-switch-tab" => {
+                let index = arg_u64!("index", 0) as usize;
+                wrap!(b.switch_tab(index))
+            }
+            "browser-close-tab" => {
+                let index = tool_call.arguments.get("index")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize);
+                wrap!(b.close_tab(index).await)
+            }
+
+            _ => (false, format!("Unknown browser command: {}", tool_call.name)),
         }
+    }
+
+    /// Return the full browser tools catalog as a formatted string for system prompts.
+    fn browser_tools_catalog() -> String {
+        r##"### BROWSER TOOLS
+You have full browser control via these tools. Output JSON like:
+```json
+{"tool": "browser-<command>", "args": {<args>}}
+```
+
+**Navigation:**
+- `browser-navigate` — args: `{"url": "<url>"}` — Navigate to a URL
+- `browser-get-url` — args: `{}` — Get current page URL
+- `browser-get-title` — args: `{}` — Get page title
+- `browser-get-html` — args: `{}` — Get full page HTML source
+- `browser-go-back` — args: `{}` — Navigate back in history
+- `browser-go-forward` — args: `{}` — Navigate forward in history
+- `browser-reload` — args: `{}` — Reload the page
+
+**DOM Extraction:**
+- `browser-extract-dom` — args: `{}` — Extract simplified DOM tree
+- `browser-evaluate-js` — args: `{"script": "<js>"}` — Execute JavaScript and return result
+
+**DOM Query:**
+- `browser-query-selector` — args: `{"selector": "<css>"}` — Find first element matching CSS selector (returns tag, id, text, attributes)
+- `browser-query-selector-all` — args: `{"selector": "<css>", "limit": 20}` — Find all matching elements (default limit 20)
+- `browser-get-attribute` — args: `{"selector": "<css>", "attribute": "<attr>"}` — Get a specific attribute value
+- `browser-wait-for-selector` — args: `{"selector": "<css>", "timeout_ms": 5000}` — Wait until element appears
+
+**Interaction:**
+- `browser-click` — args: `{"selector": "<css>"}` — Click an element
+- `browser-type-text` — args: `{"selector": "<css>", "text": "<text>", "clear": false}` — Type text into an input (clear=true clears first)
+- `browser-hover` — args: `{"selector": "<css>"}` — Hover over an element
+- `browser-focus` — args: `{"selector": "<css>"}` — Focus an element
+- `browser-select-option` — args: `{"selector": "<css>", "value": "<val>"}` — Select dropdown option by value
+- `browser-press-key` — args: `{"selector": "<css>", "key": "<key>"}` — Press a key (Enter, Tab, Escape, etc.)
+- `browser-fill-form` — args: `{"fields": {"#sel1": "value1", "#sel2": "value2"}}` — Fill multiple form fields at once
+- `browser-submit-form` — args: `{"selector": "form"}` — Submit a form (default: first form)
+- `browser-scroll` — args: `{"x": 0, "y": 500, "selector": null}` — Scroll page or element
+
+**Screenshots:**
+- `browser-screenshot` — args: `{"full_page": false, "selector": null}` — Take screenshot (returns base64 PNG)
+- `browser-screenshot-to-file` — args: `{"path": "screenshot.png", "full_page": false}` — Save screenshot to file
+
+**Cookies:**
+- `browser-get-cookies` — args: `{}` — List all cookies as JSON
+- `browser-set-cookie` — args: `{"name": "<n>", "value": "<v>", "domain": "<d>", "path": "/", "http_only": false, "secure": false}` — Set a cookie
+- `browser-delete-cookies` — args: `{"name": "<n>"}` — Delete cookie by name (omit name to delete all)
+
+**Storage:**
+- `browser-get-storage` — args: `{"storage_type": "local"}` — Get localStorage or sessionStorage (type: "local" or "session")
+- `browser-set-storage` — args: `{"storage_type": "local", "key": "<k>", "value": "<v>"}` — Set a storage item
+- `browser-clear-storage` — args: `{"storage_type": "local"}` — Clear all items in storage
+
+**Network & Headers:**
+- `browser-set-extra-headers` — args: `{"headers": {"Authorization": "Bearer tok", "X-Hdr": "val"}}` — Set extra HTTP headers on all requests
+- `browser-set-user-agent` — args: `{"user_agent": "<ua>"}` — Override User-Agent string
+- `browser-enable-network-log` — args: `{}` — Start capturing all network requests/responses
+- `browser-get-network-log` — args: `{"clear": false}` — Get captured network entries as JSON (clear=true resets log)
+- `browser-set-viewport` — args: `{"width": 1280, "height": 720}` — Set browser viewport size
+
+**Tab Management:**
+- `browser-new-tab` — args: `{"url": "<url>"}` — Open a new tab (optional URL)
+- `browser-list-tabs` — args: `{}` — List all open tabs
+- `browser-switch-tab` — args: `{"index": 0}` — Switch to tab by index
+- `browser-close-tab` — args: `{"index": null}` — Close tab by index (default: active tab)"##.to_string()
     }
 
     /// Execute a skill's native tool (tool_path + args), with optional custom_args injection.
@@ -335,13 +581,12 @@ impl DalangEngine {
                 ```json\n\
                 {{\"tool\": \"os-command\", \"args\": {{\"program\": \"echo\", \"args\": [\"hello\"]}}}}\n\
                 ```\n\
-                Or browser tools: `browser-navigate` (args: {{\"url\": \"<url>\"}}), \
-                `browser-evaluate-js` (args: {{\"script\": \"<js>\"}}), \
-                `browser-extract-dom` (args: {{}})\n\
+                {}\n\n\
                 {}\
                 IMPORTANT: When you find a vulnerability, always note the EXACT affected URL, the specific \n\
                 parameter or component, and provide a concrete proof-of-concept (PoC) payload or curl command.\n\
                 When finished, respond with a detailed vulnerability summary in plain text (no JSON).",
+                Self::browser_tools_catalog(),
                 if skill_def.tool_path.is_some() {
                     format!(
                         "You can also use the specialized tool: `{}` (args: {{}}) to run this audit method automatically.\n",
@@ -544,11 +789,12 @@ impl DalangEngine {
             - Include the actual tool output as evidence\n\
             - Do NOT report theoretical vulnerabilities without evidence from tool observations\n\
             - Be specific: \"XSS in /search endpoint via q parameter\" not just \"XSS found\"\n\n\
+            {}\n\n\
             Output JSON to call a skill:\n\
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
             ```",
-            target, skills_catalog
+            target, skills_catalog, Self::browser_tools_catalog()
         );
 
         let mut memory = ContextManager::new();
@@ -717,11 +963,12 @@ impl DalangEngine {
             - **Evidence:** Raw tool output that confirms the vulnerability\n\
             - **Impact:** What an attacker could achieve\n\
             - **Remediation:** Specific fix recommendation\n\n\
+            {}\n\n\
             Output JSON to call a skill:\n\
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
             ```",
-            target, skills_catalog
+            target, skills_catalog, Self::browser_tools_catalog()
         );
 
         let mut messages = vec![Message::system(&system_prompt)];
@@ -860,11 +1107,12 @@ impl DalangEngine {
             2. After each tool execution, analyze the observation and explain findings clearly.\n\
             3. When the user asks for a report, produce a detailed vulnerability report.\n\
             4. Always reference specific URLs, parameters, and evidence from tool output.\n\n\
+            {}\n\n\
             Output JSON to call a skill:\n\
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
             ```",
-            target, skills_catalog
+            target, skills_catalog, Self::browser_tools_catalog()
         );
 
         let mut msgs = vec![Message::system(&system_prompt)];
@@ -1014,11 +1262,12 @@ impl DalangEngine {
             - **Evidence:** raw tool output\n\
             - **Impact:** what an attacker could achieve\n\
             - **Remediation:** fix recommendation\n\n\
+            {}\n\n\
             Output JSON to call a skill:\n\
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
             ```",
-            target, skills_catalog
+            target, skills_catalog, Self::browser_tools_catalog()
         );
 
         let mut memory = session_id
