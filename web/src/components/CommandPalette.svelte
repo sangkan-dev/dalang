@@ -73,6 +73,7 @@
   <div
     class="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden"
     role="dialog"
+    tabindex="-1"
     onclick={(e) => e.stopPropagation()}
     onkeydown={() => {}}
   >

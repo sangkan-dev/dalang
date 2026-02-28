@@ -1,11 +1,13 @@
 //! Skills management REST API handlers.
 
 use crate::skills_parser::{self, SkillDefinition};
-use axum::extract::Path;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+
+use crate::web::state::AppState;
 
 #[derive(Serialize)]
 pub struct SkillSummary {
@@ -14,6 +16,7 @@ pub struct SkillSummary {
     pub tool_path: Option<String>,
     pub requires_root: bool,
     pub has_args: bool,
+    pub enabled: bool,
 }
 
 #[derive(Serialize)]
@@ -37,6 +40,7 @@ impl From<&SkillDefinition> for SkillSummary {
             tool_path: s.tool_path.clone(),
             requires_root: s.requires_root.unwrap_or(false),
             has_args: s.args.as_ref().is_some_and(|a| !a.is_empty()),
+            enabled: true, // default — caller overrides from state
         }
     }
 }
@@ -58,10 +62,19 @@ impl From<SkillDefinition> for SkillDetail {
 }
 
 /// GET /api/skills — list all skills
-pub async fn list_skills() -> impl IntoResponse {
+pub async fn list_skills(State(state): State<AppState>) -> impl IntoResponse {
     match skills_parser::load_all_skills() {
         Ok(skills) => {
-            let summaries: Vec<SkillSummary> = skills.iter().map(SkillSummary::from).collect();
+            let summaries: Vec<SkillSummary> = skills
+                .iter()
+                .map(|s| {
+                    let mut summary = SkillSummary::from(s);
+                    if state.disabled_skills.contains_key(&summary.name) {
+                        summary.enabled = false;
+                    }
+                    summary
+                })
+                .collect();
             Ok(Json(summaries))
         }
         Err(e) => Err((
@@ -87,4 +100,30 @@ pub async fn get_skill(Path(name): Path<String>) -> impl IntoResponse {
             format!("Failed to parse skill: {}", e),
         )),
     }
+}
+
+#[derive(Deserialize)]
+pub struct UpdateSkillRequest {
+    pub enabled: bool,
+}
+
+/// PUT /api/skills/:name — enable/disable a skill
+pub async fn update_skill(
+    State(state): State<AppState>,
+    Path(name): Path<String>,
+    Json(body): Json<UpdateSkillRequest>,
+) -> impl IntoResponse {
+    // Verify skill exists
+    let skill_path = format!("skills/{}.md", name);
+    if !std::path::Path::new(&skill_path).exists() {
+        return Err((StatusCode::NOT_FOUND, format!("Skill '{}' not found", name)));
+    }
+
+    if body.enabled {
+        state.disabled_skills.remove(&name);
+    } else {
+        state.disabled_skills.insert(name.clone(), true);
+    }
+
+    Ok(Json(serde_json::json!({ "name": name, "enabled": body.enabled })))
 }

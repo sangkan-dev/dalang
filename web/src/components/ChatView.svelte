@@ -3,6 +3,7 @@
   import { renderMarkdown } from '../lib/markdown.ts';
   import { toast } from '../lib/toast.ts';
   import ChatMessage from './ChatMessage.svelte';
+  import ChatInput from './ChatInput.svelte';
   import type { ChatMessage as ChatMsg, DalangWebSocket, EngineEvent, SessionMode } from '../lib/types';
 
   let { sessionId = $bindable(null), resetTrigger = 0 }: { sessionId: string | null; resetTrigger?: number } = $props();
@@ -158,13 +159,6 @@
     scrollToBottom();
   }
 
-  function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }
-
   function resetSession(): void {
     if (ws) ws.close();
     ws = null;
@@ -202,8 +196,8 @@
           />
         </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1.5 text-[var(--text-secondary)]">Mode</label>
+        <fieldset>
+          <legend class="block text-sm font-medium mb-1.5 text-[var(--text-secondary)]">Mode</legend>
           <div class="flex gap-3">
             <button
               class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors border
@@ -224,7 +218,7 @@
               🤖 Auto-Pilot Scan
             </button>
           </div>
-        </div>
+        </fieldset>
 
         {#if mode === 'scan'}
           <div>
@@ -314,27 +308,6 @@
 
   <!-- Input area (interactive mode only) -->
   {#if mode === 'interactive'}
-    <div class="p-4 border-t border-[var(--border)] bg-[var(--bg-secondary)]">
-      <div class="flex gap-3">
-        <textarea
-          bind:value={inputText}
-          placeholder="Ask the security agent..."
-          rows="1"
-          class="flex-1 px-4 py-2.5 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg
-            text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 resize-none
-            focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
-          onkeydown={handleKeydown}
-          disabled={!isConnected}
-        ></textarea>
-        <button
-          class="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)]
-            font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={!inputText.trim() || !isConnected}
-          onclick={sendMessage}
-        >
-          Send
-        </button>
-      </div>
-    </div>
+    <ChatInput bind:value={inputText} disabled={!isConnected} onSend={sendMessage} />
   {/if}
 {/if}

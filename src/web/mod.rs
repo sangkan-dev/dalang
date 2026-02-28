@@ -38,13 +38,17 @@ pub fn build_router(state: AppState) -> Router {
         .route("/ws/{session_id}", get(handlers::chat::ws_handler))
         // Skills
         .route("/skills", get(handlers::skills::list_skills))
-        .route("/skills/{name}", get(handlers::skills::get_skill))
+        .route("/skills/{name}", get(handlers::skills::get_skill).put(handlers::skills::update_skill))
         // Reports
         .route("/reports", get(handlers::reports::list_reports))
         .route("/reports/{filename}", get(handlers::reports::get_report))
         // Settings
         .route("/settings", get(handlers::settings::get_settings))
-        .route("/settings", put(handlers::settings::update_settings));
+        .route("/settings", put(handlers::settings::update_settings))
+        .route(
+            "/settings/test-connection",
+            post(handlers::settings::test_connection),
+        );
 
     Router::new()
         .nest("/api", api_routes)

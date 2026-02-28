@@ -59,6 +59,16 @@ Execute specific skills strictly defined by you:
 dalang scan --target https://example.com --skills web-audit,nmap_scanner
 ```
 
+### 4. Web UI
+
+Launch the built-in web dashboard for a browser-based experience:
+
+```bash
+dalang web --port 1337
+```
+
+The web UI provides real-time chat, skill management, report viewing, and settings configuration — all from a single self-contained binary.
+
 ## Creating a Custom Skill
 
 Dalang's power lies in its `.md` skill files located in the `skills/` directory.

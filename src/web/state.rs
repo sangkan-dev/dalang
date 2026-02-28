@@ -34,6 +34,8 @@ pub struct AppState {
     /// Channel senders for active WebSocket connections, keyed by session ID.
     /// When an engine task emits events, they are sent through these channels.
     pub event_senders: Arc<DashMap<Uuid, mpsc::Sender<EngineEvent>>>,
+    /// Disabled skills (name -> true means disabled).
+    pub disabled_skills: Arc<DashMap<String, bool>>,
     pub verbose: bool,
 }
 
@@ -42,6 +44,7 @@ impl AppState {
         Self {
             sessions: Arc::new(DashMap::new()),
             event_senders: Arc::new(DashMap::new()),
+            disabled_skills: Arc::new(DashMap::new()),
             verbose,
         }
     }

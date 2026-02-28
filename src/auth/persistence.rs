@@ -13,6 +13,8 @@ const CODEASSIST_ENDPOINT_KEY: &str = "codeassist_endpoint";
 const CODEASSIST_TIER_KEY: &str = "codeassist_tier";
 const OAUTH_CLIENT_ID_KEY: &str = "oauth_client_id";
 const OAUTH_CLIENT_SECRET_KEY: &str = "oauth_client_secret";
+const API_KEY_KEY: &str = "api_key";
+const VERBOSE_KEY: &str = "verbose";
 
 pub fn save_tokens(access_token: &str, refresh_token: Option<&str>) -> Result<()> {
     let entry =
@@ -220,4 +222,37 @@ pub fn delete_oauth_credentials() -> Result<()> {
         let _ = entry.delete_password();
     }
     Ok(())
+}
+
+pub fn save_api_key(key: &str) -> Result<()> {
+    let entry =
+        Entry::new(SERVICE_NAME, API_KEY_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(key)
+        .map_err(|e| anyhow!("Failed to save API key: {}", e))
+}
+
+pub fn get_api_key() -> Result<String> {
+    let entry =
+        Entry::new(SERVICE_NAME, API_KEY_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No API key found: {}", e))
+}
+
+pub fn save_verbose(verbose: bool) -> Result<()> {
+    let entry =
+        Entry::new(SERVICE_NAME, VERBOSE_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(if verbose { "true" } else { "false" })
+        .map_err(|e| anyhow!("Failed to save verbose: {}", e))
+}
+
+pub fn get_verbose() -> Result<bool> {
+    let entry =
+        Entry::new(SERVICE_NAME, VERBOSE_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map(|v| v == "true")
+        .map_err(|e| anyhow!("No verbose setting found: {}", e))
 }

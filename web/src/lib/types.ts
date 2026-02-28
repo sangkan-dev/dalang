@@ -79,6 +79,7 @@ export interface SkillSummary {
   tool_path: string | null;
   requires_root: boolean;
   has_args: boolean;
+  enabled?: boolean;
 }
 
 export interface SkillDetail {
@@ -108,7 +109,22 @@ export interface Settings {
   auth_method: string;
   endpoint_mode: string;
   auth_status: string;
+  api_key?: string;
+  verbose?: boolean;
 }
+
+export interface TestConnectionResult {
+  success: boolean;
+  message: string;
+  latency_ms: number;
+}
+
+export const PROVIDER_MODELS: Record<string, string[]> = {
+  gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
+  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini'],
+  anthropic: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'],
+  ollama: ['llama3.1:latest', 'qwen2.5:latest', 'mistral:latest'],
+};
 
 // ─── WebSocket wrapper ──────────────────────────────────────
 

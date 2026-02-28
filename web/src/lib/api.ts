@@ -12,6 +12,7 @@ import type {
   Settings,
   SkillDetail,
   SkillSummary,
+  TestConnectionResult,
   WebSocketCallbacks,
 } from './types';
 
@@ -48,6 +49,8 @@ export const api = {
     request<SkillSummary[]>('/skills'),
   getSkill: (name: string): Promise<SkillDetail> =>
     request<SkillDetail>(`/skills/${name}`),
+  updateSkill: (name: string, enabled: boolean): Promise<null> =>
+    request<null>(`/skills/${name}`, { method: 'PUT', body: JSON.stringify({ enabled }) }),
 
   // Reports
   listReports: (): Promise<ReportEntry[]> =>
@@ -60,6 +63,8 @@ export const api = {
     request<Settings>('/settings'),
   updateSettings: (settings: Settings): Promise<null> =>
     request<null>('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+  testConnection: (): Promise<TestConnectionResult> =>
+    request<TestConnectionResult>('/settings/test-connection', { method: 'POST' }),
 };
 
 // ─── WebSocket connection ───────────────────────────

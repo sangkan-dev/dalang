@@ -187,4 +187,113 @@ mod tests {
                 || res.status() == StatusCode::INTERNAL_SERVER_ERROR
         );
     }
+
+    #[tokio::test]
+    async fn test_update_skill_toggle() {
+        let state = test_state();
+        let router = build_router(state.clone());
+
+        // Disable a skill
+        let req = Request::builder()
+            .uri("/api/skills/nmap_scanner")
+            .method("PUT")
+            .header("Content-Type", "application/json")
+            .body(Body::from(r#"{"enabled":false}"#))
+            .unwrap();
+
+        let res = router.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["enabled"].as_bool(), Some(false));
+        assert_eq!(json["name"].as_str(), Some("nmap_scanner"));
+
+        // Verify it shows as disabled in the list
+        let req = Request::builder()
+            .uri("/api/skills")
+            .body(Body::empty())
+            .unwrap();
+        let res = build_router(state.clone()).oneshot(req).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let skills = json.as_array().unwrap();
+        let nmap = skills
+            .iter()
+            .find(|s| s["name"].as_str() == Some("nmap_scanner"));
+        assert!(nmap.is_some(), "nmap_scanner should be in the list");
+        assert_eq!(nmap.unwrap()["enabled"].as_bool(), Some(false));
+
+        // Re-enable
+        let req = Request::builder()
+            .uri("/api/skills/nmap_scanner")
+            .method("PUT")
+            .header("Content-Type", "application/json")
+            .body(Body::from(r#"{"enabled":true}"#))
+            .unwrap();
+        let res = build_router(state.clone()).oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["enabled"].as_bool(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_update_nonexistent_skill_returns_404() {
+        let req = Request::builder()
+            .uri("/api/skills/no_such_skill_xyz")
+            .method("PUT")
+            .header("Content-Type", "application/json")
+            .body(Body::from(r#"{"enabled":false}"#))
+            .unwrap();
+
+        let res = app().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_settings_has_api_key_and_verbose_fields() {
+        let req = Request::builder()
+            .uri("/api/settings")
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        // New fields should exist
+        assert!(json["has_api_key"].is_boolean(), "Expected has_api_key boolean");
+        assert!(json["verbose"].is_boolean(), "Expected verbose boolean");
+    }
+
+    #[tokio::test]
+    async fn test_test_connection_endpoint_exists() {
+        let req = Request::builder()
+            .uri("/api/settings/test-connection")
+            .method("POST")
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app().oneshot(req).await.unwrap();
+        // Should return a JSON response (may fail connection but shouldn't 404)
+        assert_ne!(res.status(), StatusCode::NOT_FOUND);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json["success"].is_boolean());
+        assert!(json["message"].is_string());
+        assert!(json["latency_ms"].is_number());
+    }
 }

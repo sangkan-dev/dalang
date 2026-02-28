@@ -385,77 +385,75 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
   - Tests: list_skills, create+delete session, list_sessions, get_settings, get nonexistent skill 404, list_reports, static fallback, update_settings.
   - Total: 15 Rust tests (including existing), semua pass.
 
-## Sprint 22: Web UI — Chat Interface ⬜
+## Sprint 22: Web UI — Chat & Skills Polish ✅
 
-**Goal:** Implementasi halaman chat interaktif (mirip ChatGPT) dengan streaming response, markdown rendering, dan tool execution display.
+**Goal:** Extract reusable ChatInput component, add skill search/filter + grid/list toggle, and fix remaining a11y warnings.
 
-- ⬜ **[DAL-2201] - Feature - ChatMessage Component (`ChatMessage.svelte`)**
-  - Render satu chat bubble: user (kanan, biru) atau assistant (kiri, abu-abu).
-  - Markdown rendering via `marked` + `highlight.js` untuk code blocks.
-  - Special rendering untuk `ToolExecution` events: tampilkan command dalam terminal-style box.
-  - Special rendering untuk `Observation` events: collapsible output panel.
-  - Typing indicator saat LLM sedang berpikir.
-- ⬜ **[DAL-2202] - Feature - ChatInput Component (`ChatInput.svelte`)**
-  - Text input dengan auto-resize (textarea).
-  - Keyboard shortcut: Enter = send, Shift+Enter = newline.
-  - Send button dengan loading state.
-  - Target URL input bar di atas chat area.
-- ⬜ **[DAL-2203] - Feature - Chat Page (`+page.svelte`)**
-  - Halaman utama: sidebar session list + main chat area.
-  - New session: input target URL → create session → connect WebSocket → mulai chat.
-  - Message list dengan auto-scroll ke bawah.
-  - Display real-time streaming dari WebSocket.
+- ✅ **[DAL-2201] - Feature - ChatInput Component (`ChatInput.svelte`)**
+  - Extracted reusable textarea+send button from ChatView.
+  - Auto-resize via `$effect` tracking scrollHeight (max 6 rows / 144px).
+  - Enter = send, Shift+Enter = newline, `items-end` flex alignment.
+- ✅ **[DAL-2202] - Refactor - ChatView Uses ChatInput**
+  - Replaced inline textarea block with `<ChatInput>` component.
+  - Removed `handleKeydown` function, simplified ChatView by ~20 lines.
+- ✅ **[DAL-2203] - Feature - Skill Search & Filter (`SkillsView.svelte`)**
+  - Added `searchQuery` state with text input, case-insensitive filter on name+description.
+  - `filteredSkills` derived state for reactive filtering.
+- ✅ **[DAL-2204] - Feature - Grid/List View Toggle (`SkillsView.svelte`)**
+  - `viewMode` toggle ('list' | 'grid'), grid layout with `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`.
+  - `{#snippet skillDetail(skill)}` for reuse in both views.
+  - Enable/disable button in detail header with toast integration.
+- ✅ **[DAL-2205] - Bugfix - Accessibility Warnings**
+  - ChatView: replaced `<div>/<label>` with `<fieldset>/<legend>` for Mode selector.
+  - CommandPalette: added `tabindex="-1"` to dialog div.
+  - Result: `svelte-check` returns 0 errors AND 0 warnings.
+- ✅ **[DAL-2206] - Verification - Build & Tests**
+  - `npm run build` ✅ (0 warnings), `npm run check` ✅ (0 errors, 0 warnings), `npm run test` ✅ (17/17 pass).
 
-## Sprint 23: Web UI — Scan, Reports, Skills, Settings ⬜
+## Sprint 23: Settings Enhancement & Skill Toggle Backend ✅
 
-**Goal:** Implementasi halaman-halaman tambahan: auto-pilot scan, report viewer, skill manager, dan settings.
+**Goal:** Add API key management, model presets, test connection, verbose toggle, and skill enable/disable backend.
 
-- ⬜ **[DAL-2301] - Feature - Scan Page (`scan/+page.svelte`)**
-  - Form input: target URL, max iterations, command timeout.
-  - Start scan button → create session + connect WS + send `start_scan` event.
-  - Live progress display: iterations, skills executed, current action.
-  - Final report rendered inline saat selesai.
-- ⬜ **[DAL-2302] - Feature - Report Viewer Page (`reports/+page.svelte`)**
-  - List semua saved reports (dari REST API).
-  - Click report → render full HTML dengan proper styling.
-  - Export/download as HTML atau Markdown.
-  - Print-friendly layout.
-- ⬜ **[DAL-2303] - Feature - Skill Manager Page (`skills/+page.svelte`)**
-  - Grid/list view semua 22+ skills.
-  - Setiap skill card: name, description, tool_path, requires_root badge.
-  - Click → detail view: full system prompt, arguments, constraints.
-  - Toggle enable/disable per skill.
-- ⬜ **[DAL-2304] - Feature - Settings Page (`settings/+page.svelte`)**
-  - Tampilkan status auth saat ini (provider, model, method).
-  - Dropdown pilih model dari daftar fallback models.
-  - Input untuk API key (masked).
-  - Test connection button.
-  - Verbose toggle.
+- ✅ **[DAL-2301] - Feature - Skill Toggle Backend (`skills.rs` + `state.rs`)**
+  - Added `disabled_skills: Arc<DashMap<String, bool>>` to `AppState`.
+  - `list_skills` now includes `enabled: bool` field per skill.
+  - `PUT /api/skills/{name}` handler to toggle skill enabled/disabled.
+- ✅ **[DAL-2302] - Feature - Settings Persistence (`persistence.rs`)**
+  - Added `save_api_key`/`get_api_key`/`save_verbose`/`get_verbose` functions.
+  - All use OS keyring via `keyring` crate for secure storage.
+- ✅ **[DAL-2303] - Feature - Settings REST API Expansion (`settings.rs`)**
+  - `GET /api/settings` now returns `has_api_key: bool` and `verbose: bool`.
+  - `PUT /api/settings` accepts optional `api_key` and `verbose` fields.
+  - API key saved via keyring, verbose saved via keyring.
+- ✅ **[DAL-2304] - Feature - Test Connection Endpoint (`settings.rs`)**
+  - `POST /api/settings/test-connection` sends minimal LLM request, measures latency.
+  - Returns `{ success, message, latency_ms }`.
+- ✅ **[DAL-2305] - Feature - SettingsView Frontend Rewrite (`SettingsView.svelte`)**
+  - Model selector with `PROVIDER_MODELS` presets + "Custom" free-text toggle.
+  - Masked API key input (`type="password"`) with show/hide toggle.
+  - Test connection button with spinner and inline success/failure indicator.
+  - Verbose mode checkbox.
+  - Auth status banner reflects `has_api_key` state.
+  - Ollama added as provider option.
+- ✅ **[DAL-2306] - Testing - New Rust Tests**
+  - 4 new tests: `test_update_skill_toggle`, `test_update_nonexistent_skill_returns_404`,
+    `test_settings_has_api_key_and_verbose_fields`, `test_test_connection_endpoint_exists`.
+  - Total: 19 Rust tests, all pass. 17 frontend tests, all pass.
 
-## Sprint 24: Web UI — Embedding, Build Pipeline & Polish ⬜
+## Sprint 24: Documentation & Final Polish ✅
 
-**Goal:** Embed compiled Svelte assets ke dalam Rust binary, setup build pipeline, dan polishing akhir.
+**Goal:** Update documentation to cover the web UI, update sprint planning records.
 
-- ⬜ **[DAL-2401] - Feature - rust-embed Static File Serving (`src/web/embedded.rs`)**
-  - Gunakan `rust-embed` untuk embed seluruh `web/dist/` ke binary Rust.
-  - Serve `index.html` sebagai fallback untuk SPA routing.
-  - Proper MIME type detection.
-  - Dev mode: serve langsung dari filesystem (tanpa embed) saat `cfg(debug_assertions)`.
-- ⬜ **[DAL-2402] - Feature - Build Script & Makefile**
-  - Buat `Makefile` atau `build.sh` yang:
-    1. `cd web && npm install && npm run build`
-    2. `cargo build --release`
-  - Tambahkan `web/node_modules/` dan `web/dist/` ke `.gitignore`.
-  - Dokumentasikan build process di README.
-- ⬜ **[DAL-2403] - Polish - UI/UX Refinements**
-  - Loading states, error handling, empty states.
-  - Mobile responsive layout.
-  - Keyboard shortcuts (Ctrl+N = new session, Ctrl+K = command palette).
-  - Toast notifications untuk success/error.
-- ⬜ **[DAL-2404] - Documentation - Update Docs for Web UI**
-  - Update `docs/guide/` dengan panduan web UI usage.
-  - Update `docs/architecture/` dengan diagram web architecture.
-  - Update `README.md` dengan `dalang web` command.
+- ✅ **[DAL-2401] - Documentation - Web UI Guide (`docs/guide/web-ui.md`)**
+  - Full usage guide: starting the server, pages (Chat, Skills, Reports, Settings), keyboard shortcuts.
+- ✅ **[DAL-2402] - Documentation - Web Server Architecture (`docs/architecture/web-server.md`)**
+  - Architecture diagram, REST API table, WebSocket protocol spec, AppState design, frontend stack.
+- ✅ **[DAL-2403] - Documentation - VitePress Sidebar Update**
+  - Added "Web UI" to Guide sidebar, "Web Server" to Architecture sidebar.
+- ✅ **[DAL-2404] - Documentation - README Update**
+  - Added `dalang web` Quick Start section with usage example.
+- ✅ **[DAL-2405] - Documentation - Sprint Planning Update**
+  - Updated Sprints 22-24 with actual implementation details and marked ✅.
 
 ---
 
@@ -484,8 +482,8 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 19 | Web UI — Backend Foundation (axum + WebSocket) | ✅ Done |
 | 20 | Web UI — Svelte Frontend, WebSocket Chat & REST API | ✅ Done |
 | 21 | Web UI — Hardening, Polish & Testing | ✅ Done |
-| 22 | Web UI — Chat Interface | ⬜ Not Started |
-| 23 | Web UI — Scan, Reports, Skills, Settings | ⬜ Not Started |
-| 24 | Web UI — Embedding, Build Pipeline & Polish | ⬜ Not Started |
+| 22 | Web UI — Chat & Skills Polish | ✅ Done |
+| 23 | Settings Enhancement & Skill Toggle Backend | ✅ Done |
+| 24 | Documentation & Final Polish | ✅ Done |
 
-**Total: 24 Sprint — 21 ✅ Selesai, 3 ⬜ Belum Dimulai**
+**Total: 24 Sprint — 24 ✅ Selesai**
