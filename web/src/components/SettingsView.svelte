@@ -139,6 +139,7 @@
               <option value="gemini">Google Gemini</option>
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
+              <option value="copilot">GitHub Copilot</option>
               <option value="ollama">Ollama (local)</option>
             </select>
           </div>

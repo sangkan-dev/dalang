@@ -104,7 +104,7 @@ impl AppState {
 fn resolve_auth_token(auth_method: &str) -> AuthToken {
     if let Ok(token) = crate::auth::persistence::get_access_token() {
         return match auth_method {
-            "bearer" => AuthToken::Bearer(token),
+            "bearer" | "copilot_oauth" => AuthToken::Bearer(token),
             _ => AuthToken::ApiKey(token),
         };
     }

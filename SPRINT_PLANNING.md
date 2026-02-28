@@ -457,6 +457,45 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
+## Sprint 25: GitHub Copilot Provider Integration
+
+**Goal:** Add GitHub Copilot as a new LLM provider using reverse-engineered Copilot CLI endpoints, with full authentication flow and GitHub Models API fallback.
+
+### Completed Tasks
+
+- ✅ **[DAL-2501] - Auth Module - `src/auth/copilot.rs`**
+  - Full Copilot authentication: device flow OAuth, keychain extraction, env var, gh CLI extraction
+  - Token exchange for short-lived Copilot session tokens (`api.github.com/copilot_internal/v2/token`)
+  - Token validation via `api.github.com/copilot_internal/user`
+  - Classic PAT (ghp_) rejection per Copilot CLI behavior
+  - Persist login with `auth_method=copilot_oauth`, `endpoint_mode=copilot`
+
+- ✅ **[DAL-2502] - Auth Provider Variant**
+  - Added `Copilot` variant to `AuthProvider` enum in `src/auth/mod.rs`
+  - Accepts "copilot", "github", "github-copilot" as provider strings
+
+- ✅ **[DAL-2503] - LLM Provider - `src/llm/copilot.rs`**
+  - `CopilotProvider` with auto-refreshing Copilot session tokens (5-min buffer)
+  - Primary: `api.githubcopilot.com/chat/completions` (OpenAI-compatible)
+  - Fallback: `models.github.ai/inference` (GitHub Models API with raw PAT)
+  - Custom headers: `User-Agent: GithubCopilot/1.155.0`, `editor-version: dalang/0.1.0`
+  - Curated model list: claude-sonnet-4.6, claude-opus-4.6, gpt-5.2, gpt-4.1, gemini-3-pro-preview
+
+- ✅ **[DAL-2504] - LLM Factory Integration**
+  - Updated `src/llm/mod.rs`: new `copilot` module, default URL/model, `create_provider` dispatch
+
+- ✅ **[DAL-2505] - CLI Login Flow**
+  - 4 auth methods: Device Flow OAuth (recommended), Copilot CLI keychain, Env var, Manual PAT
+  - Risk disclaimer displayed before login
+  - Interactive model selection from curated Copilot model list
+
+- ✅ **[DAL-2506] - Web UI Integration**
+  - Added `copilot` to `PROVIDER_MODELS` in `web/src/lib/types.ts`
+  - Added "GitHub Copilot" option to provider dropdown in `SettingsView.svelte`
+  - Updated `src/web/state.rs` to handle `copilot_oauth` auth method
+
+---
+
 ## Ringkasan Status
 
 | Sprint | Nama | Status |
@@ -485,5 +524,6 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 22 | Web UI — Chat & Skills Polish | ✅ Done |
 | 23 | Settings Enhancement & Skill Toggle Backend | ✅ Done |
 | 24 | Documentation & Final Polish | ✅ Done |
+| 25 | GitHub Copilot Provider Integration | ✅ Done |
 
-**Total: 24 Sprint — 24 ✅ Selesai**
+**Total: 25 Sprint — 25 ✅ Selesai**

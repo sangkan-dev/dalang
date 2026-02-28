@@ -253,6 +253,143 @@ async fn main() -> Result<()> {
                         _ => unreachable!(),
                     }
                 }
+                auth::AuthProvider::Copilot => {
+                    println!("[!] DISCLAIMER: This is an unofficial integration.");
+                    println!("    Dalang uses the GitHub Copilot API through reverse-engineered endpoints.");
+                    println!("    This is NOT endorsed by GitHub/Microsoft.");
+                    println!("    Use at your own risk — your account, your responsibility.\n");
+
+                    let methods = vec![
+                        "Device Flow OAuth (recommended) — authenticate via browser",
+                        "Copilot CLI keychain — extract from existing @github/copilot session",
+                        "Environment Variable — use COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN",
+                        "Manual PAT — paste a GitHub Personal Access Token (fine-grained)",
+                    ];
+
+                    let selection = Select::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Select authentication method")
+                        .default(0)
+                        .items(&methods)
+                        .interact()?;
+
+                    match selection {
+                        0 => {
+                            // ── Device Flow OAuth ──
+                            let confirm = dialoguer::Confirm::with_theme(&ColorfulTheme::default())
+                                .with_prompt("This will open your browser for GitHub login. Continue?")
+                                .default(true)
+                                .interact()?;
+
+                            if !confirm {
+                                println!("[*] Skipped Copilot Device Flow setup.");
+                                return Ok(());
+                            }
+
+                            match auth::copilot::login_copilot_device_flow().await {
+                                Ok(result) => {
+                                    auth::copilot::persist_copilot_login(&result)?;
+                                    println!("[+] GitHub Copilot login successful!");
+                                    println!("[+] User: {}", result.login);
+
+                                    copilot_model_selection().await;
+                                }
+                                Err(e) => {
+                                    println!("[!] Copilot Device Flow failed: {}", e);
+                                    println!("    You can try keychain extraction or manual PAT instead.");
+                                }
+                            }
+                        }
+                        1 => {
+                            // ── Copilot CLI keychain extraction ──
+                            println!("[*] Looking for Copilot CLI credentials...");
+                            match auth::copilot::try_extract_copilot_token() {
+                                Some(token) => {
+                                    // Validate the token
+                                    match auth::copilot::validate_github_token(&token).await {
+                                        Ok(login) => {
+                                            auth::persistence::save_tokens(&token, None)?;
+                                            let _ = auth::persistence::save_auth_method("copilot_oauth");
+                                            let _ = auth::persistence::save_endpoint_mode("copilot");
+                                            println!("[+] Copilot CLI token extracted! User: {}", login);
+
+                                            copilot_model_selection().await;
+                                        }
+                                        Err(e) => {
+                                            println!("[!] Token found but validation failed: {}", e);
+                                            println!("    The token may have expired. Try Device Flow instead.");
+                                        }
+                                    }
+                                }
+                                None => {
+                                    println!("[!] No Copilot CLI credentials found.");
+                                    println!("    Install @github/copilot and run: github-copilot login");
+                                    println!("    Or use Device Flow instead.");
+                                }
+                            }
+                        }
+                        2 => {
+                            // ── Environment variable ──
+                            match auth::copilot::extract_github_env_token() {
+                                Ok(token) => {
+                                    match auth::copilot::validate_github_token(&token).await {
+                                        Ok(login) => {
+                                            auth::persistence::save_tokens(&token, None)?;
+                                            let _ = auth::persistence::save_auth_method("copilot_oauth");
+                                            let _ = auth::persistence::save_endpoint_mode("copilot");
+                                            println!("[+] GitHub token imported! User: {}", login);
+
+                                            copilot_model_selection().await;
+                                        }
+                                        Err(e) => {
+                                            println!("[!] Token found but validation failed: {}", e);
+                                            println!("    Ensure COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN is valid.");
+                                        }
+                                    }
+                                }
+                                Err(_) => {
+                                    println!("[!] No GitHub token found in environment.");
+                                    println!("    Set one of: COPILOT_GITHUB_TOKEN, GH_TOKEN, GITHUB_TOKEN");
+                                    println!("    Note: Classic PATs (ghp_) are not supported for Copilot API.");
+                                }
+                            }
+                        }
+                        3 => {
+                            // ── Manual PAT ──
+                            println!("[*] Enter a GitHub fine-grained Personal Access Token.");
+                            println!("    Classic tokens (ghp_) are NOT supported for Copilot API.");
+                            println!("    Create one at: https://github.com/settings/tokens?type=beta\n");
+
+                            let pat = Password::with_theme(&ColorfulTheme::default())
+                                .with_prompt("Enter your GitHub PAT")
+                                .interact()?;
+
+                            if pat.trim().is_empty() {
+                                return Err(anyhow::anyhow!("Token cannot be empty."));
+                            }
+
+                            if pat.trim().starts_with("ghp_") {
+                                println!("[!] Classic PATs (ghp_) are not supported for Copilot API.");
+                                println!("    Please use a fine-grained token instead.");
+                                return Ok(());
+                            }
+
+                            match auth::copilot::validate_github_token(pat.trim()).await {
+                                Ok(login) => {
+                                    auth::persistence::save_tokens(pat.trim(), None)?;
+                                    let _ = auth::persistence::save_auth_method("copilot_oauth");
+                                    let _ = auth::persistence::save_endpoint_mode("copilot");
+                                    println!("[+] GitHub PAT saved! User: {}", login);
+
+                                    copilot_model_selection().await;
+                                }
+                                Err(e) => {
+                                    println!("[!] Token validation failed: {}", e);
+                                }
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
+                }
             }
         }
         Commands::Scan {
@@ -403,7 +540,7 @@ fn resolve_auth_token(auth_method: &str) -> llm::AuthToken {
     if let Ok(token) = auth::persistence::get_access_token() {
         println!("[+] Using stored session from keyring");
         return match auth_method {
-            "bearer" => llm::AuthToken::Bearer(token),
+            "bearer" | "copilot_oauth" => llm::AuthToken::Bearer(token),
             _ => llm::AuthToken::ApiKey(token),
         };
     }
@@ -469,6 +606,26 @@ async fn interactive_model_selection(
     }
 }
 
+/// Copilot-specific model selection (uses curated list since Copilot API doesn't expose /models).
+async fn copilot_model_selection() {
+    let models = get_fallback_models("copilot");
+
+    if !models.is_empty() {
+        use dialoguer::{Select, theme::ColorfulTheme};
+        let selection = Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("Select your preferred AI Model")
+            .default(0)
+            .items(&models)
+            .interact()
+            .unwrap_or(0);
+
+        let chosen_model = &models[selection];
+        if auth::persistence::save_model_preference(chosen_model).is_ok() {
+            println!("[+] Default model set to: {}", chosen_model);
+        }
+    }
+}
+
 fn get_fallback_models(provider: &str) -> Vec<String> {
     match provider {
         "gemini" | "google" => vec![
@@ -492,6 +649,15 @@ fn get_fallback_models(provider: &str) -> Vec<String> {
             "claude-3-5-sonnet-20241022".to_string(),
             "claude-3-5-haiku-20241022".to_string(),
             "claude-3-opus-20240229".to_string(),
+        ],
+        "copilot" | "github" | "github-copilot" => vec![
+            "claude-sonnet-4.6".to_string(),
+            "claude-sonnet-4.5".to_string(),
+            "claude-haiku-4.5".to_string(),
+            "claude-opus-4.6".to_string(),
+            "gpt-5.2".to_string(),
+            "gpt-4.1".to_string(),
+            "gemini-3-pro-preview".to_string(),
         ],
         _ => vec!["auto".to_string()],
     }

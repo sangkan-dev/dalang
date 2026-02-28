@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+pub mod copilot;
 pub mod gemini_codeassist;
 pub mod openai;
 
@@ -74,6 +75,9 @@ pub fn get_default_base_url(provider: &str) -> String {
         "gemini" | "google" => {
             "https://generativelanguage.googleapis.com/v1beta/openai".to_string()
         }
+        "copilot" | "github" | "github-copilot" => {
+            "https://api.githubcopilot.com".to_string()
+        }
         "ollama" | "local" => "http://localhost:11434/api".to_string(),
         _ => "https://generativelanguage.googleapis.com/v1beta/openai".to_string(),
     }
@@ -92,6 +96,7 @@ pub fn get_default_model(provider: &str) -> String {
         "openai" => "gpt-4o".to_string(),
         "anthropic" => "claude-sonnet-4-20250514".to_string(),
         "gemini" | "google" => "gemini-2.5-flash".to_string(),
+        "copilot" | "github" | "github-copilot" => "claude-sonnet-4.6".to_string(),
         "ollama" | "local" => "llama3.1:latest".to_string(),
         _ => "gemini-2.5-flash".to_string(),
     }
@@ -110,6 +115,20 @@ pub fn create_provider(
     codeassist_endpoint: Option<String>,
     gcp_project: Option<String>,
 ) -> Result<Box<dyn LlmProvider + Send + Sync>> {
+    if endpoint_mode == "copilot" {
+        // GitHub Copilot provider with auto-refreshing session tokens
+        let github_token = match &auth {
+            AuthToken::Bearer(t) | AuthToken::ApiKey(t) => t.clone(),
+            AuthToken::None => {
+                return Err(anyhow::anyhow!(
+                    "Copilot mode requires a GitHub token (run 'dalang login --provider copilot')"
+                ));
+            }
+        };
+        let provider = copilot::CopilotProvider::new(model, github_token)?;
+        return Ok(Box::new(provider));
+    }
+
     if endpoint_mode == "cloudcode" {
         let token = match &auth {
             AuthToken::Bearer(t) => t.clone(),

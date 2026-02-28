@@ -1,4 +1,5 @@
 pub mod cli_extractor;
+pub mod copilot;
 pub mod gemini_codeassist;
 
 pub mod persistence;
@@ -9,6 +10,7 @@ pub enum AuthProvider {
     Gemini,
     Anthropic,
     OpenAi,
+    Copilot,
 }
 
 impl AuthProvider {
@@ -17,6 +19,7 @@ impl AuthProvider {
             "gemini" | "google" => Ok(AuthProvider::Gemini),
             "anthropic" | "claude" => Ok(AuthProvider::Anthropic),
             "openai" => Ok(AuthProvider::OpenAi),
+            "copilot" | "github" | "github-copilot" => Ok(AuthProvider::Copilot),
             _ => Err(anyhow::anyhow!("Unsupported provider: {}", s)),
         }
     }
@@ -26,6 +29,7 @@ impl AuthProvider {
             AuthProvider::Gemini => "gemini",
             AuthProvider::Anthropic => "anthropic",
             AuthProvider::OpenAi => "openai",
+            AuthProvider::Copilot => "copilot",
         }
     }
 }
