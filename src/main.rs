@@ -5,6 +5,7 @@ pub mod core;
 pub mod executor;
 pub mod llm;
 pub mod skills_parser;
+pub mod web;
 
 use anyhow::Result;
 use clap::Parser;
@@ -349,6 +350,9 @@ async fn main() -> Result<()> {
                 auth::persistence::save_model_preference(chosen)?;
                 println!("[+] Model switched to: {}", chosen);
             }
+        }
+        Commands::Web { port, open } => {
+            web::start_server(port, open, verbose).await?;
         }
     }
 

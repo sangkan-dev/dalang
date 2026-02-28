@@ -64,4 +64,15 @@ pub enum Commands {
         #[arg(short, long)]
         set: Option<String>,
     },
+
+    /// Start the web UI dashboard (chat interface in browser)
+    Web {
+        /// Port to run the web server on
+        #[arg(short, long, default_value_t = 8080)]
+        port: u16,
+
+        /// Automatically open the browser
+        #[arg(short, long, default_value_t = false)]
+        open: bool,
+    },
 }
