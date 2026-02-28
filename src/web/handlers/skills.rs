@@ -17,6 +17,7 @@ pub struct SkillSummary {
     pub requires_root: bool,
     pub has_args: bool,
     pub enabled: bool,
+    pub tool_available: bool,
 }
 
 #[derive(Serialize)]
@@ -30,6 +31,7 @@ pub struct SkillDetail {
     pub role: Option<String>,
     pub task: Option<String>,
     pub constraints: Option<String>,
+    pub tool_available: bool,
 }
 
 impl From<&SkillDefinition> for SkillSummary {
@@ -41,6 +43,7 @@ impl From<&SkillDefinition> for SkillSummary {
             requires_root: s.requires_root.unwrap_or(false),
             has_args: s.args.as_ref().is_some_and(|a| !a.is_empty()),
             enabled: true, // default — caller overrides from state
+            tool_available: s.tool_available,
         }
     }
 }
@@ -57,6 +60,7 @@ impl From<SkillDefinition> for SkillDetail {
             role: s.role,
             task: s.task,
             constraints: s.constraints,
+            tool_available: s.tool_available,
         }
     }
 }
@@ -69,6 +73,11 @@ pub async fn list_skills(State(state): State<AppState>) -> impl IntoResponse {
                 .iter()
                 .map(|s| {
                     let mut summary = SkillSummary::from(s);
+                    // Auto-disable if tool binary is not installed
+                    if !summary.tool_available {
+                        summary.enabled = false;
+                    }
+                    // Also check manually disabled skills
                     if state.disabled_skills.contains_key(&summary.name) {
                         summary.enabled = false;
                     }
@@ -94,7 +103,16 @@ pub async fn get_skill(Path(name): Path<String>) -> impl IntoResponse {
     }
 
     match skills_parser::parse_skill(path) {
-        Ok(skill) => Ok(Json(SkillDetail::from(skill))),
+        Ok(mut skill) => {
+            // Check tool availability
+            skill.tool_available = match &skill.tool_path {
+                Some(tp) if tp != "null" && !tp.is_empty() => {
+                    skills_parser::check_tool_available(tp)
+                }
+                _ => true,
+            };
+            Ok(Json(SkillDetail::from(skill)))
+        }
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to parse skill: {}", e),

@@ -496,6 +496,46 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
+## Sprint 26: Skill Tool Availability Validation & Bug Fixes ✅
+
+**Goal:** Auto-detect and disable skills whose `tool_path` binary is not installed on the system, plus fix critical frontend bugs (chat session navigation, WebSocket scan start).
+
+- ✅ **[DAL-2601] - Feature - Tool Binary Availability Check**
+  - Added `tool_available: bool` field to `SkillDefinition` (serde-skipped)
+  - Implemented `check_tool_available(tool_path)`: checks absolute path existence, then falls back to `which` command
+  - Browser-based skills (`tool_path: null`) always marked as available
+
+- ✅ **[DAL-2602] - Feature - Auto-Disable Unavailable Skills in Engine**
+  - Added `load_available_skills()` that filters out skills with missing tool binaries
+  - Returns list of unavailable skill names for warning messages
+  - Updated all 4 engine call sites (autonomous CLI, interactive CLI, autonomous WS, interactive WS)
+  - CLI modes print `[!] N skills disabled (tool not found)` warning
+  - WebSocket modes send `EngineEvent::Status` with disabled skill names
+
+- ✅ **[DAL-2603] - Feature - Web API Tool Availability**
+  - Added `tool_available` field to `SkillSummary` and `SkillDetail` REST responses
+  - `list_skills` handler auto-disables skills where tool binary is missing
+  - `get_skill` handler checks tool availability on detail fetch
+
+- ✅ **[DAL-2604] - Feature - Frontend Tool Availability UI**
+  - Added `tool_available` to `SkillSummary` and `SkillDetail` TypeScript interfaces
+  - Skills grid: "not installed" orange badge (distinct from manual "disabled" red badge)
+  - Skill detail: warning banner with install instructions when tool is missing
+  - Skill detail: "found"/"missing" status next to tool path
+  - Enable/Disable button replaced with "Not Installed" label for unavailable skills
+
+- ✅ **[DAL-2605] - Bugfix - Chat Session Navigation**
+  - Fixed clicking existing sessions in sidebar showing setup screen instead of chat history
+  - Added `$effect` in ChatView to detect `sessionId` changes and load existing messages
+  - Reconnects WebSocket when switching sessions
+
+- ✅ **[DAL-2606] - Bugfix - WebSocket Scan Start Race Condition**
+  - Fixed auto-pilot scan not starting from frontend when `max_iter=0` (unlimited)
+  - Root cause: `setTimeout(500ms)` — WebSocket might not be OPEN yet when `startScan()` called
+  - Added `waitForOpen()` promise, made `startScan()`/`startInteractive()` async
+
+---
+
 ## Ringkasan Status
 
 | Sprint | Nama | Status |
@@ -525,5 +565,6 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 23 | Settings Enhancement & Skill Toggle Backend | ✅ Done |
 | 24 | Documentation & Final Polish | ✅ Done |
 | 25 | GitHub Copilot Provider Integration | ✅ Done |
+| 26 | Skill Tool Availability Validation & Bug Fixes | ✅ Done |
 
-**Total: 25 Sprint — 25 ✅ Selesai**
+**Total: 26 Sprint — 26 ✅ Selesai**

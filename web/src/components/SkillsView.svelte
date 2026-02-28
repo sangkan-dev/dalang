@@ -179,7 +179,7 @@
                 {selectedSkill?.name === skill.name
                   ? 'bg-[var(--accent)]/5 border-[var(--accent)]/30'
                   : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--accent)]/20'}
-                {skill.enabled === false ? 'opacity-50' : ''}"
+                {skill.tool_available === false || skill.enabled === false ? 'opacity-50' : ''}"
               onclick={() => selectSkill(skill.name)}
             >
               <div class="flex items-start justify-between mb-2">
@@ -188,7 +188,9 @@
                   {#if skill.requires_root}
                     <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-950/30 text-amber-400">root</span>
                   {/if}
-                  {#if skill.enabled === false}
+                  {#if skill.tool_available === false}
+                    <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-950/30 text-orange-400">not installed</span>
+                  {:else if skill.enabled === false}
                     <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-red-950/30 text-red-400">disabled</span>
                   {/if}
                 </div>
@@ -216,27 +218,43 @@
   <div class="max-w-3xl">
     <div class="flex items-start justify-between mb-2">
       <h1 class="text-2xl font-bold">{skill.name}</h1>
-      <button
-        class="text-xs px-3 py-1.5 rounded-lg transition-colors
-          {skills.find((s) => s.name === skill.name)?.enabled === false
-            ? 'bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20'
-            : 'bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20'}"
-        onclick={() => {
-          const current = skills.find((s) => s.name === skill.name);
-          const newEnabled = current?.enabled === false;
-          toggleSkill(skill.name, newEnabled);
-        }}
-      >
-        {skills.find((s) => s.name === skill.name)?.enabled === false ? 'Enable' : 'Disable'}
-      </button>
+      {#if skill.tool_available === false}
+        <span class="text-xs px-3 py-1.5 rounded-lg bg-orange-950/30 text-orange-400 cursor-not-allowed">Not Installed</span>
+      {:else}
+        <button
+          class="text-xs px-3 py-1.5 rounded-lg transition-colors
+            {skills.find((s) => s.name === skill.name)?.enabled === false
+              ? 'bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20'
+              : 'bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20'}"
+          onclick={() => {
+            const current = skills.find((s) => s.name === skill.name);
+            const newEnabled = current?.enabled === false;
+            toggleSkill(skill.name, newEnabled);
+          }}
+        >
+          {skills.find((s) => s.name === skill.name)?.enabled === false ? 'Enable' : 'Disable'}
+        </button>
+      {/if}
     </div>
+    {#if skill.tool_available === false}
+      <div class="mb-3 px-3 py-2 rounded-lg bg-orange-950/20 border border-orange-900/30 text-orange-400 text-xs">
+        ⚠ Tool binary <code class="font-mono">{skill.tool_path}</code> is not installed on this system. Install it to enable this skill.
+      </div>
+    {/if}
     <p class="text-[var(--text-secondary)] mb-4">{skill.description}</p>
 
     <div class="grid grid-cols-2 gap-4 mb-6">
       {#if skill.tool_path}
         <div class="bg-[var(--bg-secondary)] rounded-lg p-3 border border-[var(--border)]">
           <div class="text-xs text-[var(--text-secondary)] mb-1">Tool</div>
-          <code class="text-sm text-[var(--accent)]">{skill.tool_path}</code>
+          <div class="flex items-center gap-2">
+            <code class="text-sm text-[var(--accent)]">{skill.tool_path}</code>
+            {#if skill.tool_available === false}
+              <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-950/30 text-orange-400">missing</span>
+            {:else}
+              <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-green-950/30 text-green-400">found</span>
+            {/if}
+          </div>
         </div>
       {/if}
       <div class="bg-[var(--bg-secondary)] rounded-lg p-3 border border-[var(--border)]">

@@ -80,6 +80,7 @@ export interface SkillSummary {
   requires_root: boolean;
   has_args: boolean;
   enabled?: boolean;
+  tool_available?: boolean;
 }
 
 export interface SkillDetail {
@@ -92,6 +93,7 @@ export interface SkillDetail {
   role: string | null;
   task: string | null;
   constraints: string | null;
+  tool_available?: boolean;
 }
 
 // ─── Reports ────────────────────────────────────────────────
@@ -145,8 +147,8 @@ export const PROVIDER_MODELS: Record<string, string[]> = {
 export interface DalangWebSocket {
   send(msg: ClientMessage): void;
   sendChat(message: string): void;
-  startScan(target: string, maxIter?: number, cmdTimeout?: number): void;
-  startInteractive(target: string, cmdTimeout?: number): void;
+  startScan(target: string, maxIter?: number, cmdTimeout?: number): Promise<void>;
+  startInteractive(target: string, cmdTimeout?: number): Promise<void>;
   close(): void;
   readonly readyState: number;
 }

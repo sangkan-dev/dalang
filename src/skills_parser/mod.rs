@@ -20,9 +20,37 @@ pub struct SkillDefinition {
     pub task: Option<String>,
     #[serde(skip)]
     pub constraints: Option<String>,
+    /// Whether the tool binary is installed and reachable on the system PATH.
+    /// Skills with `tool_path: null` (browser-based) are always considered available.
+    #[serde(skip)]
+    pub tool_available: bool,
 }
 
-/// Memuat seluruh skill dari direktori standar `./skills`
+/// Check if a binary exists on the system PATH.
+pub fn check_tool_available(tool_path: &str) -> bool {
+    // Extract just the binary name (in case tool_path is a full path like /usr/bin/nmap)
+    let bin_name = std::path::Path::new(tool_path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(tool_path);
+
+    // First check if it's an absolute path that exists
+    if std::path::Path::new(tool_path).is_file() {
+        return true;
+    }
+
+    // Otherwise check via `which` (works on Linux/macOS)
+    std::process::Command::new("which")
+        .arg(bin_name)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// Load all skills from the `./skills` directory.
+/// Each skill's `tool_available` field is set based on whether its binary exists.
 pub fn load_all_skills() -> anyhow::Result<Vec<SkillDefinition>> {
     let mut skills = Vec::new();
     let skills_dir = std::path::Path::new("skills");
@@ -36,13 +64,41 @@ pub fn load_all_skills() -> anyhow::Result<Vec<SkillDefinition>> {
         let path = entry.path();
         if path.extension().and_then(|s| s.to_str()) == Some("md") {
             let content = std::fs::read_to_string(&path)?;
-            if let Ok(skill) = parse_skill_content(&content) {
+            if let Ok(mut skill) = parse_skill_content(&content) {
+                // Check tool availability
+                skill.tool_available = match &skill.tool_path {
+                    Some(tp) if tp != "null" && !tp.is_empty() => check_tool_available(tp),
+                    // Browser-based skills (tool_path: null) are always available
+                    _ => true,
+                };
                 skills.push(skill);
             }
         }
     }
 
     Ok(skills)
+}
+
+/// Load only skills whose tools are installed on the system.
+/// Returns (available_skills, unavailable_skill_names).
+pub fn load_available_skills() -> anyhow::Result<(Vec<SkillDefinition>, Vec<String>)> {
+    let all = load_all_skills()?;
+    let mut available = Vec::new();
+    let mut unavailable_names = Vec::new();
+
+    for skill in all {
+        if skill.tool_available {
+            available.push(skill);
+        } else {
+            unavailable_names.push(format!(
+                "{} (requires: {})",
+                skill.name,
+                skill.tool_path.as_deref().unwrap_or("unknown")
+            ));
+        }
+    }
+
+    Ok((available, unavailable_names))
 }
 
 /// Menghasilkan string katalog berisi informasi seluruh skill untuk LLM Meta-Prompt

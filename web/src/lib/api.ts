@@ -129,19 +129,37 @@ export function createWebSocket(
 
   connect();
 
+  // Wait for the WebSocket to reach OPEN state (or timeout after 5s)
+  function waitForOpen(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (ws.readyState === WebSocket.OPEN) return resolve();
+      const timeout = setTimeout(() => reject(new Error('WebSocket open timeout')), 5000);
+      const origOnOpen = ws.onopen;
+      ws.onopen = (ev: Event): void => {
+        clearTimeout(timeout);
+        if (origOnOpen) (origOnOpen as (ev: Event) => void)(ev);
+        resolve();
+      };
+    });
+  }
+
   return {
     send(msg: ClientMessage): void {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(msg));
+      } else {
+        console.warn('[ws] send() called but WebSocket not OPEN (state:', ws.readyState, ')');
       }
     },
     sendChat(message: string): void {
       this.send({ type: 'chat', message });
     },
-    startScan(target: string, maxIter: number = 15, cmdTimeout: number = 300): void {
+    async startScan(target: string, maxIter: number = 15, cmdTimeout: number = 300): Promise<void> {
+      await waitForOpen();
       this.send({ type: 'start_scan', target, max_iter: maxIter, cmd_timeout: cmdTimeout });
     },
-    startInteractive(target: string, cmdTimeout: number = 300): void {
+    async startInteractive(target: string, cmdTimeout: number = 300): Promise<void> {
+      await waitForOpen();
       this.send({ type: 'start_interactive', target, cmd_timeout: cmdTimeout });
     },
     close(): void {

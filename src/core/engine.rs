@@ -491,11 +491,14 @@ impl DalangEngine {
     // AUTONOMOUS AUTO-PILOT LOOP
     // ─────────────────────────────────────
     pub async fn run_autonomous_loop(&self, target: &str, max_iter: u32) -> Result<()> {
-        let skills = crate::skills_parser::load_all_skills()?;
+        let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
 
         println!("[*] Initializing Autonomous Auto-Pilot Mode...");
         println!("[*] Loaded {} skills into catalog.", skills.len());
+        if !unavailable.is_empty() {
+            println!("[!] {} skills disabled (tool not installed): {}", unavailable.len(), unavailable.join(", "));
+        }
 
         let system_prompt = format!(
             "[AUTHORIZED AUDIT ENVIRONMENT - AUTONOMOUS MODE]\n\
@@ -682,12 +685,15 @@ impl DalangEngine {
     // INTERACTIVE HUMAN-IN-THE-LOOP LOOP
     // ─────────────────────────────────────
     pub async fn run_interactive_loop(&self, target: &str) -> Result<()> {
-        let skills = crate::skills_parser::load_all_skills()?;
+        let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
 
         println!("[*] Starting Interactive Human-in-the-Loop Session...");
         println!("[*] Target: {}", target);
         println!("[*] Loaded {} skills into catalog.", skills.len());
+        if !unavailable.is_empty() {
+            println!("[!] {} skills disabled (tool not installed): {}", unavailable.len(), unavailable.join(", "));
+        }
         println!("[*] Type 'exit' or 'quit' to end session.");
 
         let system_prompt = format!(
@@ -834,8 +840,13 @@ impl DalangEngine {
         messages: &[Message],
         tx: mpsc::Sender<EngineEvent>,
     ) -> Result<Vec<Message>> {
-        let skills = crate::skills_parser::load_all_skills()?;
+        let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
+        if !unavailable.is_empty() {
+            let _ = tx.send(EngineEvent::Status {
+                message: format!("{} skills disabled (tool not installed): {}", unavailable.len(), unavailable.join(", ")),
+            }).await;
+        }
 
         let system_prompt = format!(
             "[AUTHORIZED AUDIT ENVIRONMENT - INTERACTIVE MODE]\n\
@@ -953,12 +964,17 @@ impl DalangEngine {
         max_iter: u32,
         tx: mpsc::Sender<EngineEvent>,
     ) -> Result<()> {
-        let skills = crate::skills_parser::load_all_skills()?;
+        let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
 
         let _ = tx.send(EngineEvent::Status {
             message: format!("Loaded {} skills into catalog.", skills.len()),
         }).await;
+        if !unavailable.is_empty() {
+            let _ = tx.send(EngineEvent::Status {
+                message: format!("{} skills disabled (tool not installed): {}", unavailable.len(), unavailable.join(", ")),
+            }).await;
+        }
 
         let system_prompt = format!(
             "[AUTHORIZED AUDIT ENVIRONMENT - AUTONOMOUS MODE]\n\

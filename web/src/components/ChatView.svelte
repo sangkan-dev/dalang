@@ -192,12 +192,14 @@
       messages = [{ role: 'status', content: `Session started for target: ${target}` }];
 
       if (mode === 'scan') {
-        // Auto-start scan
+        // Auto-start scan — wait for WS to be open
         const conn = ws;
-        setTimeout(() => {
-          conn.startScan(target, maxIter, cmdTimeout);
-          messages = [...messages, { role: 'status', content: `Auto-pilot scan started (max ${maxIter} iterations)` }];
-        }, 500);
+        conn.startScan(target, maxIter, cmdTimeout).then(() => {
+          const iterLabel = maxIter === 0 ? 'unlimited' : `max ${maxIter}`;
+          messages = [...messages, { role: 'status', content: `Auto-pilot scan started (${iterLabel} iterations)` }];
+        }).catch((err) => {
+          messages = [...messages, { role: 'error', content: `Failed to start scan: ${(err as Error).message}` }];
+        });
       } else {
         ws.startInteractive(target, cmdTimeout);
       }
