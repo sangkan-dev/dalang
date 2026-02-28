@@ -667,6 +667,7 @@ dependencies = [
  "futures",
  "keyring",
  "lazy_static",
+ "libc",
  "open",
  "regex",
  "reqwest",

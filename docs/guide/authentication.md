@@ -7,14 +7,14 @@ Dalang supports multiple authentication methods with a well-defined priority cha
 When executing a command, Dalang resolves credentials in this order:
 
 ```
-CLI Extractor → Keyring → Environment Variable → None
+Keyring → Environment Variable → CLI Extractor → None
 ```
 
 | Priority | Source                   | Description                                           |
 | -------- | ------------------------ | ----------------------------------------------------- |
-| 1        | **CLI Extractor**        | Auto-detects `gcloud` or `gemini-cli` active sessions |
-| 2        | **Keyring**              | Tokens/keys stored via `dalang login`                 |
-| 3        | **Environment Variable** | `LLM_API_KEY` environment variable                    |
+| 1        | **Keyring**              | Tokens/keys stored via `dalang login`                 |
+| 2        | **Environment Variable** | `LLM_API_KEY` environment variable                    |
+| 3        | **CLI Extractor**        | Auto-detects `gcloud` or `gemini-cli` active sessions |
 | 4        | **None**                 | Proceeds without auth (will fail on API calls)        |
 
 ## Login Methods

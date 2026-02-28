@@ -10,11 +10,13 @@ dalang scan --target <TARGET> --skills <SKILL_LIST>
 
 ### Parameters
 
-| Parameter         | Description                                             |
-| ----------------- | ------------------------------------------------------- |
-| `--target` / `-t` | Target URL or IP address                                |
-| `--skills` / `-s` | Comma-separated list of skill names                     |
-| `--auto` / `-a`   | Enable autonomous mode (see [Auto-Pilot](./auto-pilot)) |
+| Parameter            | Short | Default | Description                                              |
+| -------------------- | ----- | ------- | -------------------------------------------------------- |
+| `--target`           | `-t`  | —       | Target URL or IP address                                 |
+| `--skills`           | `-s`  | —       | Comma-separated list of skill names                      |
+| `--auto`             | `-a`  | false   | Enable autonomous mode (see [Auto-Pilot](./auto-pilot))  |
+| `--max-iter`         | `-n`  | 15      | Max iterations for auto-pilot (0 = unlimited)            |
+| `--cmd-timeout`      | —     | 300     | Command execution timeout in seconds (0 = unlimited)     |
 
 ### Examples
 
@@ -24,6 +26,12 @@ dalang scan --target 192.168.1.1 --skills nmap_scanner
 
 # Multiple skills (executed sequentially)
 dalang scan --target https://example.com --skills nmap_scanner,web-audit,ffuf_fuzzer
+
+# With custom timeout (10 minutes per command)
+dalang scan --target https://example.com --skills nikto_scanner --cmd-timeout 600
+
+# Unlimited command timeout
+dalang scan --target https://example.com --skills nikto_scanner --cmd-timeout 0
 ```
 
 ## How It Works

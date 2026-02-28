@@ -7,16 +7,17 @@ The core engine (`src/core/engine.rs`) is the heart of Dalang — the "Dalang" (
 ```rust
 pub struct DalangEngine {
     llm: Box<dyn LlmProvider + Send + Sync>,
+    cmd_timeout: u64,
 }
 ```
 
-The engine holds a reference to the active LLM provider and exposes three main loops:
+The engine holds a reference to the active LLM provider and a configurable command timeout (in seconds, 0 = unlimited). It exposes three main loops:
 
 | Method                   | Description                          |
 | ------------------------ | ------------------------------------ |
-| `run_scan_loop()`        | Execute specific skills sequentially |
-| `run_autonomous_loop()`  | AI-driven meta-orchestration         |
-| `run_interactive_loop()` | Human-in-the-loop REPL               |
+| `run_scan_loop()`        | Execute specific skills sequentially       |
+| `run_autonomous_loop()`  | AI-driven meta-orchestration (configurable iteration limit) |
+| `run_interactive_loop()` | Human-in-the-loop REPL                     |
 
 ## ReAct Loop
 
@@ -44,10 +45,11 @@ This ensures CLI-only skills (nmap, sqlmap) work even without Chrome installed.
 | Helper                           | Purpose                                                               |
 | -------------------------------- | --------------------------------------------------------------------- |
 | `handle_browser_tool()`          | Dispatches browser-navigate, browser-evaluate-js, browser-extract-dom |
-| `execute_skill_native()`         | Runs a skill's tool_path with interpolated args                       |
-| `handle_os_command()`            | Executes raw os-command tool calls                                    |
+| `execute_skill_native()`         | Runs a skill's tool_path with interpolated args + timeout             |
+| `handle_os_command()`            | Executes raw os-command tool calls (30s safety timeout)               |
 | `build_execute_skill_tool_def()` | Builds the JSON schema for native tool calling                        |
 | `save_report()`                  | Writes vulnerability report to file                                   |
+| `effective_timeout()`            | Resolves cmd_timeout (0 → unlimited)                                  |
 
 ## Context Memory
 

@@ -28,7 +28,7 @@ After building, initialize the skill library:
 dalang init
 ```
 
-This creates the `skills/` directory with an example skill file (`example-nmap.md`).
+This creates the `skills/` directory and installs all 22 built-in skill files. Skills that already exist are skipped, so running `dalang init` again after an update will only install new skills.
 
 ## Installing Security Tools
 
@@ -37,11 +37,17 @@ Dalang is a framework that orchestrates external tools. Install the tools you ne
 ::: code-group
 
 ```bash [Ubuntu/Debian]
-sudo apt install nmap ffuf sqlmap wpscan masscan
+sudo apt install nmap ffuf sqlmap wpscan masscan nikto sslscan hydra smbclient snmp gobuster
+pip install xsstrike
+# For nuclei: https://github.com/projectdiscovery/nuclei#install
+# For subfinder: https://github.com/projectdiscovery/subfinder#install
+# For rustscan: https://github.com/RustScan/RustScan#install
 ```
 
 ```bash [macOS (Homebrew)]
-brew install nmap ffuf sqlmap wpscan masscan
+brew install nmap ffuf sqlmap wpscan masscan nikto sslscan hydra smbclient gobuster
+brew install projectdiscovery/tap/nuclei projectdiscovery/tap/subfinder
+# For rustscan: cargo install rustscan
 ```
 
 ```bash [Arch Linux]

@@ -5,8 +5,28 @@ Auto-Pilot mode gives the AI full control over the penetration testing workflow.
 ## Usage
 
 ```bash
+# Default: 15 iterations, 300s command timeout
 dalang scan --target <TARGET> --auto
+
+# Custom iteration limit
+dalang scan --target <TARGET> --auto --max-iter 50
+
+# Unlimited iterations (runs until AI produces final report)
+dalang scan --target <TARGET> --auto --max-iter 0
+
+# Unlimited command timeout (tools run until they finish)
+dalang scan --target <TARGET> --auto --cmd-timeout 0
+
+# Full unlimited mode
+dalang scan --target <TARGET> --auto --max-iter 0 --cmd-timeout 0
 ```
+
+### Parameters
+
+| Parameter           | Short | Default | Description                                          |
+| ------------------- | ----- | ------- | ---------------------------------------------------- |
+| `--max-iter`        | `-n`  | 15      | Maximum iterations (0 = unlimited)                   |
+| `--cmd-timeout`     | —     | 300     | Command execution timeout in seconds (0 = unlimited) |
 
 ## How It Works
 
@@ -17,8 +37,14 @@ dalang scan --target <TARGET> --auto
    - Stage 2: Enumeration (web fuzzing, directory brute-forcing)
    - Stage 3: Vulnerability Assessment (injection testing, misconfig checks)
    - Stage 4: Reporting
-4. After gathering enough data (or reaching 15 iterations), the AI generates a **VULNERABILITY REPORT**
-5. The report is automatically saved to `dalang_report_<target>_<timestamp>.md`
+4. After gathering enough data (or reaching the iteration limit), the AI generates a **VULNERABILITY REPORT**
+5. The report follows a structured bug-bounty format with:
+   - Exact affected URLs and parameters
+   - CWE classifications and CVSS scores
+   - Step-by-step Proof of Concept (PoC) with payloads and curl commands
+   - Raw tool output as evidence
+   - Impact analysis and remediation recommendations
+6. The report is automatically saved to `dalang_report_<target>_<timestamp>.md`
 
 ## Persistent Memory
 
@@ -38,7 +64,7 @@ All injected arguments are **sanitized** against shell metacharacters before exe
 
 ```
 [*] Initializing Autonomous Auto-Pilot Mode...
-[*] Loaded 16 skills into catalog.
+[*] Loaded 22 skills into catalog.
 
 [...] Strategic Reasoning (Iteration 1/15)...
 [>] Orchestrator decided to use skill: nmap_scanner

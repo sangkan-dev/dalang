@@ -1,10 +1,10 @@
 ---
 name: testing-skill
-description: Ini adalah skill dummy untuk keperluan testing
+description: Dummy skill for development testing and validation purposes.
 ---
 
 # Testing Skill Context
 
-Kamu sekarang beroperasi menggunakan `testing-skill`.
-Tugas kamu adalah memastikan command yang kamu jalankan aman dan respons JSON-mu valid sesuai request.
-Tolong tampilkan hasil eksekusi sesuai instruksi.
+You are now operating with the `testing-skill`.
+Your task is to ensure that any commands you execute are safe and that your JSON responses are valid per the request schema.
+Display execution results exactly as instructed.

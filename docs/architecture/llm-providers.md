@@ -17,13 +17,13 @@ pub trait LlmProvider {
 
 ## Supported Providers
 
-| Provider              | Base URL                                   | Auth Method       | Default Model       |
-| --------------------- | ------------------------------------------ | ----------------- | ------------------- |
-| **Gemini**            | `generativelanguage.googleapis.com/v1beta` | API Key / Bearer  | `gemini-2.0-flash`  |
-| **Gemini CloudCode**  | `generativelanguage.googleapis.com/v1beta` | Bearer (OAuth)    | `gemini-2.0-flash`  |
-| **OpenAI**            | `api.openai.com/v1`                        | API Key           | `gpt-4o`            |
-| **Anthropic**         | `api.anthropic.com/v1`                     | API Key           | `claude-3-5-sonnet` |
-| **Ollama/Local**      | `localhost:11434/api`                      | None              | `llama3.1:latest`   |
+| Provider              | Base URL                                       | Auth Method       | Default Model       |
+| --------------------- | ---------------------------------------------- | ----------------- | ------------------- |
+| **Gemini**            | `generativelanguage.googleapis.com/v1beta`     | API Key / Bearer  | `gemini-2.5-flash`  |
+| **Gemini CloudCode**  | `cloudcode-pa.googleapis.com/v1internal`       | Bearer (OAuth)    | `gemini-2.5-flash`  |
+| **OpenAI**            | `api.openai.com/v1`                            | API Key           | `gpt-4o`            |
+| **Anthropic**         | `api.anthropic.com/v1`                         | API Key           | `claude-3-5-sonnet` |
+| **Ollama/Local**      | `localhost:11434/api`                          | None              | `llama3.1:latest`   |
 
 ## Endpoint Modes
 
@@ -34,9 +34,11 @@ Dalang supports two endpoint modes for Gemini:
 | `openai_compat`  | Standard OpenAI-compatible endpoint (API key, CLI extract, or gcloud)    |
 | `cloudcode`      | Gemini CLI OAuth flow with Cloud Code Assist project discovery           |
 
-In **cloudcode** mode, the `GeminiCodeAssistProvider` wraps the standard `OpenAiCompatibleProvider`
-with a Bearer token obtained via the Gemini CLI OAuth flow. Inference still goes to the
-`generativelanguage.googleapis.com/v1beta/openai` endpoint — no Vertex AI required.
+In **cloudcode** mode, the `GeminiCodeAssistProvider` uses Google's native `generateContent` API
+format (not OpenAI-compatible) with Bearer token obtained via the Gemini CLI OAuth flow. Inference
+goes to `cloudcode-pa.googleapis.com/v1internal:generateContent` with the discovered GCP project.
+The provider automatically handles 429 errors with model fallback (RATE_LIMIT_EXCEEDED → wait &
+retry, MODEL_CAPACITY_EXHAUSTED → fall back to next model in chain).
 
 ### Cloud Code Assist Discovery
 

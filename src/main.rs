@@ -13,6 +13,7 @@ use cli::{Commands, DalangArgs};
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = DalangArgs::parse();
+    let verbose = args.verbose;
 
     match args.command {
         Commands::Init => {
@@ -278,7 +279,7 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine = core::engine::DalangEngine::new(provider, cmd_timeout);
+            let engine = core::engine::DalangEngine::new(provider, cmd_timeout, verbose);
 
             if auto {
                 engine.run_autonomous_loop(&target, max_iter).await?;
@@ -307,7 +308,7 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine = core::engine::DalangEngine::new(provider, cmd_timeout);
+            let engine = core::engine::DalangEngine::new(provider, cmd_timeout, verbose);
 
             engine.run_interactive_loop(&target).await?;
         }

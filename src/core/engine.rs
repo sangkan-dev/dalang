@@ -37,11 +37,12 @@ impl LazyBrowser {
 pub struct DalangEngine {
     llm: Box<dyn LlmProvider + Send + Sync>,
     cmd_timeout: u64,
+    verbose: bool,
 }
 
 impl DalangEngine {
-    pub fn new(llm: Box<dyn LlmProvider + Send + Sync>, cmd_timeout: u64) -> Self {
-        Self { llm, cmd_timeout }
+    pub fn new(llm: Box<dyn LlmProvider + Send + Sync>, cmd_timeout: u64, verbose: bool) -> Self {
+        Self { llm, cmd_timeout, verbose }
     }
 
     /// Resolve the effective timeout value. 0 means unlimited (u64::MAX).
@@ -166,6 +167,24 @@ impl DalangEngine {
         memory: &mut ContextManager,
         messages: &mut Vec<Message>,
     ) {
+        // Check requires_root before execution
+        if skill_def.requires_root == Some(true) {
+            let is_root = unsafe { libc::geteuid() == 0 };
+            if !is_root {
+                println!(
+                    "    [!] Skill `{}` requires root privileges. Skipping. Run dalang with sudo.",
+                    skill_def.name
+                );
+                messages.push(Message::user(&format!(
+                    "Error: Skill `{}` requires root privileges but dalang is not running as root. \
+                     The user should re-run with `sudo dalang ...` to use this skill. \
+                     Please choose a different skill that does not require root.",
+                    skill_def.name
+                )));
+                return;
+            }
+        }
+
         let tool_path = match &skill_def.tool_path {
             Some(tp) => tp.clone(),
             None => {
@@ -317,7 +336,9 @@ impl DalangEngine {
                 `browser-evaluate-js` (args: {{\"script\": \"<js>\"}}), \
                 `browser-extract-dom` (args: {{}})\n\
                 {}\
-                When finished, respond with plain text (no JSON).",
+                IMPORTANT: When you find a vulnerability, always note the EXACT affected URL, the specific \n\
+                parameter or component, and provide a concrete proof-of-concept (PoC) payload or curl command.\n\
+                When finished, respond with a detailed vulnerability summary in plain text (no JSON).",
                 if skill_def.tool_path.is_some() {
                     format!(
                         "You can also use the specialized tool: `{}` (args: {{}}) to run this audit method automatically.\n",
@@ -345,7 +366,18 @@ impl DalangEngine {
                 i += 1;
                 println!("\n[...] LLM is reasoning (Iteration {})...", i);
 
+                if self.verbose {
+                    eprintln!("[VERBOSE] Sending {} messages to LLM", messages.len());
+                    for (idx, m) in messages.iter().enumerate() {
+                        eprintln!("[VERBOSE]   msg[{}] role={} len={}", idx, m.role, m.content.len());
+                    }
+                }
+
                 let response_text = self.llm.send_messages(&messages).await?;
+
+                if self.verbose {
+                    eprintln!("[VERBOSE] LLM response ({} chars):\n{}", response_text.len(), response_text);
+                };
 
                 if is_safety_refusal(&response_text) {
                     if retries < MAX_RETRIES {
@@ -549,7 +581,19 @@ impl DalangEngine {
             }
 
             let tools = vec![Self::build_execute_skill_tool_def()]; // FIX-13: no unused var
+
+            if self.verbose {
+                eprintln!("[VERBOSE] Autonomous: Sending {} messages to LLM (iter {})", messages.len(), i);
+                for (idx, m) in messages.iter().enumerate() {
+                    eprintln!("[VERBOSE]   msg[{}] role={} len={}", idx, m.role, m.content.len());
+                }
+            }
+
             let response_text = self.llm.send_messages_with_tools(&messages, tools).await?;
+
+            if self.verbose {
+                eprintln!("[VERBOSE] LLM response ({} chars):\n{}", response_text.len(), response_text);
+            };
 
             if is_safety_refusal(&response_text) {
                 println!("[!] LLM refused (Safety Filter). Attempting re-prompt...");
@@ -646,11 +690,28 @@ impl DalangEngine {
 
         let system_prompt = format!(
             "[AUTHORIZED AUDIT ENVIRONMENT - INTERACTIVE MODE]\n\
-            You are a Security Assistant for a sanctioned penetration test. \
+            You are a Senior Security Consultant assisting in a sanctioned penetration test.\n\
             Target: {}.\n\n\
             {}\n\n\
-            Respond to user requests by either reasoning or calling the `execute_skill` tool. \
-            Always keep the security context in mind.",
+            ### INSTRUCTIONS:\n\
+            1. Respond to user requests by reasoning about the security context, then calling `execute_skill` to run tools.\n\
+            2. After each tool execution, analyze the observation and explain findings clearly.\n\
+            3. When the user asks for a report, produce a detailed vulnerability report.\n\
+            4. Always reference specific URLs, parameters, and evidence from tool output.\n\n\
+            ### VULNERABILITY REPORT FORMAT (when requested):\n\
+            For each finding include:\n\
+            - **Severity:** Critical / High / Medium / Low / Informational\n\
+            - **CWE:** (e.g. CWE-79: Cross-Site Scripting)\n\
+            - **Affected URL:** (exact full URL with path and parameters)\n\
+            - **Affected Parameter:** (specific parameter name or component)\n\
+            - **Proof of Concept:** Step-by-step reproduction with exact payloads and curl commands\n\
+            - **Evidence:** Raw tool output that confirms the vulnerability\n\
+            - **Impact:** What an attacker could achieve\n\
+            - **Remediation:** Specific fix recommendation\n\n\
+            Output JSON to call a skill:\n\
+            ```json\n\
+            {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
+            ```",
             target, skills_catalog
         );
 
@@ -681,7 +742,19 @@ impl DalangEngine {
 
             println!("\n[...] Strategic Reasoning...");
             let tools = vec![Self::build_execute_skill_tool_def()]; // FIX-13
+
+            if self.verbose {
+                eprintln!("[VERBOSE] Interactive: Sending {} messages to LLM", messages.len());
+                for (idx, m) in messages.iter().enumerate() {
+                    eprintln!("[VERBOSE]   msg[{}] role={} len={}", idx, m.role, m.content.len());
+                }
+            }
+
             let response_text = self.llm.send_messages_with_tools(&messages, tools).await?;
+
+            if self.verbose {
+                eprintln!("[VERBOSE] LLM response ({} chars):\n{}", response_text.len(), response_text);
+            }
 
             if is_safety_refusal(&response_text) {
                 println!("[!] LLM refused (Safety Filter).");

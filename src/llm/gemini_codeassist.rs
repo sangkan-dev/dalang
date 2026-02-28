@@ -8,6 +8,8 @@ use super::{LlmProvider, Message};
 use anyhow::{Result, anyhow};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 // ---------------------------------------------------------------------------
 // Request types (Google generateContent via CloudCode)
@@ -136,7 +138,7 @@ const FALLBACK_MODELS: &[&str] = &[
 pub struct GeminiCodeAssistProvider {
     client: Client,
     model: String,
-    access_token: String,
+    access_token: Arc<Mutex<String>>,
     project: String,
     codeassist_endpoint: String,
 }
@@ -152,7 +154,7 @@ impl GeminiCodeAssistProvider {
         Ok(Self {
             client,
             model,
-            access_token,
+            access_token: Arc::new(Mutex::new(access_token)),
             project,
             codeassist_endpoint,
         })
@@ -310,6 +312,7 @@ impl GeminiCodeAssistProvider {
         }
 
         let mut last_error = String::new();
+        let mut token_refreshed = false;
 
         for (attempt, model) in models_to_try.iter().enumerate() {
             // Per-model retry loop: handles RATE_LIMIT_EXCEEDED by waiting
@@ -331,10 +334,12 @@ impl GeminiCodeAssistProvider {
                     },
                 };
 
+                let current_token = self.access_token.lock().await.clone();
+
                 let response = self
                     .client
                     .post(&url)
-                    .header("Authorization", format!("Bearer {}", self.access_token))
+                    .header("Authorization", format!("Bearer {}", current_token))
                     .header("Content-Type", "application/json")
                     .header("User-Agent", "google-api-rust-client/dalang")
                     .header("X-Goog-Api-Client", "gl-rust/dalang")
@@ -357,6 +362,25 @@ impl GeminiCodeAssistProvider {
                 }
 
                 let body = response.text().await.unwrap_or_default();
+
+                // Handle 401 Unauthorized — attempt token refresh once
+                if status.as_u16() == 401 && !token_refreshed {
+                    eprintln!("[!] Access token expired. Attempting refresh...");
+                    match crate::auth::gemini_codeassist::refresh_access_token().await {
+                        Ok(new_token) => {
+                            eprintln!("[+] Token refreshed successfully.");
+                            *self.access_token.lock().await = new_token;
+                            token_refreshed = true;
+                            continue; // Retry with new token
+                        }
+                        Err(e) => {
+                            return Err(anyhow!(
+                                "Access token expired and refresh failed: {}. Please re-login with: dalang login --provider gemini",
+                                e
+                            ));
+                        }
+                    }
+                }
 
                 if status.as_u16() == 429 {
                     // Distinguish RATE_LIMIT_EXCEEDED (wait+retry) from MODEL_CAPACITY_EXHAUSTED (fallback)

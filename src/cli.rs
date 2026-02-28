@@ -4,6 +4,10 @@ use clap::{Parser, Subcommand};
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct DalangArgs {
+    /// Enable verbose output (show LLM requests/responses, timing info)
+    #[arg(short, long, global = true, default_value_t = false)]
+    pub verbose: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }

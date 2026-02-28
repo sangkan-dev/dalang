@@ -71,4 +71,28 @@ pub const BUNDLED_SKILLS: &[BundledSkill] = &[
         filename: "testing.md",
         content: include_str!("../../skills/testing.md"),
     },
+    BundledSkill {
+        filename: "header_analyzer.md",
+        content: include_str!("../../skills/header_analyzer.md"),
+    },
+    BundledSkill {
+        filename: "ssl_scan.md",
+        content: include_str!("../../skills/ssl_scan.md"),
+    },
+    BundledSkill {
+        filename: "jwt_analysis.md",
+        content: include_str!("../../skills/jwt_analysis.md"),
+    },
+    BundledSkill {
+        filename: "nuclei_vuln_scan.md",
+        content: include_str!("../../skills/nuclei_vuln_scan.md"),
+    },
+    BundledSkill {
+        filename: "subdomain_enum.md",
+        content: include_str!("../../skills/subdomain_enum.md"),
+    },
+    BundledSkill {
+        filename: "gobuster_dir.md",
+        content: include_str!("../../skills/gobuster_dir.md"),
+    },
 ];
