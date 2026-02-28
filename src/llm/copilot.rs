@@ -1,10 +1,7 @@
 use super::{LlmProvider, Message};
-use crate::auth::copilot::{exchange_copilot_session_token, CopilotSessionToken};
 use anyhow::{Result, anyhow};
 use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// Known Copilot models with billing info (from @github/copilot v0.0.420 source)
 const COPILOT_MODELS: &[&str] = &[
@@ -63,21 +60,18 @@ struct FunctionCall {
     arguments: String,
 }
 
-// ─── Cached Session State ───────────────────────────────────
-
-struct CopilotSession {
-    /// The long-lived GitHub OAuth token
-    github_token: String,
-    /// Cached short-lived Copilot session token
-    session_token: Option<CopilotSessionToken>,
-}
-
 // ─── CopilotProvider ────────────────────────────────────────
 
+/// GitHub Copilot LLM provider.
+///
+/// Uses the OAuth token directly with `Authorization: Bearer {token}` to call
+/// `api.githubcopilot.com`, exactly like the official @github/copilot CLI does.
+/// Falls back to GitHub Models API (`models.github.ai`) on failure.
 pub struct CopilotProvider {
     client: Client,
     model: String,
-    session: Arc<Mutex<CopilotSession>>,
+    /// The long-lived GitHub OAuth token (from Device Flow or keychain)
+    github_token: String,
     /// Whether to use GitHub Models API as fallback
     use_models_api_fallback: bool,
 }
@@ -107,32 +101,9 @@ impl CopilotProvider {
         Ok(Self {
             client,
             model,
-            session: Arc::new(Mutex::new(CopilotSession {
-                github_token,
-                session_token: None,
-            })),
+            github_token,
             use_models_api_fallback: true,
         })
-    }
-
-    /// Ensure we have a valid Copilot session token, refreshing if expired.
-    async fn ensure_session_token(&self) -> Result<String> {
-        let mut session = self.session.lock().await;
-
-        // Check if we have a cached token that hasn't expired (with 5-min buffer)
-        if let Some(ref st) = session.session_token {
-            let now = chrono::Utc::now().timestamp();
-            if now < st.expires_at - 300 {
-                return Ok(st.token.clone());
-            }
-        }
-
-        // Exchange the GitHub token for a new Copilot session token
-        let new_token = exchange_copilot_session_token(&session.github_token).await?;
-        let token_str = new_token.token.clone();
-        session.session_token = Some(new_token);
-
-        Ok(token_str)
     }
 
     /// Internal request implementation for Copilot API
@@ -158,13 +129,12 @@ impl CopilotProvider {
     }
 
     /// Try the Copilot Internal API (api.githubcopilot.com)
+    /// Uses OAuth token directly as Bearer auth, same as @github/copilot CLI.
     async fn try_copilot_internal_api(
         &self,
         messages: &[Message],
         tools: &Option<Vec<serde_json::Value>>,
     ) -> Result<String> {
-        let session_token = self.ensure_session_token().await?;
-
         let endpoint = format!("{}/chat/completions", COPILOT_API_BASE);
 
         let req_body = OpenAiRequest {
@@ -177,7 +147,7 @@ impl CopilotProvider {
         let response = self
             .client
             .post(&endpoint)
-            .header("Authorization", format!("Bearer {}", session_token))
+            .header("Authorization", format!("Bearer {}", self.github_token))
             .header("openai-intent", "conversation-panel")
             .json(&req_body)
             .send()
@@ -192,11 +162,6 @@ impl CopilotProvider {
         messages: &[Message],
         tools: &Option<Vec<serde_json::Value>>,
     ) -> Result<String> {
-        let github_token = {
-            let session = self.session.lock().await;
-            session.github_token.clone()
-        };
-
         let endpoint = format!("{}/chat/completions", GITHUB_MODELS_BASE);
 
         let req_body = OpenAiRequest {
@@ -209,7 +174,7 @@ impl CopilotProvider {
         let response = self
             .client
             .post(&endpoint)
-            .header("Authorization", format!("Bearer {}", github_token))
+            .header("Authorization", format!("Bearer {}", self.github_token))
             .json(&req_body)
             .send()
             .await?;
