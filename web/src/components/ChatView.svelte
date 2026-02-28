@@ -4,9 +4,9 @@
   import { toast } from '../lib/toast.ts';
   import ChatMessage from './ChatMessage.svelte';
   import ChatInput from './ChatInput.svelte';
-  import type { ChatMessage as ChatMsg, DalangWebSocket, EngineEvent, SessionMode } from '../lib/types';
+  import type { ChatMessage as ChatMsg, DalangWebSocket, EngineEvent, Session, SessionMode } from '../lib/types';
 
-  let { sessionId = $bindable(null), resetTrigger = 0 }: { sessionId: string | null; resetTrigger?: number } = $props();
+  let { sessionId = $bindable(null), selectedSession = null, resetTrigger = 0 }: { sessionId: string | null; selectedSession?: Session | null; resetTrigger?: number } = $props();
 
   let messages = $state<ChatMsg[]>([]);
   let inputText = $state('');
@@ -21,12 +21,68 @@
   let chatContainer = $state<HTMLDivElement | null>(null);
   let showSetup = $state(true);
 
+  // Track previously loaded session to avoid re-loading
+  let loadedSessionId: string | null = null;
+
   // Watch for resetTrigger changes from parent (new session via sidebar)
   $effect(() => {
     if (resetTrigger) {
       resetSession();
     }
   });
+
+  // Watch for sessionId changes — load existing session when selected from sidebar
+  $effect(() => {
+    const sid = sessionId;
+    if (sid && sid !== loadedSessionId) {
+      loadedSessionId = sid;
+      loadExistingSession(sid);
+    }
+  });
+
+  async function loadExistingSession(sid: string): Promise<void> {
+    try {
+      // Use the selectedSession info if available, otherwise fall back to defaults
+      if (selectedSession && selectedSession.id === sid) {
+        target = selectedSession.target;
+        mode = selectedSession.mode === 'scan' ? 'scan' : 'interactive';
+      }
+
+      // Fetch message history from the backend
+      const history = await api.getMessages(sid);
+      messages = history.map((m) => ({
+        role: m.role as ChatMsg['role'],
+        content: m.content,
+      }));
+
+      showSetup = false;
+      isConnected = false;
+      isThinking = false;
+
+      // Auto-reconnect WebSocket for the existing session
+      if (ws) ws.close();
+      ws = createWebSocket(sid, {
+        onEvent: handleEvent,
+        onClose: () => { isConnected = false; isReconnecting = false; },
+        onError: () => { isConnected = false; },
+        onReconnecting: (attempt, max) => {
+          isReconnecting = true;
+          toast.warning(`Reconnecting... (${attempt}/${max})`);
+        },
+        onReconnected: () => {
+          isReconnecting = false;
+          isConnected = true;
+          toast.success('Reconnected!');
+        },
+      });
+      isConnected = true;
+
+      scrollToBottom();
+    } catch {
+      messages = [{ role: 'error', content: `Failed to load session ${sid}` }];
+      showSetup = false;
+    }
+  }
 
   function scrollToBottom(): void {
     const el = chatContainer;
@@ -163,6 +219,7 @@
     if (ws) ws.close();
     ws = null;
     sessionId = null;
+    loadedSessionId = null;
     messages = [];
     isConnected = false;
     isThinking = false;

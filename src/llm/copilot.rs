@@ -2,23 +2,32 @@ use super::{LlmProvider, Message};
 use anyhow::{Result, anyhow};
 use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-/// Known Copilot models with billing info (from @github/copilot v0.0.420 source)
+/// Known Copilot models (from @github/copilot v0.0.420 source, TY array).
+/// `claude-opus-4.6-1m` excluded by CLI as premium-only (q7t set).
 const COPILOT_MODELS: &[&str] = &[
     "claude-sonnet-4.6",
     "claude-sonnet-4.5",
     "claude-haiku-4.5",
     "claude-opus-4.6",
-    "gpt-5.2",
-    "gpt-4.1",
+    "claude-opus-4.6-fast",
+    "claude-opus-4.5",
+    "claude-sonnet-4",
     "gemini-3-pro-preview",
+    "gpt-5.3-codex",
+    "gpt-5.2-codex",
+    "gpt-5.2",
+    "gpt-5.1-codex-max",
+    "gpt-5.1-codex",
+    "gpt-5.1",
+    "gpt-5.1-codex-mini",
+    "gpt-5-mini",
+    "gpt-4.1",
 ];
 
 /// The Copilot Internal API base URL
 const COPILOT_API_BASE: &str = "https://api.githubcopilot.com";
-
-/// The GitHub Models API base URL (fallback)
-const GITHUB_MODELS_BASE: &str = "https://models.github.ai/inference";
 
 // ─── Request / Response types ───────────────────────────────
 
@@ -66,34 +75,47 @@ struct FunctionCall {
 ///
 /// Uses the OAuth token directly with `Authorization: Bearer {token}` to call
 /// `api.githubcopilot.com`, exactly like the official @github/copilot CLI does.
-/// Falls back to GitHub Models API (`models.github.ai`) on failure.
 pub struct CopilotProvider {
     client: Client,
     model: String,
     /// The long-lived GitHub OAuth token (from Device Flow or keychain)
     github_token: String,
-    /// Whether to use GitHub Models API as fallback
-    use_models_api_fallback: bool,
 }
 
 impl CopilotProvider {
     pub fn new(model: String, github_token: String) -> Result<Self> {
         let mut headers = header::HeaderMap::new();
+        // Match exact baseHeaders from CLI source (Dj.baseHeaders)
         headers.insert(
             header::CONTENT_TYPE,
             header::HeaderValue::from_static("application/json"),
         );
         headers.insert(
-            header::USER_AGENT,
-            header::HeaderValue::from_static("GithubCopilot/1.155.0"),
+            header::ACCEPT,
+            header::HeaderValue::from_static("application/json"),
         );
         headers.insert(
-            "editor-version",
-            header::HeaderValue::from_static("dalang/0.1.0"),
+            "Openai-Intent",
+            header::HeaderValue::from_static("conversation-agent"),
         );
+        headers.insert(
+            "X-Initiator",
+            header::HeaderValue::from_static("user"),
+        );
+        // Required header per Copilot CLI source (AHs/fHs constants)
+        headers.insert(
+            "X-GitHub-Api-Version",
+            header::HeaderValue::from_static("2025-05-01"),
+        );
+        // Match CLI defaultHeaders: Copilot-Integration-Id = "copilot-developer-cli"
         headers.insert(
             "Copilot-Integration-Id",
-            header::HeaderValue::from_static("dalang"),
+            header::HeaderValue::from_static("copilot-developer-cli"),
+        );
+        // User-Agent matching CLI format: copilot/{version} ({platform})
+        headers.insert(
+            header::USER_AGENT,
+            header::HeaderValue::from_static("copilot/0.0.420 (linux)"),
         );
 
         let client = Client::builder().default_headers(headers).build()?;
@@ -102,7 +124,6 @@ impl CopilotProvider {
             client,
             model,
             github_token,
-            use_models_api_fallback: true,
         })
     }
 
@@ -112,20 +133,7 @@ impl CopilotProvider {
         messages: &[Message],
         tools: Option<Vec<serde_json::Value>>,
     ) -> Result<String> {
-        // Try Copilot Internal API first
-        match self.try_copilot_internal_api(messages, &tools).await {
-            Ok(resp) => return Ok(resp),
-            Err(e) => {
-                if self.use_models_api_fallback {
-                    eprintln!(
-                        "[!] Copilot Internal API failed ({}), trying GitHub Models API fallback...",
-                        e
-                    );
-                    return self.try_github_models_api(messages, &tools).await;
-                }
-                return Err(e);
-            }
-        }
+        self.try_copilot_internal_api(messages, &tools).await
     }
 
     /// Try the Copilot Internal API (api.githubcopilot.com)
@@ -136,6 +144,8 @@ impl CopilotProvider {
         tools: &Option<Vec<serde_json::Value>>,
     ) -> Result<String> {
         let endpoint = format!("{}/chat/completions", COPILOT_API_BASE);
+        // Per-request X-Interaction-Id (UUID), same as CLI defaultHeaders
+        let interaction_id = Uuid::new_v4().to_string();
 
         let req_body = OpenAiRequest {
             model: &self.model,
@@ -148,33 +158,7 @@ impl CopilotProvider {
             .client
             .post(&endpoint)
             .header("Authorization", format!("Bearer {}", self.github_token))
-            .header("openai-intent", "conversation-panel")
-            .json(&req_body)
-            .send()
-            .await?;
-
-        self.parse_openai_response(response).await
-    }
-
-    /// Try the GitHub Models API (models.github.ai) as fallback
-    async fn try_github_models_api(
-        &self,
-        messages: &[Message],
-        tools: &Option<Vec<serde_json::Value>>,
-    ) -> Result<String> {
-        let endpoint = format!("{}/chat/completions", GITHUB_MODELS_BASE);
-
-        let req_body = OpenAiRequest {
-            model: &self.model,
-            messages,
-            temperature: Some(0.0),
-            tools: tools.clone(),
-        };
-
-        let response = self
-            .client
-            .post(&endpoint)
-            .header("Authorization", format!("Bearer {}", self.github_token))
+            .header("X-Interaction-Id", &interaction_id)
             .json(&req_body)
             .send()
             .await?;

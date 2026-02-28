@@ -96,7 +96,7 @@ pub fn get_default_model(provider: &str) -> String {
         "openai" => "gpt-4o".to_string(),
         "anthropic" => "claude-sonnet-4-20250514".to_string(),
         "gemini" | "google" => "gemini-2.5-flash".to_string(),
-        "copilot" | "github" | "github-copilot" => "claude-sonnet-4.6".to_string(),
+        "copilot" | "github" | "github-copilot" => "claude-sonnet-4.5".to_string(),
         "ollama" | "local" => "llama3.1:latest".to_string(),
         _ => "gemini-2.5-flash".to_string(),
     }

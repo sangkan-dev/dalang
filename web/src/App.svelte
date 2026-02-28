@@ -10,17 +10,20 @@
 
   let currentPage = $state<PageId>('chat');
   let currentSessionId = $state<string | null>(null);
+  let selectedSession = $state<Session | null>(null);
   let chatViewResetTrigger = $state(0);
   let showPalette = $state(false);
 
   function handleSelectSession(session: Session): void {
     currentPage = 'chat';
+    selectedSession = session;
     currentSessionId = session.id;
   }
 
   function handleNewSession(): void {
     currentPage = 'chat';
     currentSessionId = null;
+    selectedSession = null;
     chatViewResetTrigger++;
   }
 
@@ -63,7 +66,7 @@
 
   <main class="flex-1 flex flex-col min-w-0 lg:ml-0 ml-0">
     {#if currentPage === 'chat'}
-      <ChatView bind:sessionId={currentSessionId} resetTrigger={chatViewResetTrigger} />
+      <ChatView bind:sessionId={currentSessionId} {selectedSession} resetTrigger={chatViewResetTrigger} />
     {:else if currentPage === 'skills'}
       <SkillsView />
     {:else if currentPage === 'reports'}
