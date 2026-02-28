@@ -536,6 +536,51 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
+## Sprint 27: File-Based Session Persistence & MEMORY.md ✅
+
+**Goal:** Persist chat sessions to disk as `.json` files so conversations survive server restarts, plus per-session `MEMORY.md` for continuous AI context within a session.
+
+- ✅ **[DAL-2701] - Feature - Persistence Module (`src/web/persistence.rs`)**
+  - Created `~/.dalang/sessions/{uuid}/` directory structure
+  - Per-session files: `session.json` (metadata), `messages.json` (user/assistant messages), `events.json` (all engine events), `MEMORY.md` (AI context)
+  - `SessionMeta` struct for lightweight metadata serialization
+  - `save_session_meta()`, `save_messages()`, `save_events()`, `save_memory()` functions
+  - `load_memory()` parses MEMORY.md numbered list back into `ContextManager`
+  - `load_all_sessions()` scans disk and restores all sessions on startup
+  - `delete_session_dir()` removes session data from disk
+
+- ✅ **[DAL-2702] - Feature - Auto-Restore Sessions on Server Boot**
+  - `AppState::new()` calls `persistence::load_all_sessions()` at startup
+  - All previously saved sessions restored into DashMap
+  - Console output: `[*] Restored N session(s) from disk.`
+
+- ✅ **[DAL-2703] - Feature - Event & Message Persistence in WebSocket Handler**
+  - `handle_socket` send_task persists each `EngineEvent` to `session.events` and calls `save_events()`
+  - `handle_chat_message()` persists user messages to disk via `save_messages()`
+  - `handle_start_scan()` marks `session.active = false` on completion and saves metadata
+  - All engine events captured for replay on session reload
+
+- ✅ **[DAL-2704] - Feature - Per-Session MEMORY.md for AI Context**
+  - Engine functions (`run_interactive_ws`, `run_autonomous_ws`) accept `session_id: Option<Uuid>`
+  - On startup: loads `MEMORY.md` via `persistence::load_memory()` and injects prior observations into context
+  - On completion: saves updated observations back to `MEMORY.md` with YAML frontmatter
+  - `ContextManager::from_observations()` and `observations()` methods added
+
+- ✅ **[DAL-2705] - Feature - Events REST Endpoint**
+  - New `GET /api/sessions/:id/events` returns all persisted events for a session
+  - `list_sessions()` returns lightweight `SessionSummary` (with `message_count`/`event_count`) instead of full session data
+  - Removed unused `Session` import from sessions handler
+
+- ✅ **[DAL-2706] - Feature - Frontend Session History Replay**
+  - Added `getSessionEvents()` to frontend API layer
+  - Rewrote `loadExistingSession()` in ChatView: fetches events via REST, replays via `eventToMessages()` helper
+  - `eventToMessages()` converts all 10 EngineEvent types to display-friendly ChatMsg objects
+  - Only opens WebSocket for active sessions (prevents reconnect storm on completed sessions)
+  - Updated `Session` TypeScript interface to match `SessionSummary` backend struct (`message_count`/`event_count` instead of `messages` array)
+  - Added `EngineEvent` now derives `Deserialize` for JSON round-trip
+
+---
+
 ## Ringkasan Status
 
 | Sprint | Nama | Status |
@@ -566,5 +611,6 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 24 | Documentation & Final Polish | ✅ Done |
 | 25 | GitHub Copilot Provider Integration | ✅ Done |
 | 26 | Skill Tool Availability Validation & Bug Fixes | ✅ Done |
+| 27 | File-Based Session Persistence & MEMORY.md | ✅ Done |
 
-**Total: 26 Sprint — 26 ✅ Selesai**
+**Total: 27 Sprint — 27 ✅ Selesai**

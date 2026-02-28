@@ -6,7 +6,7 @@ use serde::Serialize;
 
 /// Events emitted from the engine during execution.
 /// These are streamed over WebSocket to the frontend in real-time.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EngineEvent {
     /// LLM is reasoning (start of iteration)

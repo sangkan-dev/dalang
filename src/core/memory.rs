@@ -7,6 +7,20 @@ impl ContextManager {
         Self { memory: Vec::new() }
     }
 
+    /// Restore a ContextManager from previously saved observations.
+    pub fn from_observations(obs: Vec<String>) -> Self {
+        let mut cm = Self::new();
+        // Only keep the last 20
+        let start = if obs.len() > 20 { obs.len() - 20 } else { 0 };
+        cm.memory = obs[start..].to_vec();
+        cm
+    }
+
+    /// Read-only access to the observation list (for persistence).
+    pub fn observations(&self) -> &[String] {
+        &self.memory
+    }
+
     pub fn add_observation(&mut self, observation: String) {
         // Retain last 20 significant observations for multi-stage pentests
         if self.memory.len() >= 20 {

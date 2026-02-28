@@ -2,6 +2,7 @@
 
 use crate::core::engine::DalangEngine;
 use crate::web::events::{ClientMessage, EngineEvent};
+use crate::web::persistence;
 use crate::web::state::{AppState, SessionMode};
 use axum::extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, State};
@@ -27,9 +28,19 @@ async fn handle_socket(socket: WebSocket, session_id: Uuid, state: AppState) {
     let (event_tx, mut event_rx) = mpsc::channel::<EngineEvent>(256);
     state.event_senders.insert(session_id, event_tx.clone());
 
-    // Task: forward engine events to WebSocket
+    // Task: forward engine events to WebSocket AND persist to session + disk
+    let persist_state = state.clone();
+    let persist_sid = session_id;
     let send_task = tokio::spawn(async move {
         while let Some(event) = event_rx.recv().await {
+            // Persist event to in-memory session and disk
+            {
+                if let Some(mut session) = persist_state.sessions.get_mut(&persist_sid) {
+                    session.events.push(event.clone());
+                    persistence::save_events(&persist_sid, &session.events);
+                }
+            }
+
             let json = match serde_json::to_string(&event) {
                 Ok(j) => j,
                 Err(e) => {
@@ -119,9 +130,10 @@ async fn handle_chat_message(
     state: &AppState,
     event_tx: &mpsc::Sender<EngineEvent>,
 ) {
-    // Add user message to session
+    // Add user message to session and persist
     if let Some(mut session) = state.sessions.get_mut(&session_id) {
         session.messages.push(crate::llm::Message::user(&message));
+        persistence::save_messages(&session_id, &session.messages);
     }
 
     // Create LLM provider
@@ -139,6 +151,7 @@ async fn handle_chat_message(
 
     let engine = DalangEngine::new(provider, 300, state.verbose);
     let tx = event_tx.clone();
+    let state_for_task = state.clone();
 
     // Get target from session
     let target = state
@@ -157,11 +170,15 @@ async fn handle_chat_message(
     // Spawn engine task
     tokio::spawn(async move {
         match engine
-            .run_interactive_ws(&target, &messages, tx.clone())
+            .run_interactive_ws(&target, &messages, Some(session_id), tx.clone())
             .await
         {
-            Ok(_response_msgs) => {
-                // Response messages are already sent via events
+            Ok(response_msgs) => {
+                // Write response messages back to session and persist
+                if let Some(mut session) = state_for_task.sessions.get_mut(&session_id) {
+                    session.messages = response_msgs;
+                    persistence::save_messages(&session_id, &session.messages);
+                }
                 let _ = tx.send(EngineEvent::Done {
                     reason: "Chat response complete".to_string(),
                 });
@@ -204,6 +221,7 @@ async fn handle_start_scan(
 
     let engine = DalangEngine::new(provider, cmd_timeout, state.verbose);
     let tx = event_tx.clone();
+    let state_for_task = state.clone();
 
     tokio::spawn(async move {
         let _ = tx
@@ -215,7 +233,7 @@ async fn handle_start_scan(
             })
             .await;
 
-        match engine.run_autonomous_ws(&target, max_iter, tx.clone()).await {
+        match engine.run_autonomous_ws(&target, max_iter, Some(session_id), tx.clone()).await {
             Ok(_) => {
                 let _ = tx.send(EngineEvent::Done {
                     reason: "Scan complete".to_string(),
@@ -228,6 +246,12 @@ async fn handle_start_scan(
                     })
                     .await;
             }
+        }
+
+        // Mark session as inactive and persist
+        if let Some(mut session) = state_for_task.sessions.get_mut(&session_id) {
+            session.active = false;
+            persistence::save_session_meta(&session);
         }
     });
 }

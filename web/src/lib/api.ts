@@ -43,6 +43,8 @@ export const api = {
     request<null>(`/sessions/${id}`, { method: 'DELETE' }),
   getMessages: (id: string): Promise<Array<{ role: string; content: string }>> =>
     request<Array<{ role: string; content: string }>>(`/sessions/${id}/messages`),
+  getSessionEvents: (id: string): Promise<EngineEvent[]> =>
+    request<EngineEvent[]>(`/sessions/${id}/events`),
 
   // Skills
   listSkills: (): Promise<SkillSummary[]> =>

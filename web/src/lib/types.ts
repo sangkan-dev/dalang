@@ -66,9 +66,10 @@ export interface Session {
   id: string;
   target: string;
   mode: SessionMode;
-  messages: Array<{ role: string; content: string }>;
   created_at: string;
   active: boolean;
+  message_count?: number;
+  event_count?: number;
 }
 
 // ─── Skills ─────────────────────────────────────────────────

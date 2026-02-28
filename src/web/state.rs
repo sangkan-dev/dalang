@@ -2,6 +2,7 @@
 
 use crate::llm::{self, AuthToken, Message};
 use crate::web::events::EngineEvent;
+use crate::web::persistence;
 use dashmap::DashMap;
 use serde::Serialize;
 use std::sync::Arc;
@@ -17,12 +18,15 @@ pub enum SessionMode {
 }
 
 /// A single session (one chat conversation with the engine).
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct Session {
     pub id: Uuid,
     pub target: String,
     pub mode: SessionMode,
     pub messages: Vec<Message>,
+    /// All engine events emitted during this session (for UI replay).
+    #[serde(default)]
+    pub events: Vec<EngineEvent>,
     pub created_at: String,
     pub active: bool,
 }
@@ -41,8 +45,20 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(verbose: bool) -> Self {
+        let sessions = Arc::new(DashMap::new());
+
+        // Restore sessions from disk (~/.dalang/sessions/)
+        let restored = persistence::load_all_sessions();
+        let count = restored.len();
+        for (session, _events) in restored {
+            sessions.insert(session.id, session);
+        }
+        if count > 0 {
+            println!("[*] Restored {} session(s) from disk.", count);
+        }
+
         Self {
-            sessions: Arc::new(DashMap::new()),
+            sessions,
             event_senders: Arc::new(DashMap::new()),
             disabled_skills: Arc::new(DashMap::new()),
             verbose,
@@ -55,10 +71,13 @@ impl AppState {
             target,
             mode,
             messages: Vec::new(),
+            events: Vec::new(),
             created_at: chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
             active: true,
         };
         self.sessions.insert(session.id, session.clone());
+        // Persist to disk immediately
+        persistence::save_session_meta(&session);
         session
     }
 

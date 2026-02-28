@@ -11,6 +11,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
+use uuid::Uuid;
 
 /// Lazily-initialized browser wrapper.
 /// The browser is only launched when first needed by a browser-* tool call.
@@ -838,6 +839,7 @@ impl DalangEngine {
         &self,
         target: &str,
         messages: &[Message],
+        session_id: Option<Uuid>,
         tx: mpsc::Sender<EngineEvent>,
     ) -> Result<Vec<Message>> {
         let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
@@ -868,7 +870,18 @@ impl DalangEngine {
         let mut msgs = vec![Message::system(&system_prompt)];
         msgs.extend_from_slice(messages);
 
-        let mut memory = ContextManager::new();
+        // Load persistent memory from MEMORY.md if available
+        let mut memory = session_id
+            .as_ref()
+            .and_then(crate::web::persistence::load_memory)
+            .unwrap_or_else(ContextManager::new);
+
+        // Inject memory context if we have prior observations
+        if !memory.observations().is_empty() {
+            let summary = memory.get_summary_prompt();
+            msgs.push(Message::user(&format!("[Context from previous interactions]\n{}", summary)));
+        }
+
         let browser = LazyBrowser::new();
 
         let _ = tx.send(EngineEvent::Thinking { iteration: 1, max_iter: None }).await;
@@ -950,6 +963,11 @@ impl DalangEngine {
             let _ = tx.send(EngineEvent::AssistantMessage { content: response_text, done: true }).await;
         }
 
+        // Persist memory to MEMORY.md
+        if let Some(sid) = &session_id {
+            crate::web::persistence::save_memory(sid, target, &memory);
+        }
+
         Ok(msgs)
     }
 
@@ -962,6 +980,7 @@ impl DalangEngine {
         &self,
         target: &str,
         max_iter: u32,
+        session_id: Option<Uuid>,
         tx: mpsc::Sender<EngineEvent>,
     ) -> Result<()> {
         let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
@@ -1002,7 +1021,10 @@ impl DalangEngine {
             target, skills_catalog
         );
 
-        let mut memory = ContextManager::new();
+        let mut memory = session_id
+            .as_ref()
+            .and_then(crate::web::persistence::load_memory)
+            .unwrap_or_else(ContextManager::new);
         let browser = LazyBrowser::new();
 
         let mut messages = vec![
@@ -1130,6 +1152,11 @@ impl DalangEngine {
             let _ = tx.send(EngineEvent::Status {
                 message: format!("Auto-Pilot reached maximum action limit ({}).", max_iter),
             }).await;
+        }
+
+        // Persist memory to MEMORY.md
+        if let Some(sid) = &session_id {
+            crate::web::persistence::save_memory(sid, target, &memory);
         }
 
         Ok(())

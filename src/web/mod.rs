@@ -6,6 +6,7 @@
 pub mod embedded;
 pub mod events;
 pub mod handlers;
+pub mod persistence;
 pub mod state;
 #[cfg(test)]
 mod tests;
@@ -29,6 +30,10 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/sessions/{id}/messages",
             get(handlers::sessions::get_session_messages),
+        )
+        .route(
+            "/sessions/{id}/events",
+            get(handlers::sessions::get_session_events),
         )
         .route(
             "/sessions/{id}",
