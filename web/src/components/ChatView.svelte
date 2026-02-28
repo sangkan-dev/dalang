@@ -215,6 +215,9 @@
 
     try {
       const session = await api.createSession(target, mode);
+      // IMPORTANT: Set loadedSessionId BEFORE sessionId to prevent the $effect
+      // watcher from calling loadExistingSession() and creating a duplicate WS.
+      loadedSessionId = session.id;
       sessionId = session.id;
 
       ws = createWebSocket(session.id, {

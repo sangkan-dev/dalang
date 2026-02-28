@@ -26,7 +26,8 @@ async fn handle_socket(socket: WebSocket, session_id: Uuid, state: AppState) {
 
     // Channel for engine events → WebSocket
     let (event_tx, mut event_rx) = mpsc::channel::<EngineEvent>(256);
-    state.event_senders.insert(session_id, event_tx.clone());
+    let conn_id = Uuid::new_v4();
+    state.event_senders.insert(session_id, (conn_id, event_tx.clone()));
 
     // Task: forward engine events to WebSocket AND persist to session + disk
     let persist_state = state.clone();
@@ -82,8 +83,9 @@ async fn handle_socket(socket: WebSocket, session_id: Uuid, state: AppState) {
         _ = recv_task => {},
     }
 
-    // Cleanup
-    state.event_senders.remove(&session_id);
+    // Cleanup — only remove if this connection's sender is still the current one.
+    // A newer WS connection may have replaced it; don't remove that one.
+    state.event_senders.remove_if(&session_id, |_k, v| v.0 == conn_id);
 }
 
 async fn handle_client_message(

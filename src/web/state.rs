@@ -36,8 +36,8 @@ pub struct Session {
 pub struct AppState {
     pub sessions: Arc<DashMap<Uuid, Session>>,
     /// Channel senders for active WebSocket connections, keyed by session ID.
-    /// When an engine task emits events, they are sent through these channels.
-    pub event_senders: Arc<DashMap<Uuid, mpsc::Sender<EngineEvent>>>,
+    /// Value is (connection_id, sender) so cleanup only removes its own connection.
+    pub event_senders: Arc<DashMap<Uuid, (Uuid, mpsc::Sender<EngineEvent>)>>,
     /// Disabled skills (name -> true means disabled).
     pub disabled_skills: Arc<DashMap<String, bool>>,
     pub verbose: bool,

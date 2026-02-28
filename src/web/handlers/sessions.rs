@@ -90,7 +90,7 @@ pub async fn delete_session(
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
     if state.sessions.remove(&id).is_some() {
-        state.event_senders.remove(&id);
+        state.event_senders.remove(&id); // session deletion: always remove
         // Remove persisted files from disk
         persistence::delete_session_dir(&id);
         StatusCode::NO_CONTENT
