@@ -277,14 +277,14 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
-## Sprint 19: Web UI — Backend Foundation (axum + WebSocket) 🔄
+## Sprint 19: Web UI — Backend Foundation (axum + WebSocket) ✅
 
 **Goal:** Membangun backend web server menggunakan axum yang menyediakan REST API dan WebSocket endpoint untuk komunikasi real-time antara browser dan DalangEngine.
 
-- 🔄 **[DAL-1901] - Feature - Add `dalang web` CLI Command (`src/cli.rs` & `src/main.rs`)**
+- ✅ **[DAL-1901] - Feature - Add `dalang web` CLI Command (`src/cli.rs` & `src/main.rs`)**
   - Tambahkan variant `Web` pada `Commands` enum dengan flag `--port` (default: 8080) dan `--open` (auto-buka browser).
   - Tambahkan dependency baru: `axum 0.8`, `tower-http 0.6` (CORS, static files), `rust-embed 8`, `dashmap 6`, `uuid 1` (v4).
-- 🔄 **[DAL-1902] - Feature - Engine Event System (`src/web/events.rs`)**
+- ✅ **[DAL-1902] - Feature - Engine Event System (`src/web/events.rs`)**
   - Buat `EngineEvent` enum sebagai abstraksi output dari DalangEngine:
     - `Thinking { iteration }` — LLM sedang reasoning
     - `AssistantMessage { content, done }` — Respons teks dari LLM (streaming-ready)
@@ -294,82 +294,96 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
     - `Report { markdown }` — Final vulnerability report
     - `Error { message }` — Error yang terjadi
   - Semua event di-serialize ke JSON via `serde::Serialize`.
-- 🔄 **[DAL-1903] - Refactor - Channel-Based Engine Output (`src/core/engine.rs`)**
+- ✅ **[DAL-1903] - Refactor - Channel-Based Engine Output (`src/core/engine.rs`)**
   - Tambahkan method baru `run_interactive_ws()` dan `run_autonomous_ws()` yang menerima `tokio::sync::mpsc::Sender<EngineEvent>`.
   - Method ini identik dengan versi CLI (`run_interactive_loop`, `run_autonomous_loop`) namun mengirim `EngineEvent` ke channel alih-alih `println!()`.
   - Method CLI lama tetap berfungsi (backward compatible).
-- 🔄 **[DAL-1904] - Feature - axum Web Server (`src/web/mod.rs`)**
+- ✅ **[DAL-1904] - Feature - axum Web Server (`src/web/mod.rs`)**
   - Setup axum router dengan:
     - Static file serving via `rust-embed` (serve Svelte dist/ files)
     - WebSocket upgrade endpoint di `/api/ws/{session_id}`
     - REST API routes di `/api/sessions`, `/api/skills`, `/api/reports`, `/api/settings`
     - CORS middleware via `tower-http`
   - Startup log: `[*] Dalang Web UI running at http://localhost:{port}`
-- 🔄 **[DAL-1905] - Feature - Session State Management (`src/web/state.rs`)**
+- ✅ **[DAL-1905] - Feature - Session State Management (`src/web/state.rs`)**
   - Buat `AppState` struct yang di-share via `axum::Extension`:
     - `sessions: DashMap<Uuid, Session>` — active chat sessions
     - `Session` struct: target, messages history (`Vec<Message>`), mode (interactive/scan), created_at
   - Session lifecycle: create → chat via WS → persist messages → delete
 
-## Sprint 20: Web UI — WebSocket Chat & REST API ⬜
+## Sprint 20: Web UI — Svelte Frontend, WebSocket Chat & REST API ✅
 
 **Goal:** Implementasi handler WebSocket untuk real-time chat dan REST API untuk manajemen session, skill, report, dan settings.
 
-- ⬜ **[DAL-2001] - Feature - WebSocket Chat Handler (`src/web/handlers/chat.rs`)**
+- ✅ **[DAL-2001] - Feature - WebSocket Chat Handler (`src/web/handlers/chat.rs`)**
   - Accept WebSocket upgrade di `/api/ws/{session_id}`
   - Terima JSON message dari client (`{ "type": "chat", "message": "..." }`)
   - Spawn tokio task: jalankan `DalangEngine::run_interactive_ws()` dengan `mpsc::Sender`
   - Forward setiap `EngineEvent` dari channel ke WebSocket sebagai JSON frame
   - Handle disconnect gracefully (abort engine task)
-- ⬜ **[DAL-2002] - Feature - Auto-Pilot Scan via WebSocket**
+- ✅ **[DAL-2002] - Feature - Auto-Pilot Scan via WebSocket**
   - Terima `{ "type": "start_scan", "target": "...", "max_iter": 15 }` dari client
   - Spawn `run_autonomous_ws()` dengan event channel
   - Stream progress (Thinking, ToolExecution, Observation) dan final Report ke client
-- ⬜ **[DAL-2003] - Feature - Session REST API (`src/web/handlers/sessions.rs`)**
+- ✅ **[DAL-2003] - Feature - Session REST API (`src/web/handlers/sessions.rs`)**
   - `POST /api/sessions` → create session (body: `{ target, mode }`) → return `{ id, target, mode, created_at }`
   - `GET /api/sessions` → list all sessions
   - `GET /api/sessions/{id}/messages` → return chat history
   - `DELETE /api/sessions/{id}` → remove session + cleanup
-- ⬜ **[DAL-2004] - Feature - Skills REST API (`src/web/handlers/skills.rs`)**
+- ✅ **[DAL-2004] - Feature - Skills REST API (`src/web/handlers/skills.rs`)**
   - `GET /api/skills` → list semua skill (name, description, tool_path, requires_root)
   - `GET /api/skills/{name}` → detail skill termasuk system prompt
   - `PUT /api/skills/{name}` → update/toggle skill (enable/disable)
-- ⬜ **[DAL-2005] - Feature - Reports REST API (`src/web/handlers/reports.rs`)**
+- ✅ **[DAL-2005] - Feature - Reports REST API (`src/web/handlers/reports.rs`)**
   - `GET /api/reports` → list saved report files (`dalang_report_*.md`)
   - `GET /api/reports/{filename}` → return report content (markdown)
   - `GET /api/reports/{filename}?format=html` → return rendered HTML report (via `pulldown-cmark`)
-- ⬜ **[DAL-2006] - Feature - Settings REST API (`src/web/handlers/settings.rs`)**
+- ✅ **[DAL-2006] - Feature - Settings REST API (`src/web/handlers/settings.rs`)**
   - `GET /api/settings` → return current provider, model, auth status, endpoint mode
   - `PUT /api/settings` → update model preference, provider config
   - Gunakan existing `auth::persistence` untuk baca/tulis config
 
-## Sprint 21: Web UI — Svelte Frontend Scaffolding ⬜
+## Sprint 21: Web UI — Hardening, Polish & Testing ✅
 
-**Goal:** Setup project Svelte 5 + Tailwind CSS v4 + Vite dan implementasi core layout, routing, serta WebSocket client.
+**Goal:** Memperbaiki bug kritis, menambahkan fitur UX polish (toast, theme, command palette, mobile responsive), dan membangun infrastruktur testing untuk frontend dan backend web.
 
-- ⬜ **[DAL-2101] - Feature - Scaffold Svelte 5 Project (`web/`)**
-  - Inisialisasi project Svelte 5 dengan Vite di direktori `web/`.
-  - Setup Tailwind CSS v4 (dark mode default, cybersecurity theme).
-  - Setup SvelteKit adapter-static untuk SPA output ke `web/dist/`.
-  - Tambahkan dependencies: `marked`, `highlight.js`, `lucide-svelte`.
-- ⬜ **[DAL-2102] - Feature - App Layout & Navigation**
-  - Buat layout utama dengan sidebar navigation:
-    - 💬 Chat (halaman utama)
-    - 🚀 Scan (auto-pilot)
-    - 📋 Reports (viewer)
-    - 🧩 Skills (manager)
-    - ⚙️ Settings (config)
-  - Dark theme default dengan accent color hijau (cybersecurity vibe).
-  - Responsive: sidebar collapse di mobile.
-- ⬜ **[DAL-2103] - Feature - WebSocket Client Store (`web/src/lib/stores/chat.ts`)**
-  - Svelte store yang manage WebSocket connection ke `/api/ws/{session_id}`.
-  - Auto-reconnect on disconnect.
-  - Parse incoming `EngineEvent` JSON dan update reactive message list.
-  - Expose: `connect(sessionId)`, `send(message)`, `disconnect()`, `messages$`.
-- ⬜ **[DAL-2104] - Feature - Session Store (`web/src/lib/stores/session.ts`)**
-  - Svelte store untuk CRUD sessions via REST API.
-  - Track active session, session list.
-  - Expose: `createSession(target, mode)`, `listSessions()`, `deleteSession(id)`, `activeSession$`.
+- ✅ **[DAL-2101] - Bugfix - Fix SkillDetail Type Mismatch (`types.ts` & `SkillsView.svelte`)**
+  - Backend mengirim `system_prompt`, `role`, `task`, `constraints` tapi frontend mengharapkan `raw_prompt`.
+  - Update `SkillDetail` type di `types.ts` dan render semua section di `SkillsView.svelte`.
+- ✅ **[DAL-2102] - Bugfix - Fix Settings Persistence (`settings.rs` & `SettingsView.svelte`)**
+  - Backend hanya menyimpan `model`, sekarang juga menyimpan `provider` dan `endpoint_mode`.
+  - Frontend menampilkan auth status banner, `auth_method` read-only.
+- ✅ **[DAL-2103] - Feature - Toast Notification System (`toast.ts` & `Toast.svelte`)**
+  - Global toast store dengan `subscribe()` pattern, auto-dismiss, color-coded (success/error/warning/info).
+  - Terintegrasi di `App.svelte`, `SettingsView`, `ReportsView`, `ChatView`.
+- ✅ **[DAL-2104] - Feature - Dark/Light Theme Toggle (`theme.ts` & `app.css`)**
+  - Theme store dengan localStorage persistence, `initTheme()` di `main.ts`.
+  - Light theme CSS variables, toggle button di Sidebar footer.
+  - Print media query untuk report printing.
+- ✅ **[DAL-2105] - Feature - Session List in Sidebar (`Sidebar.svelte`)**
+  - Complete rewrite Sidebar: session list dari API, delete sessions, periodic refresh setiap 10 detik.
+  - Mobile hamburger menu dengan slide-in overlay dan backdrop.
+- ✅ **[DAL-2106] - Feature - WebSocket Auto-Reconnect (`api.ts`)**
+  - Exponential backoff (1s-16s), max 5 attempts, `intentionalClose` flag.
+  - Reconnecting banner di `ChatView`, toast notifications on reconnect/failure.
+- ✅ **[DAL-2107] - Feature - Configurable Command Timeout (`ChatView.svelte`)**
+  - `cmdTimeout` state variable dengan input field di setup form.
+  - Menggantikan hardcoded `300` di dua tempat.
+- ✅ **[DAL-2108] - Feature - Report Download & Export (`ReportsView.svelte`)**
+  - Complete rewrite: download Markdown, download HTML, print button.
+  - Loading spinner saat fetch, file size in KB, toast notifications.
+- ✅ **[DAL-2109] - Feature - Keyboard Shortcuts & Command Palette (`CommandPalette.svelte`)**
+  - `Ctrl+K` command palette dengan fuzzy filtering, arrow key navigation.
+  - `Ctrl+N` new session, `Escape` close palette.
+  - 4 page entries dengan "Active" badge untuk halaman aktif.
+- ✅ **[DAL-2110] - Testing - Frontend Unit Tests (vitest + jsdom)**
+  - Setup vitest 3.2 + jsdom 26 environment.
+  - 4 test files: `api.test.ts` (4 tests), `markdown.test.ts` (7 tests), `toast.test.ts` (3 tests), `theme.test.ts` (3 tests).
+  - Total: 17 frontend tests, semua pass.
+- ✅ **[DAL-2111] - Testing - Rust Web Handler Tests (`src/web/tests.rs`)**
+  - 8 integration tests menggunakan `tower::ServiceExt::oneshot`.
+  - Tests: list_skills, create+delete session, list_sessions, get_settings, get nonexistent skill 404, list_reports, static fallback, update_settings.
+  - Total: 15 Rust tests (including existing), semua pass.
 
 ## Sprint 22: Web UI — Chat Interface ⬜
 
@@ -467,11 +481,11 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 16 | Enhanced Report Quality & Prompt Engineering | ✅ Done |
 | 17 | Robustness & Developer Experience | ✅ Done |
 | 18 | Documentation Site Overhaul | ✅ Done |
-| 19 | Web UI — Backend Foundation (axum + WebSocket) | 🔄 In Progress |
-| 20 | Web UI — WebSocket Chat & REST API | ⬜ Not Started |
-| 21 | Web UI — Svelte Frontend Scaffolding | ⬜ Not Started |
+| 19 | Web UI — Backend Foundation (axum + WebSocket) | ✅ Done |
+| 20 | Web UI — Svelte Frontend, WebSocket Chat & REST API | ✅ Done |
+| 21 | Web UI — Hardening, Polish & Testing | ✅ Done |
 | 22 | Web UI — Chat Interface | ⬜ Not Started |
 | 23 | Web UI — Scan, Reports, Skills, Settings | ⬜ Not Started |
 | 24 | Web UI — Embedding, Build Pipeline & Polish | ⬜ Not Started |
 
-**Total: 24 Sprint — 18 ✅ Selesai, 1 🔄 In Progress, 5 ⬜ Belum Dimulai**
+**Total: 24 Sprint — 21 ✅ Selesai, 3 ⬜ Belum Dimulai**

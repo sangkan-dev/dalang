@@ -7,6 +7,8 @@ pub mod embedded;
 pub mod events;
 pub mod handlers;
 pub mod state;
+#[cfg(test)]
+mod tests;
 
 use axum::Router;
 use axum::routing::{delete, get, post, put};

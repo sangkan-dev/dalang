@@ -93,14 +93,39 @@
           </div>
         {/if}
 
-        {#if selectedSkill.raw_prompt}
-          <div>
-            <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wide">System Prompt</h3>
+        {#if selectedSkill.role}
+          <div class="mb-4">
+            <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wide">Role</h3>
             <div class="markdown-content bg-[var(--bg-secondary)] rounded-lg p-4 border border-[var(--border)] text-sm">
-              {@html renderMarkdown(selectedSkill.raw_prompt)}
+              {@html renderMarkdown(selectedSkill.role)}
             </div>
           </div>
         {/if}
+
+        {#if selectedSkill.task}
+          <div class="mb-4">
+            <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wide">Task</h3>
+            <div class="markdown-content bg-[var(--bg-secondary)] rounded-lg p-4 border border-[var(--border)] text-sm">
+              {@html renderMarkdown(selectedSkill.task)}
+            </div>
+          </div>
+        {/if}
+
+        {#if selectedSkill.constraints}
+          <div class="mb-4">
+            <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wide">Constraints</h3>
+            <div class="markdown-content bg-[var(--bg-secondary)] rounded-lg p-4 border border-[var(--border)] text-sm">
+              {@html renderMarkdown(selectedSkill.constraints)}
+            </div>
+          </div>
+        {/if}
+
+        <div>
+          <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wide">System Prompt</h3>
+          <div class="markdown-content bg-[var(--bg-secondary)] rounded-lg p-4 border border-[var(--border)] text-sm">
+            {@html renderMarkdown(selectedSkill.system_prompt)}
+          </div>
+        </div>
       </div>
     {:else}
       <div class="flex items-center justify-center h-full text-[var(--text-secondary)]">

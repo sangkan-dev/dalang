@@ -22,6 +22,8 @@ pub struct SettingsResponse {
 #[derive(Deserialize)]
 pub struct UpdateSettingsRequest {
     pub model: Option<String>,
+    pub provider: Option<String>,
+    pub endpoint_mode: Option<String>,
 }
 
 /// GET /api/settings — get current configuration
@@ -64,6 +66,32 @@ pub async fn update_settings(
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     format!("Failed to save model: {}", e),
+                )
+                    .into_response()
+            }
+        }
+    }
+
+    if let Some(provider) = body.provider {
+        match auth::persistence::save_active_provider(&provider) {
+            Ok(_) => {}
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to save provider: {}", e),
+                )
+                    .into_response()
+            }
+        }
+    }
+
+    if let Some(endpoint_mode) = body.endpoint_mode {
+        match auth::persistence::save_endpoint_mode(&endpoint_mode) {
+            Ok(_) => {}
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to save endpoint mode: {}", e),
                 )
                     .into_response()
             }

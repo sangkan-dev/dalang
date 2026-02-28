@@ -64,35 +64,65 @@ export const api = {
 
 // ─── WebSocket connection ───────────────────────────
 
+const MAX_RECONNECT_ATTEMPTS = 5;
+const BASE_RECONNECT_DELAY = 1000; // 1s, doubles each attempt
+
 export function createWebSocket(
   sessionId: string,
   callbacks: WebSocketCallbacks,
 ): DalangWebSocket {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(`${protocol}//${window.location.host}${API_BASE}/ws/${sessionId}`);
+  const url = `${protocol}//${window.location.host}${API_BASE}/ws/${sessionId}`;
 
-  ws.onopen = (): void => {
-    console.log('[ws] connected to session', sessionId);
-  };
+  let ws: WebSocket;
+  let reconnectAttempts = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let intentionalClose = false;
 
-  ws.onmessage = (event: MessageEvent): void => {
-    try {
-      const data = JSON.parse(event.data as string) as EngineEvent;
-      callbacks.onEvent?.(data);
-    } catch (e) {
-      console.error('[ws] parse error:', e);
-    }
-  };
+  function connect(): void {
+    ws = new WebSocket(url);
 
-  ws.onclose = (event: CloseEvent): void => {
-    console.log('[ws] closed', event.code, event.reason);
-    callbacks.onClose?.(event);
-  };
+    ws.onopen = (): void => {
+      console.log('[ws] connected to session', sessionId);
+      if (reconnectAttempts > 0) {
+        callbacks.onReconnected?.();
+      }
+      reconnectAttempts = 0;
+    };
 
-  ws.onerror = (event: Event): void => {
-    console.error('[ws] error:', event);
-    callbacks.onError?.(event);
-  };
+    ws.onmessage = (event: MessageEvent): void => {
+      try {
+        const data = JSON.parse(event.data as string) as EngineEvent;
+        callbacks.onEvent?.(data);
+      } catch (e) {
+        console.error('[ws] parse error:', e);
+      }
+    };
+
+    ws.onclose = (event: CloseEvent): void => {
+      console.log('[ws] closed', event.code, event.reason);
+      callbacks.onClose?.(event);
+
+      if (!intentionalClose && event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        scheduleReconnect();
+      }
+    };
+
+    ws.onerror = (event: Event): void => {
+      console.error('[ws] error:', event);
+      callbacks.onError?.(event);
+    };
+  }
+
+  function scheduleReconnect(): void {
+    reconnectAttempts++;
+    const delay = BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1);
+    console.log(`[ws] reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+    callbacks.onReconnecting?.(reconnectAttempts, MAX_RECONNECT_ATTEMPTS);
+    reconnectTimer = setTimeout(connect, delay);
+  }
+
+  connect();
 
   return {
     send(msg: ClientMessage): void {
@@ -110,6 +140,8 @@ export function createWebSocket(
       this.send({ type: 'start_interactive', target, cmd_timeout: cmdTimeout });
     },
     close(): void {
+      intentionalClose = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       ws.close();
     },
     get readyState(): number {

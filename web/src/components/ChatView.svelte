@@ -1,21 +1,31 @@
 <script lang="ts">
   import { api, createWebSocket } from '../lib/api.ts';
   import { renderMarkdown } from '../lib/markdown.ts';
+  import { toast } from '../lib/toast.ts';
   import ChatMessage from './ChatMessage.svelte';
   import type { ChatMessage as ChatMsg, DalangWebSocket, EngineEvent, SessionMode } from '../lib/types';
 
-  let { sessionId = $bindable(null) }: { sessionId: string | null } = $props();
+  let { sessionId = $bindable(null), resetTrigger = 0 }: { sessionId: string | null; resetTrigger?: number } = $props();
 
   let messages = $state<ChatMsg[]>([]);
   let inputText = $state('');
   let target = $state('');
   let isConnected = $state(false);
   let isThinking = $state(false);
+  let isReconnecting = $state(false);
   let mode = $state<SessionMode>('interactive');
   let maxIter = $state(15);
+  let cmdTimeout = $state(300);
   let ws = $state<DalangWebSocket | null>(null);
   let chatContainer = $state<HTMLDivElement | null>(null);
   let showSetup = $state(true);
+
+  // Watch for resetTrigger changes from parent (new session via sidebar)
+  $effect(() => {
+    if (resetTrigger) {
+      resetSession();
+    }
+  });
 
   function scrollToBottom(): void {
     const el = chatContainer;
@@ -108,8 +118,17 @@
 
       ws = createWebSocket(session.id, {
         onEvent: handleEvent,
-        onClose: () => { isConnected = false; },
+        onClose: () => { isConnected = false; isReconnecting = false; },
         onError: () => { isConnected = false; },
+        onReconnecting: (attempt, max) => {
+          isReconnecting = true;
+          toast.warning(`Reconnecting... (${attempt}/${max})`);
+        },
+        onReconnected: () => {
+          isReconnecting = false;
+          isConnected = true;
+          toast.success('Reconnected!');
+        },
       });
 
       isConnected = true;
@@ -119,11 +138,11 @@
         // Auto-start scan
         const conn = ws;
         setTimeout(() => {
-          conn.startScan(target, maxIter, 300);
+          conn.startScan(target, maxIter, cmdTimeout);
           messages = [...messages, { role: 'status', content: `Auto-pilot scan started (max ${maxIter} iterations)` }];
         }, 500);
       } else {
-        ws.startInteractive(target, 300);
+        ws.startInteractive(target, cmdTimeout);
       }
     } catch (err) {
       messages = [{ role: 'error', content: `Failed to create session: ${(err as Error).message}` }];
@@ -153,6 +172,7 @@
     messages = [];
     isConnected = false;
     isThinking = false;
+    isReconnecting = false;
     showSetup = true;
     target = '';
   }
@@ -222,6 +242,20 @@
           </div>
         {/if}
 
+        <div>
+          <label class="block text-sm font-medium mb-1.5 text-[var(--text-secondary)]" for="cmdtimeout">
+            Command Timeout (seconds)
+            <span class="text-xs text-[var(--text-secondary)]/60">(0 = unlimited)</span>
+          </label>
+          <input
+            id="cmdtimeout"
+            type="number"
+            bind:value={cmdTimeout}
+            class="w-full px-4 py-2.5 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg
+              text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+          />
+        </div>
+
         <button
           class="w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)]
             font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -251,6 +285,14 @@
       End Session
     </button>
   </div>
+
+  <!-- Reconnecting banner -->
+  {#if isReconnecting}
+    <div class="px-4 py-2 bg-amber-950/30 border-b border-amber-800/30 text-amber-300 text-xs flex items-center gap-2">
+      <span class="animate-spin">↻</span>
+      <span>Reconnecting to server...</span>
+    </div>
+  {/if}
 
   <!-- Messages -->
   <div class="flex-1 overflow-y-auto p-4 space-y-3" bind:this={chatContainer}>

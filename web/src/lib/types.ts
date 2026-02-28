@@ -87,7 +87,10 @@ export interface SkillDetail {
   tool_path: string | null;
   requires_root: boolean;
   args: string[] | null;
-  raw_prompt: string | null;
+  system_prompt: string;
+  role: string | null;
+  task: string | null;
+  constraints: string | null;
 }
 
 // ─── Reports ────────────────────────────────────────────────
@@ -104,6 +107,7 @@ export interface Settings {
   model: string;
   auth_method: string;
   endpoint_mode: string;
+  auth_status: string;
 }
 
 // ─── WebSocket wrapper ──────────────────────────────────────
@@ -121,4 +125,6 @@ export interface WebSocketCallbacks {
   onEvent?: (event: EngineEvent) => void;
   onClose?: (event: CloseEvent) => void;
   onError?: (event: Event) => void;
+  onReconnecting?: (attempt: number, maxAttempts: number) => void;
+  onReconnected?: () => void;
 }

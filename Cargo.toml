@@ -32,3 +32,6 @@ dashmap = "6"
 uuid = { version = "1", features = ["v4", "serde"] }
 pulldown-cmark = "0.12"
 mime_guess = "2"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
