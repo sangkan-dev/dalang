@@ -39,6 +39,8 @@ struct SessionMeta {
     mode: SessionMode,
     created_at: String,
     active: bool,
+    #[serde(default)]
+    cmd_timeout: Option<u64>,
 }
 
 impl From<&Session> for SessionMeta {
@@ -49,6 +51,7 @@ impl From<&Session> for SessionMeta {
             mode: s.mode.clone(),
             created_at: s.created_at.clone(),
             active: s.active,
+            cmd_timeout: Some(s.cmd_timeout),
         }
     }
 }
@@ -203,6 +206,7 @@ pub fn load_all_sessions() -> Vec<(Session, Vec<EngineEvent>)> {
             events,
             created_at: meta.created_at,
             active: meta.active,
+            cmd_timeout: meta.cmd_timeout.unwrap_or(300),
         };
 
         results.push((session, vec![]));

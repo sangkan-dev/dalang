@@ -25,7 +25,7 @@ pub async fn create_session(
     State(state): State<AppState>,
     Json(body): Json<CreateSessionRequest>,
 ) -> impl IntoResponse {
-    let session = state.create_session(body.target, body.mode);
+    let session = state.create_session(body.target, body.mode, 300);
     (StatusCode::CREATED, Json(session))
 }
 

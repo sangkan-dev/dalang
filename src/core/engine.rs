@@ -48,11 +48,29 @@ pub struct DalangEngine {
     cmd_timeout: u64,
     verbose: bool,
     headless: bool,
+    disabled_skills: Vec<String>,
 }
 
 impl DalangEngine {
-    pub fn new(llm: Box<dyn LlmProvider + Send + Sync>, cmd_timeout: u64, verbose: bool, headless: bool) -> Self {
-        Self { llm, cmd_timeout, verbose, headless }
+    pub fn new(llm: Box<dyn LlmProvider + Send + Sync>, cmd_timeout: u64, verbose: bool, headless: bool, disabled_skills: Vec<String>) -> Self {
+        Self { llm, cmd_timeout, verbose, headless, disabled_skills }
+    }
+
+    /// Filter out skills that are disabled via the web UI.
+    fn filter_disabled_skills(&self, skills: Vec<crate::skills_parser::SkillDefinition>, unavailable: Vec<String>) -> (Vec<crate::skills_parser::SkillDefinition>, Vec<String>) {
+        if self.disabled_skills.is_empty() {
+            return (skills, unavailable);
+        }
+        let mut new_unavailable = unavailable;
+        let filtered: Vec<_> = skills.into_iter().filter(|s| {
+            if self.disabled_skills.contains(&s.name) {
+                new_unavailable.push(s.name.clone());
+                false
+            } else {
+                true
+            }
+        }).collect();
+        (filtered, new_unavailable)
     }
 
     /// Resolve the effective timeout value. 0 means unlimited (u64::MAX).
@@ -747,7 +765,8 @@ You have full browser control via these tools. Output JSON like:
     // AUTONOMOUS AUTO-PILOT LOOP
     // ─────────────────────────────────────
     pub async fn run_autonomous_loop(&self, target: &str, max_iter: u32) -> Result<()> {
-        let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
+        let (raw_skills, raw_unavailable) = crate::skills_parser::load_available_skills()?;
+        let (skills, unavailable) = self.filter_disabled_skills(raw_skills, raw_unavailable);
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
 
         println!("[*] Initializing Autonomous Auto-Pilot Mode...");
@@ -972,7 +991,8 @@ You have full browser control via these tools. Output JSON like:
     // INTERACTIVE HUMAN-IN-THE-LOOP LOOP
     // ─────────────────────────────────────
     pub async fn run_interactive_loop(&self, target: &str) -> Result<()> {
-        let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
+        let (raw_skills, raw_unavailable) = crate::skills_parser::load_available_skills()?;
+        let (skills, unavailable) = self.filter_disabled_skills(raw_skills, raw_unavailable);
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
 
         println!("[*] Starting Interactive Human-in-the-Loop Session...");
@@ -991,16 +1011,23 @@ You have full browser control via these tools. Output JSON like:
             ### INSTRUCTIONS:\n\
             1. Respond to user requests by reasoning about the security context, then calling `execute_skill` to run tools.\n\
             2. After each tool execution, analyze the observation and explain findings clearly.\n\
-            3. When the user asks for a report, produce a detailed vulnerability report.\n\
-            4. Always reference specific URLs, parameters, and evidence from tool output.\n\n\
+            3. ALWAYS VERIFY findings with actual payloads and evidence. Do NOT report unverified guesses.\n\
+            4. When the user asks for a report, produce a detailed vulnerability report with PROOF for each finding.\n\
+            5. Always reference specific URLs, parameters, payloads sent, and server responses.\n\n\
+            ### EVIDENCE STANDARD (MANDATORY):\n\
+            - Every finding MUST include the exact payload sent and the exact server response.\n\
+            - 'The form appears vulnerable' is NOT acceptable evidence.\n\
+            - 'Sending `1\\'` to `/page?id=` returned SQL syntax error' IS acceptable evidence.\n\
+            - Unverified findings must be labeled as UNVERIFIED/THEORETICAL.\n\n\
             ### VULNERABILITY REPORT FORMAT (when requested):\n\
             For each finding include:\n\
             - **Severity:** Critical / High / Medium / Low / Informational\n\
+            - **Status:** VERIFIED or UNVERIFIED\n\
             - **CWE:** (e.g. CWE-79: Cross-Site Scripting)\n\
-            - **Affected URL:** (exact full URL with path and parameters)\n\
-            - **Affected Parameter:** (specific parameter name or component)\n\
+            - **Affected URL:** (exact full URL with path, parameters, and payload used)\n\
+            - **Payload Sent:** (the exact input/request used)\n\
+            - **Server Response:** (the exact output proving the vulnerability)\n\
             - **Proof of Concept:** Step-by-step reproduction with exact payloads and curl commands\n\
-            - **Evidence:** Raw tool output that confirms the vulnerability\n\
             - **Impact:** What an attacker could achieve\n\
             - **Remediation:** Specific fix recommendation\n\n\
             {}\n\n\
@@ -1129,7 +1156,8 @@ You have full browser control via these tools. Output JSON like:
         session_id: Option<Uuid>,
         tx: mpsc::Sender<EngineEvent>,
     ) -> Result<Vec<Message>> {
-        let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
+        let (raw_skills, raw_unavailable) = crate::skills_parser::load_available_skills()?;
+        let (skills, unavailable) = self.filter_disabled_skills(raw_skills, raw_unavailable);
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
         if !unavailable.is_empty() {
             let _ = tx.send(EngineEvent::Status {
@@ -1145,8 +1173,11 @@ You have full browser control via these tools. Output JSON like:
             ### INSTRUCTIONS:\n\
             1. Respond to user requests by reasoning about the security context, then calling `execute_skill` to run tools.\n\
             2. After each tool execution, analyze the observation and explain findings clearly.\n\
-            3. When the user asks for a report, produce a detailed vulnerability report.\n\
-            4. Always reference specific URLs, parameters, and evidence from tool output.\n\n\
+            3. ALWAYS VERIFY findings with actual payloads and evidence. Do NOT report unverified guesses.\n\
+            4. When the user asks for a report, produce a detailed vulnerability report with PROOF for each finding.\n\
+            5. Always reference specific URLs, parameters, payloads sent, and server responses.\n\n\
+            EVIDENCE STANDARD: Every finding MUST include the exact payload sent and the exact server response.\n\
+            'The form looks vulnerable' is NOT acceptable — 'Sending X to Y returned Z which proves...' IS.\n\n\
             {}\n\n\
             Output JSON to call a skill:\n\
             ```json\n\
@@ -1324,7 +1355,8 @@ You have full browser control via these tools. Output JSON like:
         session_id: Option<Uuid>,
         tx: mpsc::Sender<EngineEvent>,
     ) -> Result<()> {
-        let (skills, unavailable) = crate::skills_parser::load_available_skills()?;
+        let (raw_skills, raw_unavailable) = crate::skills_parser::load_available_skills()?;
+        let (skills, unavailable) = self.filter_disabled_skills(raw_skills, raw_unavailable);
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
 
         let _ = tx.send(EngineEvent::Status {
@@ -1346,13 +1378,20 @@ You have full browser control via these tools. Output JSON like:
             2. Use `execute_skill` to run specific tools from the catalog.\n\
             3. Analyze observations to determine the next step.\n\
             4. When sufficient data is gathered, produce a final `VULNERABILITY REPORT`.\n\n\
+            ### EVIDENCE STANDARD (MANDATORY):\n\
+            - Every finding MUST be VERIFIED with actual proof from tool output or server response.\n\
+            - Unverified/theoretical findings must be clearly labeled as UNVERIFIED.\n\
+            - Acceptable proof: exact payload sent + exact server response showing the vulnerability.\n\
+            - Unacceptable: 'The form appears to lack sanitization' without testing it.\n\n\
             ### VULNERABILITY REPORT FORMAT:\n\
             For each finding include:\n\
             - **Severity:** Critical / High / Medium / Low / Informational\n\
+            - **Status:** VERIFIED or UNVERIFIED\n\
             - **CWE:** classification\n\
-            - **Affected URL:** exact full URL\n\
-            - **Proof of Concept:** reproduction steps with payloads\n\
-            - **Evidence:** raw tool output\n\
+            - **Affected URL:** exact full URL with payload parameters\n\
+            - **Payload Sent:** the exact input/request used to verify\n\
+            - **Server Response:** the exact output proving the vulnerability\n\
+            - **Proof of Concept:** step-by-step reproduction\n\
             - **Impact:** what an attacker could achieve\n\
             - **Remediation:** fix recommendation\n\n\
             {}\n\n\
@@ -1560,6 +1599,13 @@ You have full browser control via these tools. Output JSON like:
             "[BROWSER SKILL: {}]\n\
             You are executing a browser-only security skill. Use browser-* tool calls to complete the task.\n\
             Target: {}\n\n\
+            CRITICAL EVIDENCE RULES:\n\
+            - VERIFY every finding with actual test payloads. Do NOT guess.\n\
+            - For each potential vulnerability: send a test input, read the response, confirm it's vulnerable.\n\
+            - SQL Injection: send a single quote `'` in parameters, check for SQL error in response.\n\
+            - XSS: send `d4l4ng<b>xss</b>test` in inputs, check if `<b>xss</b>` appears unencoded in response HTML.\n\
+            - Every finding must cite: (1) exact URL, (2) payload sent, (3) server response proving the vuln.\n\
+            - If you cannot verify, label finding as UNVERIFIED.\n\n\
             {}\n\n\
             {}\n\n\
             Output JSON to call browser tools:\n\

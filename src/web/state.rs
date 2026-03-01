@@ -29,6 +29,13 @@ pub struct Session {
     pub events: Vec<EngineEvent>,
     pub created_at: String,
     pub active: bool,
+    /// Command execution timeout in seconds (0 = unlimited).
+    #[serde(default = "default_cmd_timeout")]
+    pub cmd_timeout: u64,
+}
+
+fn default_cmd_timeout() -> u64 {
+    300
 }
 
 /// Shared app state passed into axum handlers via `Extension<AppState>`.
@@ -67,7 +74,7 @@ impl AppState {
         }
     }
 
-    pub fn create_session(&self, target: String, mode: SessionMode) -> Session {
+    pub fn create_session(&self, target: String, mode: SessionMode, cmd_timeout: u64) -> Session {
         let session = Session {
             id: Uuid::new_v4(),
             target,
@@ -76,6 +83,7 @@ impl AppState {
             events: Vec::new(),
             created_at: chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
             active: true,
+            cmd_timeout,
         };
         self.sessions.insert(session.id, session.clone());
         // Persist to disk immediately

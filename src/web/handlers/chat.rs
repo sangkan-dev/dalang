@@ -151,16 +151,20 @@ async fn handle_chat_message(
         }
     };
 
-    let engine = DalangEngine::new(provider, 300, state.verbose, state.headless);
     let tx = event_tx.clone();
     let state_for_task = state.clone();
 
-    // Get target from session
-    let target = state
+    // Get target and cmd_timeout from session
+    let (target, cmd_timeout) = state
         .sessions
         .get(&session_id)
-        .map(|s| s.target.clone())
+        .map(|s| (s.target.clone(), s.cmd_timeout))
         .unwrap_or_default();
+
+    // Create engine with session's cmd_timeout
+    // Collect disabled skills from web UI state
+    let disabled_skills: Vec<String> = state.disabled_skills.iter().map(|e| e.key().clone()).collect();
+    let engine = DalangEngine::new(provider, cmd_timeout, state.verbose, state.headless, disabled_skills);
 
     // Get existing messages
     let messages = state
@@ -205,8 +209,10 @@ async fn handle_start_scan(
     event_tx: &mpsc::Sender<EngineEvent>,
 ) {
     // Create/update session
-    if !state.sessions.contains_key(&session_id) {
-        state.create_session(target.clone(), SessionMode::Scan);
+    if let Some(mut session) = state.sessions.get_mut(&session_id) {
+        session.cmd_timeout = cmd_timeout;
+    } else {
+        state.create_session(target.clone(), SessionMode::Scan, cmd_timeout);
     }
 
     let provider = match state.create_llm_provider() {
@@ -221,7 +227,9 @@ async fn handle_start_scan(
         }
     };
 
-    let engine = DalangEngine::new(provider, cmd_timeout, state.verbose, state.headless);
+    // Collect disabled skills from web UI state
+    let disabled_skills: Vec<String> = state.disabled_skills.iter().map(|e| e.key().clone()).collect();
+    let engine = DalangEngine::new(provider, cmd_timeout, state.verbose, state.headless, disabled_skills);
     let tx = event_tx.clone();
     let state_for_task = state.clone();
 
@@ -261,13 +269,15 @@ async fn handle_start_scan(
 async fn handle_start_interactive(
     session_id: Uuid,
     target: String,
-    _cmd_timeout: u64,
+    cmd_timeout: u64,
     state: &AppState,
     event_tx: &mpsc::Sender<EngineEvent>,
 ) {
-    // Create session if not exists
-    if !state.sessions.contains_key(&session_id) {
-        state.create_session(target.clone(), SessionMode::Interactive);
+    // Create session if not exists, or update cmd_timeout on existing
+    if let Some(mut session) = state.sessions.get_mut(&session_id) {
+        session.cmd_timeout = cmd_timeout;
+    } else {
+        state.create_session(target.clone(), SessionMode::Interactive, cmd_timeout);
     }
 
     let _ = event_tx
