@@ -41,10 +41,11 @@ pub struct AppState {
     /// Disabled skills (name -> true means disabled).
     pub disabled_skills: Arc<DashMap<String, bool>>,
     pub verbose: bool,
+    pub headless: bool,
 }
 
 impl AppState {
-    pub fn new(verbose: bool) -> Self {
+    pub fn new(verbose: bool, headless: bool) -> Self {
         let sessions = Arc::new(DashMap::new());
 
         // Restore sessions from disk (~/.dalang/sessions/)
@@ -62,6 +63,7 @@ impl AppState {
             event_senders: Arc::new(DashMap::new()),
             disabled_skills: Arc::new(DashMap::new()),
             verbose,
+            headless,
         }
     }
 

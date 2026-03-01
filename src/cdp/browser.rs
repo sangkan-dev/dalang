@@ -47,11 +47,17 @@ impl DalangBrowser {
     //  LIFECYCLE
     // ──────────────────────────────────────────────
 
-    /// Initialize headless browser and spawn its event handler loop.
-    pub async fn new() -> Result<Self> {
-        let config = BrowserConfig::builder()
+    /// Initialize browser and spawn its event handler loop.
+    /// If `headless` is false, the browser window will be visible.
+    pub async fn new(headless: bool) -> Result<Self> {
+        let mut builder = BrowserConfig::builder();
+        builder = builder
             .arg("--disable-blink-features=AutomationControlled")
-            .arg("--no-sandbox")
+            .arg("--no-sandbox");
+        if !headless {
+            builder = builder.with_head();
+        }
+        let config = builder
             .build()
             .map_err(|e| anyhow!("Failed to build browser config: {:?}", e))?;
 

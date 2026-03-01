@@ -45,6 +45,10 @@ pub enum Commands {
         /// Command execution timeout in seconds (0 = unlimited, default: 300)
         #[arg(long = "cmd-timeout", default_value_t = 300)]
         cmd_timeout: u64,
+
+        /// Show the browser window instead of running headless
+        #[arg(long = "headed", default_value_t = false)]
+        headed: bool,
     },
 
     /// Start an interactive / copilot mode session
@@ -56,6 +60,10 @@ pub enum Commands {
         /// Command execution timeout in seconds (0 = unlimited, default: 300)
         #[arg(long = "cmd-timeout", default_value_t = 300)]
         cmd_timeout: u64,
+
+        /// Show the browser window instead of running headless
+        #[arg(long = "headed", default_value_t = false)]
+        headed: bool,
     },
 
     /// Switch the active AI model (no re-login required)
@@ -74,5 +82,9 @@ pub enum Commands {
         /// Automatically open the browser
         #[arg(short, long, default_value_t = false)]
         open: bool,
+
+        /// Show the browser window instead of running headless (for browser-based skills)
+        #[arg(long = "headed", default_value_t = false)]
+        headed: bool,
     },
 }

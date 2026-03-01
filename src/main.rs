@@ -398,6 +398,7 @@ async fn main() -> Result<()> {
             auto,
             max_iter,
             cmd_timeout,
+            headed,
         } => {
             println!("Starting automated scan...");
             println!("Target: {}", target);
@@ -417,7 +418,7 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine = core::engine::DalangEngine::new(provider, cmd_timeout, verbose);
+            let engine = core::engine::DalangEngine::new(provider, cmd_timeout, verbose, !headed);
 
             if auto {
                 engine.run_autonomous_loop(&target, max_iter).await?;
@@ -427,7 +428,7 @@ async fn main() -> Result<()> {
                 engine.run_scan_loop(&target, &skills_list).await?;
             }
         }
-        Commands::Interact { target, cmd_timeout } => {
+        Commands::Interact { target, cmd_timeout, headed } => {
             println!("Starting interactive session...");
             println!("Target: {}", target);
 
@@ -446,7 +447,7 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine = core::engine::DalangEngine::new(provider, cmd_timeout, verbose);
+            let engine = core::engine::DalangEngine::new(provider, cmd_timeout, verbose, !headed);
 
             engine.run_interactive_loop(&target).await?;
         }
@@ -488,8 +489,8 @@ async fn main() -> Result<()> {
                 println!("[+] Model switched to: {}", chosen);
             }
         }
-        Commands::Web { port, open } => {
-            web::start_server(port, open, verbose).await?;
+        Commands::Web { port, open, headed } => {
+            web::start_server(port, open, verbose, !headed).await?;
         }
     }
 

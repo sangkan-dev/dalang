@@ -151,7 +151,7 @@ async fn handle_chat_message(
         }
     };
 
-    let engine = DalangEngine::new(provider, 300, state.verbose);
+    let engine = DalangEngine::new(provider, 300, state.verbose, state.headless);
     let tx = event_tx.clone();
     let state_for_task = state.clone();
 
@@ -221,7 +221,7 @@ async fn handle_start_scan(
         }
     };
 
-    let engine = DalangEngine::new(provider, cmd_timeout, state.verbose);
+    let engine = DalangEngine::new(provider, cmd_timeout, state.verbose, state.headless);
     let tx = event_tx.clone();
     let state_for_task = state.clone();
 

@@ -63,8 +63,8 @@ pub fn build_router(state: AppState) -> Router {
 }
 
 /// Start the web server on the given port.
-pub async fn start_server(port: u16, open_browser: bool, verbose: bool) -> anyhow::Result<()> {
-    let state = AppState::new(verbose);
+pub async fn start_server(port: u16, open_browser: bool, verbose: bool, headless: bool) -> anyhow::Result<()> {
+    let state = AppState::new(verbose, headless);
     let app = build_router(state);
 
     let addr = format!("0.0.0.0:{}", port);
