@@ -488,6 +488,9 @@ You have full browser control via these tools. Output JSON like:
                 }
                 println!("[<] Observation received ({} bytes)", obs.len());
 
+                // Truncate large outputs to prevent context window overflow
+                let obs = crate::core::memory::truncate_output(&obs, 12_000);
+
                 memory.add_observation(format!(
                     "Skill `{}` executed. Found {} lines of output.",
                     skill_def.name,
@@ -832,6 +835,9 @@ You have full browser control via these tools. Output JSON like:
                 }
             }
 
+            // Compact messages if context is too large for the model
+            crate::core::memory::compact_messages(&mut messages);
+
             let tools = vec![Self::build_execute_skill_tool_def()]; // FIX-13: no unused var
 
             if self.verbose {
@@ -885,6 +891,22 @@ You have full browser control via these tools. Output JSON like:
                                 .ok_or_else(|| {
                                     anyhow!("Skill '{}' not found in library", skill_name)
                                 })?;
+
+                        // Check for duplicate command execution
+                        let cmd_fingerprint = format!("{} {}",
+                            skill_def.tool_path.as_deref().unwrap_or(""),
+                            skill_def.args.as_ref().map(|a| a.join(" ")).unwrap_or_default()
+                        );
+                        if memory.is_duplicate_command(skill_name, &cmd_fingerprint) {
+                            println!("[!] Skipping duplicate execution of skill '{}'", skill_name);
+                            messages.push(Message::user(&format!(
+                                "DUPLICATE DETECTED: Skill `{}` with the same arguments was already executed. \
+                                 Review the previous observations instead of re-running. Choose a different \
+                                 skill or produce the VULNERABILITY REPORT.",
+                                skill_name
+                            )));
+                            continue;
+                        }
 
                         // FIX-05: Use shared helper
                         self.execute_skill_native(
@@ -1302,6 +1324,9 @@ You have full browser control via these tools. Output JSON like:
                 }
             }
 
+            // Compact messages if context is too large for the model
+            crate::core::memory::compact_messages(&mut messages);
+
             let tools = vec![Self::build_execute_skill_tool_def()];
             let response_text = match self.llm.send_messages_with_tools(&messages, tools).await {
                 Ok(r) => r,
@@ -1354,6 +1379,24 @@ You have full browser control via these tools. Output JSON like:
 
                         let skill_def = skills.iter().find(|s| s.name == skill_name)
                             .ok_or_else(|| anyhow!("Skill '{}' not found in library", skill_name))?;
+
+                        // Check for duplicate command execution
+                        let cmd_fingerprint = format!("{} {}",
+                            skill_def.tool_path.as_deref().unwrap_or(""),
+                            skill_def.args.as_ref().map(|a| a.join(" ")).unwrap_or_default()
+                        );
+                        if memory.is_duplicate_command(skill_name, &cmd_fingerprint) {
+                            let _ = tx.send(EngineEvent::Status {
+                                message: format!("Skipping duplicate execution of skill '{}'", skill_name),
+                            }).await;
+                            messages.push(Message::user(&format!(
+                                "DUPLICATE DETECTED: Skill `{}` with the same arguments was already executed. \
+                                 Review the previous observations instead of re-running. Choose a different \
+                                 skill or produce the VULNERABILITY REPORT.",
+                                skill_name
+                            )));
+                            continue;
+                        }
 
                         let _ = tx.send(EngineEvent::ToolExecution {
                             skill: skill_name.to_string(),
@@ -1475,11 +1518,15 @@ You have full browser control via these tools. Output JSON like:
                     obs.push_str(&format!("STDERR:\n{}\n", stderr));
                 }
 
+                // Send full output to frontend for display
                 let _ = tx.send(EngineEvent::Observation {
                     skill: skill_def.name.clone(),
                     content: obs.clone(),
                     bytes: obs.len(),
                 }).await;
+
+                // Truncate for LLM context window
+                let obs = crate::core::memory::truncate_output(&obs, 12_000);
 
                 memory.add_observation(format!(
                     "Skill `{}` executed. Found {} lines of output.",

@@ -1,10 +1,46 @@
+/// Maximum bytes for a single tool observation injected into LLM context.
+/// Keeps first + last portions with a truncation notice in the middle.
+const MAX_OBSERVATION_BYTES: usize = 12_000;
+
+/// Rough token budget: leave headroom below model context limit.
+/// Most models support 128k tokens; we aim to stay under ~100k tokens
+/// to leave room for the LLM response.
+const TOKEN_BUDGET: usize = 100_000;
+
+/// Rough estimate: 1 token ≈ 4 characters for English text.
+fn estimate_tokens(text: &str) -> usize {
+    text.len() / 4
+}
+
+/// Truncate tool output that exceeds the byte limit.
+/// Keeps the first and last portions with a notice in the middle.
+pub fn truncate_output(output: &str, max_bytes: usize) -> String {
+    if output.len() <= max_bytes {
+        return output.to_string();
+    }
+    let keep = max_bytes / 2;
+    let head = &output[..keep];
+    let tail = &output[output.len() - keep..];
+    let original_lines = output.lines().count();
+    let truncated_bytes = output.len() - max_bytes;
+    format!(
+        "{}\n\n... [TRUNCATED: {} bytes / ~{} lines omitted — output too large for context window] ...\n\n{}",
+        head, truncated_bytes, original_lines, tail
+    )
+}
+
 pub struct ContextManager {
     memory: Vec<String>,
+    /// Track executed (skill_name, command_fingerprint) to detect duplicates.
+    executed_commands: Vec<(String, String)>,
 }
 
 impl ContextManager {
     pub fn new() -> Self {
-        Self { memory: Vec::new() }
+        Self {
+            memory: Vec::new(),
+            executed_commands: Vec::new(),
+        }
     }
 
     /// Restore a ContextManager from previously saved observations.
@@ -29,6 +65,17 @@ impl ContextManager {
         self.memory.push(observation);
     }
 
+    /// Record that a skill was executed with a given command fingerprint.
+    /// Returns `true` if this exact (skill, command) was already executed.
+    pub fn is_duplicate_command(&mut self, skill_name: &str, command: &str) -> bool {
+        let key = (skill_name.to_string(), command.to_string());
+        if self.executed_commands.iter().any(|k| *k == key) {
+            return true;
+        }
+        self.executed_commands.push(key);
+        false
+    }
+
     pub fn get_summary_prompt(&self) -> String {
         if self.memory.is_empty() {
             return String::from("No previous observations recorded in persistent memory.");
@@ -44,4 +91,73 @@ impl ContextManager {
         }
         prompt
     }
+}
+
+/// Compact the message history when it exceeds the token budget.
+///
+/// Strategy: keep the system prompt (first message) and the last N messages intact.
+/// Middle messages (old observations/responses) are replaced with a single compact summary.
+pub fn compact_messages(messages: &mut Vec<crate::llm::Message>) {
+    let total_tokens: usize = messages.iter().map(|m| estimate_tokens(&m.content)).sum();
+
+    if total_tokens <= TOKEN_BUDGET {
+        return;
+    }
+
+    // We need to cut. Keep system prompt (idx 0) and last 4 messages.
+    let keep_tail = 4.min(messages.len().saturating_sub(1));
+    if messages.len() <= keep_tail + 1 {
+        // Not enough messages to compact — truncate individual large messages instead
+        for msg in messages.iter_mut() {
+            if msg.role == "user" && estimate_tokens(&msg.content) > 3000 {
+                msg.content = truncate_output(&msg.content, MAX_OBSERVATION_BYTES);
+            }
+        }
+        return;
+    }
+
+    let middle_start = 1;
+    let middle_end = messages.len() - keep_tail;
+
+    // Build a compact summary of the middle messages
+    let mut summary_parts: Vec<String> = Vec::new();
+    for msg in &messages[middle_start..middle_end] {
+        let role = &msg.role;
+        let content = &msg.content;
+
+        if role == "user" && content.contains("OBSERVATION FROM") {
+            // Extract skill name and line count from observation
+            if let Some(skill_start) = content.find('`') {
+                if let Some(skill_end) = content[skill_start + 1..].find('`') {
+                    let skill = &content[skill_start + 1..skill_start + 1 + skill_end];
+                    let lines = content.lines().count();
+                    summary_parts.push(format!("- Executed `{}`: {} lines of output", skill, lines));
+                    continue;
+                }
+            }
+            let lines = content.lines().count();
+            summary_parts.push(format!("- Tool observation: {} lines", lines));
+        } else if role == "assistant" && content.len() > 200 {
+            // Keep first 200 chars of assistant reasoning
+            summary_parts.push(format!("- AI reasoning: {}...", &content[..200]));
+        } else if role == "assistant" {
+            summary_parts.push(format!("- AI: {}", content));
+        }
+        // Skip system re-prompt messages (they're boilerplate)
+    }
+
+    let compact = format!(
+        "### COMPACTED CONTEXT (iterations 1-{})\n\
+        The following is a summary of previous iterations that were compacted to save context space:\n\
+        {}\n\n\
+        Continue the audit based on these previous findings. Do NOT repeat tools that were already executed above.",
+        middle_end - 1,
+        summary_parts.join("\n")
+    );
+
+    // Remove the middle messages and insert the compact summary
+    let tail: Vec<crate::llm::Message> = messages[middle_end..].to_vec();
+    messages.truncate(1); // Keep system prompt
+    messages.push(crate::llm::Message::user(&compact));
+    messages.extend(tail);
 }
