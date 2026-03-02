@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Dalang',
   description: 'Autonomous AI Cybersecurity Agent Framework',
-  base: '/dalang/',
+  base: '/',
   head: [
     ['link', { rel: 'icon', href: '/dalang/logo.png' }],
   ],
