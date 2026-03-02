@@ -31,15 +31,12 @@ pub fn truncate_output(output: &str, max_bytes: usize) -> String {
 
 pub struct ContextManager {
     memory: Vec<String>,
-    /// Track executed (skill_name, command_fingerprint) to detect duplicates.
-    executed_commands: Vec<(String, String)>,
 }
 
 impl ContextManager {
     pub fn new() -> Self {
         Self {
             memory: Vec::new(),
-            executed_commands: Vec::new(),
         }
     }
 
