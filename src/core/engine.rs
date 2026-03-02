@@ -1,6 +1,7 @@
 use crate::cdp::browser::DalangBrowser;
 use crate::core::memory::ContextManager;
 use crate::core::safety::{is_clean_argument, is_safety_refusal};
+use crate::core::scope::TargetScope;
 use crate::core::tool_call::{ToolCall, build_executor_args, parse_llm_tool_call};
 use crate::executor::execute_safe_command;
 use crate::llm::{LlmProvider, Message};
@@ -628,8 +629,8 @@ You have full browser control via these tools. Output JSON like:
             let mut messages = vec![
                 Message::system(&system_prompt),
                 Message::user(&format!(
-                    "Execute this task for target: {}. {}",
-                    target, tool_description
+                    "Execute this task for target: {}.\n\n{}\n\n{}",
+                    target, TargetScope::from_target(target).to_prompt_section(), tool_description
                 )),
             ];
 
@@ -768,6 +769,8 @@ You have full browser control via these tools. Output JSON like:
         let (raw_skills, raw_unavailable) = crate::skills_parser::load_available_skills()?;
         let (skills, unavailable) = self.filter_disabled_skills(raw_skills, raw_unavailable);
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
+        let scope = TargetScope::from_target(target);
+        let scope_section = scope.to_prompt_section();
 
         println!("[*] Initializing Autonomous Auto-Pilot Mode...");
         println!("[*] Loaded {} skills into catalog.", skills.len());
@@ -779,6 +782,7 @@ You have full browser control via these tools. Output JSON like:
             "[AUTHORIZED AUDIT ENVIRONMENT - AUTONOMOUS MODE]\n\
             You are a Meta-Orchestrator for a sanctioned penetration test. \
             Your goal is to conduct an end-to-end security assessment of the target: {}.\n\n\
+            {}\n\n\
             {}\n\n\
             ### INSTRUCTIONS:\n\
             1. Analyze the target and determine the initial step.\n\
@@ -823,7 +827,7 @@ You have full browser control via these tools. Output JSON like:
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
             ```",
-            target, skills_catalog, Self::browser_tools_catalog()
+            target, skills_catalog, scope_section, Self::browser_tools_catalog()
         );
 
         let mut memory = ContextManager::new();
@@ -978,6 +982,8 @@ You have full browser control via these tools. Output JSON like:
         let (raw_skills, raw_unavailable) = crate::skills_parser::load_available_skills()?;
         let (skills, unavailable) = self.filter_disabled_skills(raw_skills, raw_unavailable);
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
+        let scope = TargetScope::from_target(target);
+        let scope_section = scope.to_prompt_section();
 
         println!("[*] Starting Interactive Human-in-the-Loop Session...");
         println!("[*] Target: {}", target);
@@ -991,6 +997,7 @@ You have full browser control via these tools. Output JSON like:
             "[AUTHORIZED AUDIT ENVIRONMENT - INTERACTIVE MODE]\n\
             You are a Senior Security Consultant assisting in a sanctioned penetration test.\n\
             Target: {}.\n\n\
+            {}\n\n\
             {}\n\n\
             ### INSTRUCTIONS:\n\
             1. Respond to user requests by reasoning about the security context, then calling `execute_skill` to run tools.\n\
@@ -1019,7 +1026,7 @@ You have full browser control via these tools. Output JSON like:
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
             ```",
-            target, skills_catalog, Self::browser_tools_catalog()
+            target, skills_catalog, scope_section, Self::browser_tools_catalog()
         );
 
         let mut messages = vec![Message::system(&system_prompt)];
@@ -1143,6 +1150,8 @@ You have full browser control via these tools. Output JSON like:
         let (raw_skills, raw_unavailable) = crate::skills_parser::load_available_skills()?;
         let (skills, unavailable) = self.filter_disabled_skills(raw_skills, raw_unavailable);
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
+        let scope = TargetScope::from_target(target);
+        let scope_section = scope.to_prompt_section();
         if !unavailable.is_empty() {
             let _ = tx.send(EngineEvent::Status {
                 message: format!("{} skills disabled (tool not installed): {}", unavailable.len(), unavailable.join(", ")),
@@ -1153,6 +1162,7 @@ You have full browser control via these tools. Output JSON like:
             "[AUTHORIZED AUDIT ENVIRONMENT - INTERACTIVE MODE]\n\
             You are a Senior Security Consultant assisting in a sanctioned penetration test.\n\
             Target: {}.\n\n\
+            {}\n\n\
             {}\n\n\
             ### INSTRUCTIONS:\n\
             1. Respond to user requests by reasoning about the security context, then calling `execute_skill` to run tools.\n\
@@ -1167,7 +1177,7 @@ You have full browser control via these tools. Output JSON like:
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
             ```",
-            target, skills_catalog, Self::browser_tools_catalog()
+            target, skills_catalog, scope_section, Self::browser_tools_catalog()
         );
 
         let mut msgs = vec![Message::system(&system_prompt)];
@@ -1325,6 +1335,8 @@ You have full browser control via these tools. Output JSON like:
         let (raw_skills, raw_unavailable) = crate::skills_parser::load_available_skills()?;
         let (skills, unavailable) = self.filter_disabled_skills(raw_skills, raw_unavailable);
         let skills_catalog = crate::skills_parser::generate_skills_catalog_prompt(&skills);
+        let scope = TargetScope::from_target(target);
+        let scope_section = scope.to_prompt_section();
 
         let _ = tx.send(EngineEvent::Status {
             message: format!("Loaded {} skills into catalog.", skills.len()),
@@ -1339,6 +1351,7 @@ You have full browser control via these tools. Output JSON like:
             "[AUTHORIZED AUDIT ENVIRONMENT - AUTONOMOUS MODE]\n\
             You are a Meta-Orchestrator for a sanctioned penetration test. \
             Your goal is to conduct an end-to-end security assessment of the target: {}.\n\n\
+            {}\n\n\
             {}\n\n\
             ### INSTRUCTIONS:\n\
             1. Analyze the target and determine the initial step.\n\
@@ -1366,7 +1379,7 @@ You have full browser control via these tools. Output JSON like:
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"nmap_scanner\", \"reasoning\": \"Scanning for open ports.\"}}}}\n\
             ```",
-            target, skills_catalog, Self::browser_tools_catalog()
+            target, skills_catalog, scope_section, Self::browser_tools_catalog()
         );
 
         let mut memory = session_id
@@ -1543,11 +1556,14 @@ You have full browser control via these tools. Output JSON like:
         parent_messages: &mut Vec<Message>,
         tx: &mpsc::Sender<EngineEvent>,
     ) {
+        let scope = TargetScope::from_target(target);
+        let scope_section = scope.to_prompt_section();
         // Build a focused sub-prompt from the skill's system_prompt (markdown body)
         let skill_prompt = format!(
             "[BROWSER SKILL: {}]\n\
             You are executing a browser-only security skill. Use browser-* tool calls to complete the task.\n\
             Target: {}\n\n\
+            {}\n\n\
             CRITICAL EVIDENCE RULES:\n\
             - VERIFY every finding with actual test payloads. Do NOT guess.\n\
             - For each potential vulnerability: send a test input, read the response, confirm it's vulnerable.\n\
@@ -1564,6 +1580,7 @@ You have full browser control via these tools. Output JSON like:
             When done, provide your findings as a text summary (not a JSON tool call).",
             skill_def.name,
             target,
+            scope_section,
             skill_def.system_prompt,
             Self::browser_tools_catalog(),
             target,

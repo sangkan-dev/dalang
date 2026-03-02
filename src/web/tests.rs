@@ -10,7 +10,7 @@ mod tests {
     use tower::ServiceExt; // oneshot
 
     fn test_state() -> AppState {
-        AppState::new(false)
+        AppState::new(false, true)
     }
 
     fn app() -> axum::Router {
