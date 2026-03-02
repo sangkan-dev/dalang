@@ -65,17 +65,6 @@ impl ContextManager {
         self.memory.push(observation);
     }
 
-    /// Record that a skill was executed with a given command fingerprint.
-    /// Returns `true` if this exact (skill, command) was already executed.
-    pub fn is_duplicate_command(&mut self, skill_name: &str, command: &str) -> bool {
-        let key = (skill_name.to_string(), command.to_string());
-        if self.executed_commands.iter().any(|k| *k == key) {
-            return true;
-        }
-        self.executed_commands.push(key);
-        false
-    }
-
     pub fn get_summary_prompt(&self) -> String {
         if self.memory.is_empty() {
             return String::from("No previous observations recorded in persistent memory.");

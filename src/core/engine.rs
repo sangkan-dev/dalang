@@ -918,22 +918,6 @@ You have full browser control via these tools. Output JSON like:
                                     anyhow!("Skill '{}' not found in library", skill_name)
                                 })?;
 
-                        // Check for duplicate command execution
-                        let cmd_fingerprint = format!("{} {}",
-                            skill_def.tool_path.as_deref().unwrap_or(""),
-                            skill_def.args.as_ref().map(|a| a.join(" ")).unwrap_or_default()
-                        );
-                        if memory.is_duplicate_command(skill_name, &cmd_fingerprint) {
-                            println!("[!] Skipping duplicate execution of skill '{}'", skill_name);
-                            messages.push(Message::user(&format!(
-                                "DUPLICATE DETECTED: Skill `{}` with the same arguments was already executed. \
-                                 Review the previous observations instead of re-running. Choose a different \
-                                 skill or produce the VULNERABILITY REPORT.",
-                                skill_name
-                            )));
-                            continue;
-                        }
-
                         // Handle browser-only skills
                         if skill_def.tool_path.is_none() {
                             println!("[>] Running browser-only skill: {}", skill_name);
@@ -1251,23 +1235,6 @@ You have full browser control via these tools. Output JSON like:
                             .find(|s| s.name == skill_name)
                             .ok_or_else(|| anyhow!("Skill not found: {}", skill_name))?;
 
-                        // Check for duplicate command execution
-                        let cmd_fingerprint = format!("{} {}",
-                            skill_def.tool_path.as_deref().unwrap_or(""),
-                            skill_def.args.as_ref().map(|a| a.join(" ")).unwrap_or_default()
-                        );
-                        if memory.is_duplicate_command(skill_name, &cmd_fingerprint) {
-                            let _ = tx.send(EngineEvent::Status {
-                                message: format!("Skipping duplicate execution of skill '{}'", skill_name),
-                            }).await;
-                            msgs.push(Message::user(&format!(
-                                "DUPLICATE DETECTED: Skill `{}` with the same arguments was already executed. \
-                                 Use different arguments or a different skill.",
-                                skill_name
-                            )));
-                            continue;
-                        }
-
                         // Handle browser-only skills: run a browser sub-loop
                         if skill_def.tool_path.is_none() {
                             let _ = tx.send(EngineEvent::ToolExecution {
@@ -1489,24 +1456,6 @@ You have full browser control via these tools. Output JSON like:
 
                         let skill_def = skills.iter().find(|s| s.name == skill_name)
                             .ok_or_else(|| anyhow!("Skill '{}' not found in library", skill_name))?;
-
-                        // Check for duplicate command execution
-                        let cmd_fingerprint = format!("{} {}",
-                            skill_def.tool_path.as_deref().unwrap_or(""),
-                            skill_def.args.as_ref().map(|a| a.join(" ")).unwrap_or_default()
-                        );
-                        if memory.is_duplicate_command(skill_name, &cmd_fingerprint) {
-                            let _ = tx.send(EngineEvent::Status {
-                                message: format!("Skipping duplicate execution of skill '{}'", skill_name),
-                            }).await;
-                            messages.push(Message::user(&format!(
-                                "DUPLICATE DETECTED: Skill `{}` with the same arguments was already executed. \
-                                 Review the previous observations instead of re-running. Choose a different \
-                                 skill or produce the VULNERABILITY REPORT.",
-                                skill_name
-                            )));
-                            continue;
-                        }
 
                         // Handle browser-only skills: run a browser sub-loop
                         if skill_def.tool_path.is_none() {
