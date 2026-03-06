@@ -1,5 +1,7 @@
-//! Outbound adapters — concrete implementations of application ports.
+//! Adapters — concrete implementations of application ports.
 //!
-//! Each sub-module implements one or more port traits.
+//! - `inbound/`:  CLI args (Clap), HTTP/WebSocket (axum)
+//! - `outbound/`: LLM providers, OS commands, persistence
 
+pub mod inbound;
 pub mod outbound;

@@ -7,37 +7,9 @@ use serde::{Deserialize, Serialize};
 
 // ── Skill Definition ──────────────────────────────────────────────────────────
 
-/// A fully parsed skill from a `.md` file in the `skills/` directory.
-///
-/// Skills define both the OS command to execute (YAML frontmatter) and the
-/// AI persona/instructions (Markdown body) used by the LLM.
-#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-pub struct SkillDefinition {
-    pub name: String,
-    pub description: String,
-    /// Path to the executable binary (e.g., `/usr/bin/nmap` or just `nmap`)
-    pub tool_path: Option<String>,
-    /// Argument template list. May contain `{{target}}` placeholder.
-    pub args: Option<Vec<String>>,
-    /// Whether this skill requires root privileges to run.
-    pub requires_root: Option<bool>,
-    /// The full Markdown body, used as the LLM system prompt.
-    #[serde(skip)]
-    pub system_prompt: String,
-    /// Extracted `# Role` section from the prompt body.
-    #[serde(skip)]
-    pub role: Option<String>,
-    /// Extracted `# Task` section from the prompt body.
-    #[serde(skip)]
-    pub task: Option<String>,
-    /// Extracted `# Constraints` section from the prompt body.
-    #[serde(skip)]
-    pub constraints: Option<String>,
-    /// Whether the tool binary is installed and reachable on the system PATH.
-    /// Skills with `tool_path: null` (browser-based) are always considered available.
-    #[serde(skip)]
-    pub tool_available: bool,
-}
+/// Re-exported from `crate::skills_parser` — single source of truth.
+/// Both `crate::skills_parser::SkillDefinition` and `crate::domain::models::SkillDefinition` refer to the same type.
+pub use crate::skills_parser::SkillDefinition;
 
 // ── LLM Conversation ─────────────────────────────────────────────────────────
 

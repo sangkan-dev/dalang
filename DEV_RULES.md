@@ -69,4 +69,5 @@ Oleh karena itu, setiap file `.md` skill wajib menggunakan teknik **Defensive Pr
 
 ## Notes
 
-Selalu gunakan cargo/npm untuk menginstall package yang di perlukan, jangan edit file Cargo.toml/package.json secara manual.
+Selalu gunakan cargo/npm/bun untuk menginstall package yang di perlukan, jangan edit file Cargo.toml/package.json secara manual.
+Gunakan MCP Server jika diperlukan misal untuk sveltekit.

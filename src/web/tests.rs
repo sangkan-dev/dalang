@@ -10,7 +10,9 @@ mod tests {
     use tower::ServiceExt; // oneshot
 
     fn test_state() -> AppState {
-        AppState::new(false, true)
+        // Use new_empty() to avoid reading real sessions from ~/.dalang/sessions/
+        // which makes tests non-deterministic across machines.
+        AppState::new_empty()
     }
 
     fn app() -> axum::Router {
@@ -77,9 +79,7 @@ mod tests {
             .unwrap();
 
         let res = build_router(state.clone()).oneshot(req).await.unwrap();
-        assert!(
-            res.status() == StatusCode::OK || res.status() == StatusCode::NO_CONTENT
-        );
+        assert!(res.status() == StatusCode::OK || res.status() == StatusCode::NO_CONTENT);
     }
 
     #[tokio::test]
@@ -152,10 +152,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_static_fallback_serves_index_html() {
-        let req = Request::builder()
-            .uri("/")
-            .body(Body::empty())
-            .unwrap();
+        let req = Request::builder().uri("/").body(Body::empty()).unwrap();
 
         let res = app().oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
@@ -183,8 +180,7 @@ mod tests {
         // May succeed or fail depending on keyring availability in CI,
         // but should not panic or return 404
         assert!(
-            res.status() == StatusCode::OK
-                || res.status() == StatusCode::INTERNAL_SERVER_ERROR
+            res.status() == StatusCode::OK || res.status() == StatusCode::INTERNAL_SERVER_ERROR
         );
     }
 
@@ -273,7 +269,10 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
         // New fields should exist
-        assert!(json["has_api_key"].is_boolean(), "Expected has_api_key boolean");
+        assert!(
+            json["has_api_key"].is_boolean(),
+            "Expected has_api_key boolean"
+        );
         assert!(json["verbose"].is_boolean(), "Expected verbose boolean");
     }
 

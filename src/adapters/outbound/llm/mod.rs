@@ -46,11 +46,20 @@ pub fn create_llm_adapter(
     Ok(Arc::new(LlmProviderShim(boxed)))
 }
 
+/// Wraps any `Box<dyn LlmProvider>` (already constructed by `llm::create_provider`)
+/// in an `LlmProviderShim` that implements `LlmPort`.
+///
+/// This is the preferred factory when you have already called `llm::create_provider` —
+/// avoids duplicating the configuration logic.
+pub fn new_shim(provider: Box<dyn crate::llm::LlmProvider + Send + Sync>) -> impl LlmPort {
+    LlmProviderShim(provider)
+}
+
 /// Shim that adapts the legacy `crate::llm::LlmProvider` trait to the new `LlmPort` trait.
 ///
 /// This lets existing OpenAI/Gemini/Copilot code continue to work without rewriting,
 /// while being usable through the new hexagonal port abstraction.
-struct LlmProviderShim(Box<dyn crate::llm::LlmProvider + Send + Sync>);
+pub(crate) struct LlmProviderShim(Box<dyn crate::llm::LlmProvider + Send + Sync>);
 
 #[async_trait::async_trait]
 impl LlmPort for LlmProviderShim {

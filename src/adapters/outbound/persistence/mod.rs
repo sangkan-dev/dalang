@@ -1,7 +1,7 @@
 //! Persistence adapter — implements `AuthPersistence` and `SessionStorage` ports.
 //!
 //! `KeyringAuthPersistence`: delegates to `auth::persistence` (keyring + config file).
-//! `FileSessionStorage`: stub implementation — full migration in a follow-up sprint.
+//! `FileSessionStorage`: delegates to `web::persistence` for session file I/O.
 
 use crate::application::ports::storage_port::{AuthPersistence, SessionMeta, SessionStorage};
 use crate::domain::models::EngineEvent;
@@ -77,39 +77,94 @@ impl AuthPersistence for KeyringAuthPersistence {
 
 /// Session storage adapter that persists to `~/.dalang/sessions/`.
 ///
-/// TODO: The `web::persistence` module uses a Session struct with a different schema
-/// (no message_count, event_count fields) and the EngineEvent is from `web::events`.
-/// Full migration requires aligning these types. For now, this stub allows the port
-/// trait to be registered and used without breaking compilation.
+/// Delegates to `web::persistence` for all file I/O, which already handles
+/// `~/.dalang/sessions/{uuid}/` with `session.json`, `events.json`, and `MEMORY.md`.
 pub struct FileSessionStorage;
 
 impl SessionStorage for FileSessionStorage {
-    fn save_session_meta(&self, _meta: &SessionMeta) -> Result<()> {
-        // TODO: migrate to web::persistence::save_session_meta once types are aligned
+    fn save_session_meta(&self, meta: &SessionMeta) -> Result<()> {
+        // Build a minimal web::state::Session from the port-level SessionMeta.
+        // Only fields present in SessionMeta are populated; events/messages start empty.
+        use crate::web::state::{Session, SessionMode};
+        let mode = match meta.mode.as_str() {
+            "scan" => SessionMode::Scan,
+            _ => SessionMode::Interactive,
+        };
+        let session = Session {
+            id: meta.id,
+            target: meta.target.clone(),
+            mode,
+            messages: vec![],
+            events: vec![],
+            created_at: meta.created_at.clone(),
+            active: meta.active,
+            cmd_timeout: 300,
+        };
+        crate::web::persistence::save_session_meta(&session);
         Ok(())
     }
 
-    fn save_events(&self, _session_id: Uuid, _events: &[EngineEvent]) -> Result<()> {
-        // TODO: unify domain::models::EngineEvent and web::events::EngineEvent types
-        // then delegate to crate::web::persistence::save_events
+    fn save_events(&self, session_id: Uuid, events: &[EngineEvent]) -> Result<()> {
+        crate::web::persistence::save_events(&session_id, events);
         Ok(())
     }
 
     fn load_all_sessions(&self) -> Result<Vec<SessionMeta>> {
-        // TODO: align Session type with SessionMeta once web module is migrated
-        Ok(vec![])
+        let raw = crate::web::persistence::load_all_sessions();
+        let metas = raw
+            .into_iter()
+            .map(|(session, _events)| {
+                use crate::web::state::SessionMode;
+                let mode = match &session.mode {
+                    SessionMode::Scan => "scan",
+                    SessionMode::Interactive => "interactive",
+                }
+                .to_string();
+                // Count messages and events from the session struct
+                let message_count = session.messages.len();
+                let event_count = session.events.len();
+                SessionMeta {
+                    id: session.id,
+                    target: session.target,
+                    mode,
+                    created_at: session.created_at,
+                    active: session.active,
+                    message_count,
+                    event_count,
+                }
+            })
+            .collect();
+        Ok(metas)
     }
 
-    fn load_events(&self, _session_id: Uuid) -> Result<Vec<EngineEvent>> {
-        // TODO: implement after aligning EngineEvent sources
-        Ok(vec![])
+    fn load_events(&self, session_id: Uuid) -> Result<Vec<EngineEvent>> {
+        // Load events from `~/.dalang/sessions/{uuid}/events.json`
+        let dir = crate::web::persistence::session_dir(&session_id);
+        let path = dir.join("events.json");
+        match std::fs::read_to_string(&path) {
+            Ok(content) => {
+                let events: Vec<EngineEvent> = serde_json::from_str(&content)?;
+                Ok(events)
+            }
+            Err(_) => Ok(vec![]), // file doesn't exist yet
+        }
     }
 
-    fn load_memory(&self, _session_id: Uuid) -> Result<Vec<String>> {
-        Ok(vec![])
+    fn load_memory(&self, session_id: Uuid) -> Result<Vec<String>> {
+        if let Some(ctx) = crate::web::persistence::load_memory(&session_id) {
+            Ok(ctx.observations().to_vec())
+        } else {
+            Ok(vec![])
+        }
     }
 
-    fn save_memory(&self, _session_id: Uuid, _observations: &[String]) -> Result<()> {
+    fn save_memory(&self, session_id: Uuid, observations: &[String]) -> Result<()> {
+        // Build a minimal ContextManager from observations and delegate to persistence.
+        use crate::core::memory::ContextManager;
+        let ctx = ContextManager::from_observations(observations.to_vec());
+        // We need a target for the MEMORY.md header; use a placeholder if unknown.
+        let target = "unknown";
+        crate::web::persistence::save_memory(&session_id, target, &ctx);
         Ok(())
     }
 

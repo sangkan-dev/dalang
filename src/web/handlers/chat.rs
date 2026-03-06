@@ -1,14 +1,17 @@
-//! WebSocket chat handler — bridges browser ↔ DalangEngine via channels.
+//! WebSocket chat handler — bridges browser ↔ DalangOrchestrator via channels.
 
-use crate::core::engine::DalangEngine;
+use crate::adapters::outbound::os_command::OsCommandExecutor;
+use crate::application::ports::llm_port::LlmPort;
+use crate::application::usecases::orchestrator::{DalangOrchestrator, OrchestratorConfig};
 use crate::web::events::{ClientMessage, EngineEvent};
 use crate::web::persistence;
 use crate::web::state::{AppState, SessionMode};
 use axum::extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, State};
 use axum::response::IntoResponse;
-use futures::stream::StreamExt;
 use futures::SinkExt;
+use futures::stream::StreamExt;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -27,7 +30,9 @@ async fn handle_socket(socket: WebSocket, session_id: Uuid, state: AppState) {
     // Channel for engine events → WebSocket
     let (event_tx, mut event_rx) = mpsc::channel::<EngineEvent>(256);
     let conn_id = Uuid::new_v4();
-    state.event_senders.insert(session_id, (conn_id, event_tx.clone()));
+    state
+        .event_senders
+        .insert(session_id, (conn_id, event_tx.clone()));
 
     // Task: forward engine events to WebSocket AND persist to session + disk
     let persist_state = state.clone();
@@ -63,13 +68,8 @@ async fn handle_socket(socket: WebSocket, session_id: Uuid, state: AppState) {
             match msg {
                 WsMessage::Text(text) => {
                     let text_str: &str = &text;
-                    handle_client_message(
-                        text_str,
-                        session_id,
-                        &state_clone,
-                        &event_tx_clone,
-                    )
-                    .await;
+                    handle_client_message(text_str, session_id, &state_clone, &event_tx_clone)
+                        .await;
                 }
                 WsMessage::Close(_) => break,
                 _ => {}
@@ -84,8 +84,9 @@ async fn handle_socket(socket: WebSocket, session_id: Uuid, state: AppState) {
     }
 
     // Cleanup — only remove if this connection's sender is still the current one.
-    // A newer WS connection may have replaced it; don't remove that one.
-    state.event_senders.remove_if(&session_id, |_k, v| v.0 == conn_id);
+    state
+        .event_senders
+        .remove_if(&session_id, |_k, v| v.0 == conn_id);
 }
 
 async fn handle_client_message(
@@ -126,6 +127,32 @@ async fn handle_client_message(
     }
 }
 
+/// Build a `DalangOrchestrator` from the current AppState and a wrapping LLM provider.
+fn build_orchestrator(
+    state: &AppState,
+    provider: Box<dyn crate::llm::LlmProvider + Send + Sync>,
+    cmd_timeout: u64,
+) -> DalangOrchestrator {
+    use crate::adapters::outbound::llm::new_shim;
+    let disabled_skills: Vec<String> = state
+        .disabled_skills
+        .iter()
+        .map(|e| e.key().clone())
+        .collect();
+    let llm: Arc<dyn LlmPort> = Arc::new(new_shim(provider));
+    let executor = Arc::new(OsCommandExecutor);
+    DalangOrchestrator::new(
+        llm,
+        executor,
+        OrchestratorConfig {
+            cmd_timeout,
+            verbose: state.verbose,
+            headless: state.headless,
+            disabled_skills,
+        },
+    )
+}
+
 async fn handle_chat_message(
     session_id: Uuid,
     message: String,
@@ -161,28 +188,17 @@ async fn handle_chat_message(
         .map(|s| (s.target.clone(), s.cmd_timeout))
         .unwrap_or_default();
 
-    // Create engine with session's cmd_timeout
-    // Collect disabled skills from web UI state
-    let disabled_skills: Vec<String> = state.disabled_skills.iter().map(|e| e.key().clone()).collect();
-    let engine = DalangEngine::new(provider, cmd_timeout, state.verbose, state.headless, disabled_skills);
+    let orchestrator = build_orchestrator(state, provider, cmd_timeout);
 
-    // Get existing messages
-    let messages = state
-        .sessions
-        .get(&session_id)
-        .map(|s| s.messages.clone())
-        .unwrap_or_default();
-
-    // Spawn engine task
+    // Spawn orchestrator task: run_interactive_loop emits events via tx
     tokio::spawn(async move {
-        match engine
-            .run_interactive_ws(&target, &messages, Some(session_id), tx.clone())
+        match orchestrator
+            .run_interactive_loop(&target, Some(tx.clone()))
             .await
         {
-            Ok(response_msgs) => {
-                // Write response messages back to session and persist
-                if let Some(mut session) = state_for_task.sessions.get_mut(&session_id) {
-                    session.messages = response_msgs;
+            Ok(()) => {
+                // Persist any session state updates
+                if let Some(session) = state_for_task.sessions.get(&session_id) {
                     persistence::save_messages(&session_id, &session.messages);
                 }
                 let _ = tx.send(EngineEvent::Done {
@@ -227,9 +243,7 @@ async fn handle_start_scan(
         }
     };
 
-    // Collect disabled skills from web UI state
-    let disabled_skills: Vec<String> = state.disabled_skills.iter().map(|e| e.key().clone()).collect();
-    let engine = DalangEngine::new(provider, cmd_timeout, state.verbose, state.headless, disabled_skills);
+    let orchestrator = build_orchestrator(state, provider, cmd_timeout);
     let tx = event_tx.clone();
     let state_for_task = state.clone();
 
@@ -243,7 +257,10 @@ async fn handle_start_scan(
             })
             .await;
 
-        match engine.run_autonomous_ws(&target, max_iter, Some(session_id), tx.clone()).await {
+        match orchestrator
+            .run_autonomous_loop(&target, max_iter, Some(tx.clone()))
+            .await
+        {
             Ok(_) => {
                 let _ = tx.send(EngineEvent::Done {
                     reason: "Scan complete".to_string(),

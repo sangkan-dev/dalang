@@ -3,4 +3,5 @@
 //! Each use case calls ports (traits) to interact with the outside world
 //! without depending on concrete adapter implementations.
 
+pub mod auth_service;
 pub mod orchestrator;

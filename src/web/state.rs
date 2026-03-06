@@ -74,6 +74,21 @@ impl AppState {
         }
     }
 
+    /// Create an empty AppState with no sessions loaded from disk.
+    ///
+    /// Use this in unit tests to avoid reading `~/.dalang/sessions/` from the
+    /// developer's machine, which makes tests non-deterministic.
+    #[cfg(test)]
+    pub fn new_empty() -> Self {
+        Self {
+            sessions: Arc::new(DashMap::new()),
+            event_senders: Arc::new(DashMap::new()),
+            disabled_skills: Arc::new(DashMap::new()),
+            verbose: false,
+            headless: true,
+        }
+    }
+
     pub fn create_session(&self, target: String, mode: SessionMode, cmd_timeout: u64) -> Session {
         let session = Session {
             id: Uuid::new_v4(),
@@ -126,7 +141,14 @@ impl AppState {
             .or_else(|_| crate::auth::persistence::get_model_preference())
             .unwrap_or_else(|_| llm::get_default_model(&active_provider));
 
-        llm::create_provider(&endpoint_mode, base_url, model, auth, codeassist_ep, gcp_project)
+        llm::create_provider(
+            &endpoint_mode,
+            base_url,
+            model,
+            auth,
+            codeassist_ep,
+            gcp_project,
+        )
     }
 }
 

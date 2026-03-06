@@ -457,6 +457,14 @@ async fn main() -> Result<()> {
             let (auth, base_url, model, endpoint_mode, codeassist_ep, gcp_project) =
                 resolve_runtime_config();
 
+            // ── DI wiring: construct ports & orchestrator ──────────────────
+            use crate::adapters::outbound::os_command::OsCommandExecutor;
+            use crate::application::ports::llm_port::LlmPort;
+            use crate::application::usecases::orchestrator::{
+                DalangOrchestrator, OrchestratorConfig,
+            };
+            use std::sync::Arc;
+
             let provider = llm::create_provider(
                 &endpoint_mode,
                 base_url,
@@ -465,15 +473,30 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine =
-                core::engine::DalangEngine::new(provider, cmd_timeout, verbose, !headed, vec![]);
+            // Wrap the legacy LlmProvider in the LlmPort shim
+            let llm_adapter: Arc<dyn LlmPort> =
+                Arc::new(adapters::outbound::llm::new_shim(provider));
+            let executor: Arc<dyn crate::application::ports::os_port::CommandExecutor> =
+                Arc::new(OsCommandExecutor);
+            let orchestrator = DalangOrchestrator::new(
+                llm_adapter,
+                executor,
+                OrchestratorConfig {
+                    cmd_timeout,
+                    verbose,
+                    headless: !headed,
+                    disabled_skills: vec![],
+                },
+            );
 
             if auto {
-                engine.run_autonomous_loop(&target, max_iter).await?;
+                orchestrator
+                    .run_autonomous_loop(&target, max_iter, None)
+                    .await?;
             } else {
                 let skills_list = skills
                     .ok_or_else(|| anyhow::anyhow!("Either specify --skills or use --auto"))?;
-                engine.run_scan_loop(&target, &skills_list).await?;
+                orchestrator.run_scan_loop(&target, &skills_list).await?;
             }
         }
         Commands::Interact {
@@ -492,6 +515,14 @@ async fn main() -> Result<()> {
                 ));
             }
 
+            // ── DI wiring ────────────────────────────────────────────────
+            use crate::adapters::outbound::os_command::OsCommandExecutor;
+            use crate::application::ports::llm_port::LlmPort;
+            use crate::application::usecases::orchestrator::{
+                DalangOrchestrator, OrchestratorConfig,
+            };
+            use std::sync::Arc;
+
             let provider = llm::create_provider(
                 &endpoint_mode,
                 base_url,
@@ -500,10 +531,22 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine =
-                core::engine::DalangEngine::new(provider, cmd_timeout, verbose, !headed, vec![]);
+            let llm_adapter: Arc<dyn LlmPort> =
+                Arc::new(adapters::outbound::llm::new_shim(provider));
+            let executor: Arc<dyn crate::application::ports::os_port::CommandExecutor> =
+                Arc::new(OsCommandExecutor);
+            let orchestrator = DalangOrchestrator::new(
+                llm_adapter,
+                executor,
+                OrchestratorConfig {
+                    cmd_timeout,
+                    verbose,
+                    headless: !headed,
+                    disabled_skills: vec![],
+                },
+            );
 
-            engine.run_interactive_loop(&target).await?;
+            orchestrator.run_interactive_loop(&target, None).await?;
         }
         Commands::Model { set } => {
             let active_provider =
