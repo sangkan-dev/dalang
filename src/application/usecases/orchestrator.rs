@@ -590,7 +590,7 @@ impl DalangOrchestrator {
         max_iter: u32,
         tx: Option<mpsc::Sender<EngineEvent>>,
     ) -> Result<()> {
-        use crate::core::scope::TargetScope;
+        use crate::domain::scope::TargetScope;
         use crate::skills_parser::{generate_skills_catalog_prompt, load_available_skills};
 
         let (raw_skills, raw_unavailable) = load_available_skills()?;

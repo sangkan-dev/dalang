@@ -130,16 +130,15 @@ async fn handle_client_message(
 /// Build a `DalangOrchestrator` from the current AppState and a wrapping LLM provider.
 fn build_orchestrator(
     state: &AppState,
-    provider: Box<dyn crate::llm::LlmProvider + Send + Sync>,
+    provider: Arc<dyn LlmPort>,
     cmd_timeout: u64,
 ) -> DalangOrchestrator {
-    use crate::adapters::outbound::llm::new_shim;
     let disabled_skills: Vec<String> = state
         .disabled_skills
         .iter()
         .map(|e| e.key().clone())
         .collect();
-    let llm: Arc<dyn LlmPort> = Arc::new(new_shim(provider));
+    let llm = provider;
     let executor = Arc::new(OsCommandExecutor);
     DalangOrchestrator::new(
         llm,
@@ -161,7 +160,9 @@ async fn handle_chat_message(
 ) {
     // Add user message to session and persist
     if let Some(mut session) = state.sessions.get_mut(&session_id) {
-        session.messages.push(crate::llm::Message::user(&message));
+        session
+            .messages
+            .push(crate::domain::models::Message::user(&message));
         persistence::save_messages(&session_id, &session.messages);
     }
 

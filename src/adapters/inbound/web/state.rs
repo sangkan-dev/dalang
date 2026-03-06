@@ -1,6 +1,7 @@
 //! Shared application state for the web server.
 
-use crate::llm::{self, AuthToken, Message};
+use crate::adapters::outbound::llm;
+use crate::domain::models::{AuthToken, Message};
 use crate::web::events::EngineEvent;
 use crate::web::persistence;
 use dashmap::DashMap;
@@ -109,7 +110,7 @@ impl AppState {
     /// Resolve LLM provider using the same logic as CLI.
     pub fn create_llm_provider(
         &self,
-    ) -> anyhow::Result<Box<dyn crate::llm::LlmProvider + Send + Sync>> {
+    ) -> anyhow::Result<std::sync::Arc<dyn crate::application::ports::llm_port::LlmPort>> {
         let active_provider = crate::auth::persistence::get_active_provider()
             .unwrap_or_else(|_| "gemini".to_string());
         let auth_method =

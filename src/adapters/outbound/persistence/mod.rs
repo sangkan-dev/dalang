@@ -160,7 +160,7 @@ impl SessionStorage for FileSessionStorage {
 
     fn save_memory(&self, session_id: Uuid, observations: &[String]) -> Result<()> {
         // Build a minimal ContextManager from observations and delegate to persistence.
-        use crate::core::memory::ContextManager;
+        use crate::application::usecases::memory::ContextManager;
         let ctx = ContextManager::from_observations(observations.to_vec());
         // We need a target for the MEMORY.md header; use a placeholder if unknown.
         let target = "unknown";

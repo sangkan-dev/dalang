@@ -4,7 +4,8 @@
 //! using the Google-native generateContent format (NOT OpenAI-compatible).
 //! This matches how the official Gemini CLI routes OAuth-authenticated requests.
 
-use super::{LlmProvider, Message};
+use crate::application::ports::llm_port::LlmPort;
+use crate::domain::models::Message;
 use anyhow::{Result, anyhow};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -253,10 +254,7 @@ impl GeminiCodeAssistProvider {
             .into_iter()
             .next()
             .ok_or_else(|| anyhow!("No candidates in CloudCode response"))?;
-        let parts = candidate
-            .content
-            .and_then(|c| c.parts)
-            .unwrap_or_default();
+        let parts = candidate.content.and_then(|c| c.parts).unwrap_or_default();
 
         // Check for function calls first
         for part in &parts {
@@ -405,7 +403,11 @@ impl GeminiCodeAssistProvider {
                     eprintln!(
                         "[!] Model {} returned 429 ({}), trying next fallback...",
                         model,
-                        if is_rate_limit { "rate limit exhausted" } else { "capacity exhausted" }
+                        if is_rate_limit {
+                            "rate limit exhausted"
+                        } else {
+                            "capacity exhausted"
+                        }
                     );
                     last_error = format!("LLM request failed with {}: {}", status, body);
                     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -425,7 +427,7 @@ impl GeminiCodeAssistProvider {
 }
 
 #[async_trait::async_trait]
-impl LlmProvider for GeminiCodeAssistProvider {
+impl LlmPort for GeminiCodeAssistProvider {
     async fn send_messages(&self, messages: &[Message]) -> Result<String> {
         self.perform_request(messages, None).await
     }
@@ -440,6 +442,8 @@ impl LlmProvider for GeminiCodeAssistProvider {
 
     async fn get_available_models(&self) -> Result<Vec<String>> {
         // CloudCode doesn't expose a models listing endpoint.
-        Err(anyhow!("CloudCode endpoint does not support listing models"))
+        Err(anyhow!(
+            "CloudCode endpoint does not support listing models"
+        ))
     }
 }

@@ -35,9 +35,7 @@ pub struct ContextManager {
 
 impl ContextManager {
     pub fn new() -> Self {
-        Self {
-            memory: Vec::new(),
-        }
+        Self { memory: Vec::new() }
     }
 
     /// Restore a ContextManager from previously saved observations.
@@ -83,7 +81,7 @@ impl ContextManager {
 ///
 /// Strategy: keep the system prompt (first message) and the last N messages intact.
 /// Middle messages (old observations/responses) are replaced with a single compact summary.
-pub fn compact_messages(messages: &mut Vec<crate::llm::Message>) {
+pub fn compact_messages(messages: &mut Vec<crate::domain::models::Message>) {
     let total_tokens: usize = messages.iter().map(|m| estimate_tokens(&m.content)).sum();
 
     if total_tokens <= TOKEN_BUDGET {
@@ -117,7 +115,8 @@ pub fn compact_messages(messages: &mut Vec<crate::llm::Message>) {
                 if let Some(skill_end) = content[skill_start + 1..].find('`') {
                     let skill = &content[skill_start + 1..skill_start + 1 + skill_end];
                     let lines = content.lines().count();
-                    summary_parts.push(format!("- Executed `{}`: {} lines of output", skill, lines));
+                    summary_parts
+                        .push(format!("- Executed `{}`: {} lines of output", skill, lines));
                     continue;
                 }
             }
@@ -142,8 +141,8 @@ pub fn compact_messages(messages: &mut Vec<crate::llm::Message>) {
     );
 
     // Remove the middle messages and insert the compact summary
-    let tail: Vec<crate::llm::Message> = messages[middle_end..].to_vec();
+    let tail: Vec<crate::domain::models::Message> = messages[middle_end..].to_vec();
     messages.truncate(1); // Keep system prompt
-    messages.push(crate::llm::Message::user(&compact));
+    messages.push(crate::domain::models::Message::user(&compact));
     messages.extend(tail);
 }

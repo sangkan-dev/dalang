@@ -7,4 +7,5 @@
 //! For now, this module re-exports the Clap types and exposes a `CliInput` type
 //! that command handlers can use as a clean contract.
 
-pub use crate::cli::{Commands, DalangArgs};
+pub mod commands;
+pub use commands::{Commands, DalangArgs};

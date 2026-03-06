@@ -4,4 +4,5 @@
 //! without depending on concrete adapter implementations.
 
 pub mod auth_service;
+pub mod memory;
 pub mod orchestrator;

@@ -1,4 +1,5 @@
-use super::{LlmProvider, Message};
+use crate::application::ports::llm_port::LlmPort;
+use crate::domain::models::Message;
 use anyhow::{Result, anyhow};
 use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
@@ -98,10 +99,7 @@ impl CopilotProvider {
             "Openai-Intent",
             header::HeaderValue::from_static("conversation-agent"),
         );
-        headers.insert(
-            "X-Initiator",
-            header::HeaderValue::from_static("user"),
-        );
+        headers.insert("X-Initiator", header::HeaderValue::from_static("user"));
         // Required header per Copilot CLI source (AHs/fHs constants)
         headers.insert(
             "X-GitHub-Api-Version",
@@ -206,7 +204,7 @@ impl CopilotProvider {
 }
 
 #[async_trait::async_trait]
-impl LlmProvider for CopilotProvider {
+impl LlmPort for CopilotProvider {
     async fn send_messages(&self, messages: &[Message]) -> Result<String> {
         self.perform_copilot_request(messages, None).await
     }

@@ -6,8 +6,8 @@
 //! - `events.json`    — all EngineEvent[] for UI replay
 //! - `MEMORY.md`      — persistent context memory for the conversation
 
-use crate::core::memory::ContextManager;
-use crate::llm::Message;
+use crate::application::usecases::memory::ContextManager;
+use crate::domain::models::Message;
 use crate::web::events::EngineEvent;
 use crate::web::state::{Session, SessionMode};
 use serde::{Deserialize, Serialize};

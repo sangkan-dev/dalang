@@ -1,4 +1,5 @@
-use super::{AuthToken, LlmProvider, Message};
+use crate::application::ports::llm_port::LlmPort;
+use crate::domain::models::{AuthToken, Message};
 use anyhow::{Result, anyhow};
 use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
@@ -96,7 +97,7 @@ impl OpenAiCompatibleProvider {
 }
 
 #[async_trait::async_trait]
-impl LlmProvider for OpenAiCompatibleProvider {
+impl LlmPort for OpenAiCompatibleProvider {
     async fn send_messages(&self, messages: &[Message]) -> Result<String> {
         self.perform_request(messages, None).await
     }

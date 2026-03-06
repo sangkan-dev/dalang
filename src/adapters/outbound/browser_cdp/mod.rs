@@ -7,9 +7,12 @@
 //! (active page, tab list, etc.) remains consistently locked.
 
 use crate::application::ports::browser_port::BrowserPort;
-use crate::cdp::browser::DalangBrowser;
 use anyhow::Result;
 use async_trait::async_trait;
+
+pub mod browser;
+use browser::DalangBrowser;
+
 use tokio::sync::Mutex;
 
 /// Concrete browser adapter using chromiumoxide (Chrome DevTools Protocol).

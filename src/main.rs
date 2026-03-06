@@ -1,20 +1,13 @@
-pub mod auth;
-pub mod cdp;
-mod cli;
-pub mod core;
-pub mod executor;
-pub mod llm;
-pub mod skills_parser;
-pub mod web;
-
 // ── Hexagonal Architecture layers ───────────────────────────────────────────
 pub mod adapters;
 pub mod application;
 pub mod domain;
 
+use adapters::inbound::cli::{Commands, DalangArgs};
+use adapters::inbound::web;
+use adapters::outbound::{auth, llm, skills_parser};
 use anyhow::Result;
 use clap::Parser;
-use cli::{Commands, DalangArgs};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -473,9 +466,7 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            // Wrap the legacy LlmProvider in the LlmPort shim
-            let llm_adapter: Arc<dyn LlmPort> =
-                Arc::new(adapters::outbound::llm::new_shim(provider));
+            let llm_adapter: Arc<dyn LlmPort> = provider;
             let executor: Arc<dyn crate::application::ports::os_port::CommandExecutor> =
                 Arc::new(OsCommandExecutor);
             let orchestrator = DalangOrchestrator::new(
@@ -531,8 +522,7 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let llm_adapter: Arc<dyn LlmPort> =
-                Arc::new(adapters::outbound::llm::new_shim(provider));
+            let llm_adapter: Arc<dyn LlmPort> = provider;
             let executor: Arc<dyn crate::application::ports::os_port::CommandExecutor> =
                 Arc::new(OsCommandExecutor);
             let orchestrator = DalangOrchestrator::new(

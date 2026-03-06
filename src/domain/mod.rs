@@ -5,3 +5,6 @@
 
 pub mod errors;
 pub mod models;
+pub mod safety;
+pub mod scope;
+pub mod tool_call;

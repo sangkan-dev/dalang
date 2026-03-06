@@ -8,7 +8,7 @@
 use crate::application::ports::storage_port::AuthPersistence;
 use crate::domain::errors::DalangError;
 use crate::domain::models::AuthToken;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use std::sync::Arc;
 
 /// Service responsible for resolving the active authentication configuration.
