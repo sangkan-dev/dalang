@@ -43,8 +43,7 @@ const USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v1/userinfo?alt=js
 
 const CODE_ASSIST_ENDPOINT_PROD: &str = "https://cloudcode-pa.googleapis.com";
 const CODE_ASSIST_ENDPOINT_DAILY: &str = "https://daily-cloudcode-pa.sandbox.googleapis.com";
-const CODE_ASSIST_ENDPOINT_AUTOPUSH: &str =
-    "https://autopush-cloudcode-pa.sandbox.googleapis.com";
+const CODE_ASSIST_ENDPOINT_AUTOPUSH: &str = "https://autopush-cloudcode-pa.sandbox.googleapis.com";
 
 const SCOPES: &[&str] = &[
     "https://www.googleapis.com/auth/cloud-platform",
@@ -187,8 +186,7 @@ fn sha256_digest(data: &[u8]) -> [u8; 32] {
 
 fn base64_url_encode(data: &[u8]) -> String {
     let standard = {
-        const CHARS: &[u8] =
-            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         let mut out = String::new();
         let mut i = 0;
         while i < data.len() {
@@ -299,8 +297,7 @@ pub async fn login_gemini_cli_oauth() -> Result<GeminiOAuthResult> {
 
     // Step 4: Exchange code for tokens
     println!("[*] Exchanging authorization code for tokens...");
-    let tokens =
-        exchange_code_for_tokens(&code, &verifier, &client_id, &client_secret).await?;
+    let tokens = exchange_code_for_tokens(&code, &verifier, &client_id, &client_secret).await?;
 
     println!("[+] Access token obtained!");
 
@@ -312,8 +309,7 @@ pub async fn login_gemini_cli_oauth() -> Result<GeminiOAuthResult> {
 
     // Step 6: Discover project via loadCodeAssist (with fallback)
     println!("[*] Discovering GCP project via Cloud Code Assist...");
-    let (project_id, tier, active_endpoint) =
-        discover_project(&tokens.access_token).await?;
+    let (project_id, tier, active_endpoint) = discover_project(&tokens.access_token).await?;
     println!("[+] Discovered project: {}", project_id);
     if let Some(ref t) = tier {
         println!("[+] Tier: {}", t);
@@ -364,18 +360,17 @@ fn wait_for_oauth_callback(expected_state: &str) -> Result<String> {
 
             let response_html = "<html><body><h2>Authorization successful!</h2>\
                 <p>You can close this tab and return to dalang.</p></body></html>";
-            let response = tiny_http::Response::from_string(response_html)
-                .with_header(
-                    "Content-Type: text/html"
-                        .parse::<tiny_http::Header>()
-                        .unwrap(),
-                );
+            let response = tiny_http::Response::from_string(response_html).with_header(
+                "Content-Type: text/html"
+                    .parse::<tiny_http::Header>()
+                    .unwrap(),
+            );
             let _ = request.respond(response);
 
-            if let Some(returned_state) = params.get("state") {
-                if returned_state != expected_state {
-                    return Err(anyhow!("OAuth state mismatch - possible CSRF"));
-                }
+            if let Some(returned_state) = params.get("state")
+                && returned_state.as_str() != expected_state
+            {
+                return Err(anyhow!("OAuth state mismatch - possible CSRF"));
             }
 
             if let Some(error) = params.get("error") {
@@ -412,7 +407,10 @@ async fn exchange_code_for_tokens(
 
     let response = client
         .post(TOKEN_URL)
-        .header("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
+        .header(
+            "Content-Type",
+            "application/x-www-form-urlencoded;charset=UTF-8",
+        )
         .header("Accept", "*/*")
         .header("User-Agent", "google-api-rust-client/dalang")
         .form(&params)
@@ -453,9 +451,7 @@ fn resolve_platform() -> &'static str {
 }
 
 /// Discover project via loadCodeAssist with multi-endpoint fallback.
-async fn discover_project(
-    access_token: &str,
-) -> Result<(String, Option<String>, String)> {
+async fn discover_project(access_token: &str) -> Result<(String, Option<String>, String)> {
     let env_project = std::env::var("GOOGLE_CLOUD_PROJECT")
         .or_else(|_| std::env::var("GOOGLE_CLOUD_PROJECT_ID"))
         .ok();
@@ -535,11 +531,7 @@ async fn discover_project(
                         "    [!] loadCodeAssist failed at {}: {} - {}",
                         endpoint, status, text
                     );
-                    last_error = Some(anyhow!(
-                        "loadCodeAssist failed: {} - {}",
-                        status,
-                        text
-                    ));
+                    last_error = Some(anyhow!("loadCodeAssist failed: {} - {}", status, text));
                 }
             }
             Err(e) => {
@@ -557,11 +549,7 @@ async fn discover_project(
                     "    [!] All loadCodeAssist endpoints failed. Using GOOGLE_CLOUD_PROJECT={}",
                     proj
                 );
-                return Ok((
-                    proj.clone(),
-                    None,
-                    CODE_ASSIST_ENDPOINT_PROD.to_string(),
-                ));
+                return Ok((proj.clone(), None, CODE_ASSIST_ENDPOINT_PROD.to_string()));
             }
             return Err(last_error.unwrap_or_else(|| {
                 anyhow!("All loadCodeAssist endpoints failed and no GOOGLE_CLOUD_PROJECT set")
@@ -570,29 +558,29 @@ async fn discover_project(
     };
 
     let project_from_response = extract_project_id(&data);
-    let tier = data
-        .current_tier
-        .as_ref()
-        .and_then(|t| t.id.clone());
+    let tier = data.current_tier.as_ref().and_then(|t| t.id.clone());
 
     if let Some(project) = project_from_response {
         return Ok((project, tier, active_endpoint));
     }
 
     // Need onboarding
-    if let Some(ref tier_info) = data.current_tier {
-        if let Some(ref tier_id) = tier_info.id {
-            println!("[*] Project not found. Starting onboarding (tier: {})...", tier_id);
-            let project = onboard_user(
-                access_token,
-                tier_id,
-                &metadata,
-                env_project.as_deref(),
-                &active_endpoint,
-            )
-            .await?;
-            return Ok((project, Some(tier_id.clone()), active_endpoint));
-        }
+    if let Some(ref tier_info) = data.current_tier
+        && let Some(ref tier_id) = tier_info.id
+    {
+        println!(
+            "[*] Project not found. Starting onboarding (tier: {})...",
+            tier_id
+        );
+        let project = onboard_user(
+            access_token,
+            tier_id,
+            &metadata,
+            env_project.as_deref(),
+            &active_endpoint,
+        )
+        .await?;
+        return Ok((project, Some(tier_id.clone()), active_endpoint));
     }
 
     if let Some(ref tiers) = data.allowed_tiers {
@@ -602,10 +590,7 @@ async fn discover_project(
             .or_else(|| tiers.first());
 
         if let Some(tier_info) = default_tier {
-            let tier_id = tier_info
-                .id
-                .as_deref()
-                .unwrap_or(TIER_FREE);
+            let tier_id = tier_info.id.as_deref().unwrap_or(TIER_FREE);
             println!(
                 "[*] Project not found. Starting onboarding (tier: {})...",
                 tier_id
@@ -618,11 +603,7 @@ async fn discover_project(
                 &active_endpoint,
             )
             .await?;
-            return Ok((
-                project,
-                Some(tier_id.to_string()),
-                active_endpoint,
-            ));
+            return Ok((project, Some(tier_id.to_string()), active_endpoint));
         }
     }
 
@@ -660,11 +641,11 @@ async fn onboard_user(
         cloud_project: None,
     };
 
-    if tier_id != TIER_FREE {
-        if let Some(proj) = env_project {
-            body.cloud_project = Some(proj.to_string());
-            body.metadata.duet_project = Some(proj.to_string());
-        }
+    if tier_id != TIER_FREE
+        && let Some(proj) = env_project
+    {
+        body.cloud_project = Some(proj.to_string());
+        body.metadata.duet_project = Some(proj.to_string());
     }
 
     let resp = client
@@ -686,11 +667,11 @@ async fn onboard_user(
 
     let mut lro: OnboardResponse = resp.json().await?;
 
-    if lro.done != Some(true) {
-        if let Some(ref op_name) = lro.name {
-            println!("[*] Onboarding in progress, polling...");
-            lro = poll_operation(access_token, endpoint, op_name).await?;
-        }
+    if lro.done != Some(true)
+        && let Some(ref op_name) = lro.name
+    {
+        println!("[*] Onboarding in progress, polling...");
+        lro = poll_operation(access_token, endpoint, op_name).await?;
     }
 
     let project_id = lro
@@ -712,10 +693,7 @@ async fn poll_operation(
 
     for attempt in 0..24 {
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        println!(
-            "    [*] Polling operation (attempt {}/24)...",
-            attempt + 1
-        );
+        println!("    [*] Polling operation (attempt {}/24)...", attempt + 1);
 
         let resp = client
             .get(&url)
@@ -752,14 +730,17 @@ pub async fn refresh_access_token() -> Result<String> {
     let client = reqwest::Client::new();
     let params = [
         ("refresh_token", refresh_token.as_str()),
-        ("client_id", &client_id),
-        ("client_secret", &client_secret),
+        ("client_id", client_id.as_str()),
+        ("client_secret", client_secret.as_str()),
         ("grant_type", "refresh_token"),
     ];
 
     let resp = client
         .post(TOKEN_URL)
-        .header("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
+        .header(
+            "Content-Type",
+            "application/x-www-form-urlencoded;charset=UTF-8",
+        )
         .form(&params)
         .send()
         .await?;

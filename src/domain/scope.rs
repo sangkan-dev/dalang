@@ -47,8 +47,8 @@ impl TargetScope {
         let trimmed = raw.trim();
 
         // 1. Try to parse as a full URL (has scheme)
-        if trimmed.contains("://") {
-            if let Ok(parsed) = Url::parse(trimmed) {
+        if trimmed.contains("://")
+            && let Ok(parsed) = Url::parse(trimmed) {
                 let host = parsed.host_str().unwrap_or("").to_string();
                 let port = parsed.port();
                 let path = {
@@ -67,7 +67,6 @@ impl TargetScope {
                     cidr: None,
                 };
             }
-        }
 
         // 2. CIDR notation (contains '/' with digits on both sides)
         if trimmed.contains('/') {
@@ -89,8 +88,8 @@ impl TargetScope {
         if let Some(colon_pos) = trimmed.rfind(':') {
             let maybe_host = &trimmed[..colon_pos];
             let maybe_port = &trimmed[colon_pos + 1..];
-            if is_ip_address(maybe_host) {
-                if let Ok(port) = maybe_port.parse::<u16>() {
+            if is_ip_address(maybe_host)
+                && let Ok(port) = maybe_port.parse::<u16>() {
                     return Self {
                         raw_target: trimmed.to_string(),
                         target_type: TargetType::IpPort,
@@ -101,7 +100,6 @@ impl TargetScope {
                         cidr: None,
                     };
                 }
-            }
         }
 
         // 4. Bare IP address

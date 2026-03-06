@@ -14,7 +14,7 @@ pub enum AuthProvider {
 }
 
 impl AuthProvider {
-    pub fn from_str(s: &str) -> Result<Self> {
+    pub fn from_name(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "gemini" | "google" => Ok(AuthProvider::Gemini),
             "anthropic" | "claude" => Ok(AuthProvider::Anthropic),

@@ -32,12 +32,11 @@ pub fn extract_gemini_cli_token() -> Result<String> {
         if path.exists() {
             let content = std::fs::read_to_string(path)?;
             let json: serde_json::Value = serde_json::from_str(&content)?;
-            if let Some(token) = json.get("access_token").and_then(|v| v.as_str()) {
-                if !token.is_empty() {
+            if let Some(token) = json.get("access_token").and_then(|v| v.as_str())
+                && !token.is_empty() {
                     println!("[+] Found credentials at: {}", path.display());
                     return Ok(token.to_string());
                 }
-            }
         }
     }
 

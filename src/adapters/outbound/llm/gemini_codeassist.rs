@@ -188,7 +188,7 @@ impl GeminiCodeAssistProvider {
             } else {
                 let role = match msg.role.as_str() {
                     "assistant" => "model",
-                    "user" | _ => "user",
+                    _ => "user",
                 };
                 contents.push(Content {
                     role: role.to_string(),

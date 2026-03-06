@@ -35,8 +35,8 @@ pub async fn list_reports() -> impl IntoResponse {
 
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
-        if name.starts_with("dalang_report_") && name.ends_with(".md") {
-            if let Ok(meta) = entry.metadata() {
+        if name.starts_with("dalang_report_") && name.ends_with(".md")
+            && let Ok(meta) = entry.metadata() {
                 let created = meta
                     .modified()
                     .ok()
@@ -57,7 +57,6 @@ pub async fn list_reports() -> impl IntoResponse {
                     created,
                 });
             }
-        }
     }
 
     reports.sort_by(|a, b| b.filename.cmp(&a.filename));

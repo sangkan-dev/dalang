@@ -40,25 +40,22 @@ impl AuthService {
         let provider = self.active_provider();
 
         // 1. LLM_API_KEY env var always wins
-        if let Ok(key) = std::env::var("LLM_API_KEY") {
-            if !key.is_empty() {
+        if let Ok(key) = std::env::var("LLM_API_KEY")
+            && !key.is_empty() {
                 return AuthToken::ApiKey(key);
             }
-        }
 
         // 2. Copilot: use stored bearer token
-        if provider == "copilot" {
-            if let Ok(token) = self.persistence.get_access_token() {
+        if provider == "copilot"
+            && let Ok(token) = self.persistence.get_access_token() {
                 return AuthToken::Bearer(token);
             }
-        }
 
         // 3. Stored API key
-        if let Ok(Some(key)) = self.persistence.get_api_key() {
-            if !key.is_empty() {
+        if let Ok(Some(key)) = self.persistence.get_api_key()
+            && !key.is_empty() {
                 return AuthToken::ApiKey(key);
             }
-        }
 
         // 4. OAuth access token (Gemini, etc.)
         if let Ok(Some(token)) = self.persistence.get_refresh_token() {

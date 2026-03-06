@@ -86,6 +86,13 @@ pub fn save_events(id: &Uuid, events: &[EngineEvent]) {
     }
 }
 
+/// Load engine events from `events.json`.
+pub fn load_events(id: &Uuid) -> Option<Vec<EngineEvent>> {
+    let path = session_dir(id).join("events.json");
+    let content = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
 /// Persist the conversation memory to `MEMORY.md`.
 pub fn save_memory(id: &Uuid, target: &str, memory: &ContextManager) {
     let dir = session_dir(id);

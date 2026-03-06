@@ -1,5 +1,5 @@
-/// Bundled built-in skill files, embedded at compile time.
-/// These are written to `skills/` during `dalang init`.
+//! Bundled built-in skill files, embedded at compile time.
+//! These are written to `skills/` during `dalang init`.
 
 pub struct BundledSkill {
     pub filename: &'static str,

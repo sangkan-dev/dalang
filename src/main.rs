@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
             );
         }
         Commands::Login { provider } => {
-            let provider = auth::AuthProvider::from_str(&provider)?;
+            let provider = auth::AuthProvider::from_name(&provider)?;
             println!("Logging in to {}...\n", provider.as_str());
 
             if let Err(e) = auth::persistence::save_active_provider(provider.as_str()) {

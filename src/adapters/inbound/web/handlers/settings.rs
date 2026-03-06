@@ -109,8 +109,8 @@ pub async fn update_settings(
         }
     }
 
-    if let Some(api_key) = body.api_key {
-        if !api_key.is_empty() {
+    if let Some(api_key) = body.api_key
+        && !api_key.is_empty() {
             match auth::persistence::save_api_key(&api_key) {
                 Ok(_) => {}
                 Err(e) => {
@@ -122,7 +122,6 @@ pub async fn update_settings(
                 }
             }
         }
-    }
 
     if let Some(verbose) = body.verbose {
         let _ = auth::persistence::save_verbose(verbose);

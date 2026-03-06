@@ -202,9 +202,11 @@ async fn handle_chat_message(
                 if let Some(session) = state_for_task.sessions.get(&session_id) {
                     persistence::save_messages(&session_id, &session.messages);
                 }
-                let _ = tx.send(EngineEvent::Done {
-                    reason: "Chat response complete".to_string(),
-                });
+                let _ = tx
+                    .send(EngineEvent::Done {
+                        reason: "Chat response complete".to_string(),
+                    })
+                    .await;
             }
             Err(e) => {
                 let _ = tx
@@ -263,9 +265,11 @@ async fn handle_start_scan(
             .await
         {
             Ok(_) => {
-                let _ = tx.send(EngineEvent::Done {
-                    reason: "Scan complete".to_string(),
-                });
+                let _ = tx
+                    .send(EngineEvent::Done {
+                        reason: "Scan complete".to_string(),
+                    })
+                    .await;
             }
             Err(e) => {
                 let _ = tx

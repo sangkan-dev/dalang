@@ -354,8 +354,8 @@ impl DalangOrchestrator {
         let raw_args = skill_def.args.as_ref().cloned().unwrap_or_default();
         let mut interpolated = self.interpolate_args(&raw_args, target);
 
-        if let Some(extra) = custom_args {
-            if let Some(arr) = extra.as_array() {
+        if let Some(extra) = custom_args
+            && let Some(arr) = extra.as_array() {
                 let additions: Vec<String> = arr
                     .iter()
                     .filter_map(|v| v.as_str().map(|s| s.to_string()))
@@ -367,7 +367,6 @@ impl DalangOrchestrator {
                     println!("    [!] AI injected UNSAFE arguments. Blocking.");
                 }
             }
-        }
 
         let cmd_str = format!("{} {}", tool_path, interpolated.join(" "));
         println!("    $ {}", cmd_str);
@@ -973,9 +972,9 @@ impl DalangOrchestrator {
                 println!("\n[Dalang]\n{}", response);
 
                 // Handle tool calls if present
-                if response.trim().starts_with('{') || response.trim().starts_with("```json") {
-                    if let Ok(tool_call) = Self::parse_tool_call(&response) {
-                        if tool_call.name == "execute_skill" {
+                if (response.trim().starts_with('{') || response.trim().starts_with("```json"))
+                    && let Ok(tool_call) = Self::parse_tool_call(&response)
+                        && tool_call.name == "execute_skill" {
                             let skill_name = tool_call
                                 .arguments
                                 .get("skill_name")
@@ -995,8 +994,6 @@ impl DalangOrchestrator {
                                 println!("[!] Skill '{}' not found.", skill_name);
                             }
                         }
-                    }
-                }
             } else {
                 // WebSocket mode — the web adapter drives the loop externally
                 // This is a placeholder; actual WS handling is in the web adapter

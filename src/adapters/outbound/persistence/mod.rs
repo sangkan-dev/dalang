@@ -138,16 +138,8 @@ impl SessionStorage for FileSessionStorage {
     }
 
     fn load_events(&self, session_id: Uuid) -> Result<Vec<EngineEvent>> {
-        // Load events from `~/.dalang/sessions/{uuid}/events.json`
-        let dir = crate::web::persistence::session_dir(&session_id);
-        let path = dir.join("events.json");
-        match std::fs::read_to_string(&path) {
-            Ok(content) => {
-                let events: Vec<EngineEvent> = serde_json::from_str(&content)?;
-                Ok(events)
-            }
-            Err(_) => Ok(vec![]), // file doesn't exist yet
-        }
+        let events = crate::web::persistence::load_events(&session_id).unwrap_or_default();
+        Ok(events)
     }
 
     fn load_memory(&self, session_id: Uuid) -> Result<Vec<String>> {

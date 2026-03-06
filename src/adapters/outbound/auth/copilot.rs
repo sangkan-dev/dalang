@@ -284,7 +284,7 @@ pub async fn login_copilot_device_flow() -> Result<CopilotLoginResult> {
     println!();
 
     // Try to open browser automatically
-    if let Err(_) = open::that(&device.verification_uri) {
+    if open::that(&device.verification_uri).is_err() {
         println!("[*] Could not open browser. Please visit the URL manually.");
     }
 
