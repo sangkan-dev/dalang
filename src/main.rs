@@ -7,6 +7,11 @@ pub mod llm;
 pub mod skills_parser;
 pub mod web;
 
+// ── Hexagonal Architecture layers ───────────────────────────────────────────
+pub mod adapters;
+pub mod application;
+pub mod domain;
+
 use anyhow::Result;
 use clap::Parser;
 use cli::{Commands, DalangArgs};
@@ -96,8 +101,12 @@ async fn main() -> Result<()> {
                         1 => {
                             // ── Gemini CLI OAuth (full Cloud Code Assist flow) ──
                             println!("\n[!] Account safety caution:");
-                            println!("    This is an unofficial integration and is not endorsed by Google.");
-                            println!("    Some users have reported account restrictions after using");
+                            println!(
+                                "    This is an unofficial integration and is not endorsed by Google."
+                            );
+                            println!(
+                                "    Some users have reported account restrictions after using"
+                            );
                             println!("    third-party Gemini CLI OAuth clients.");
                             println!("    Proceed only if you understand and accept this risk.\n");
 
@@ -255,7 +264,9 @@ async fn main() -> Result<()> {
                 }
                 auth::AuthProvider::Copilot => {
                     println!("[!] DISCLAIMER: This is an unofficial integration.");
-                    println!("    Dalang uses the GitHub Copilot API through reverse-engineered endpoints.");
+                    println!(
+                        "    Dalang uses the GitHub Copilot API through reverse-engineered endpoints."
+                    );
                     println!("    This is NOT endorsed by GitHub/Microsoft.");
                     println!("    Use at your own risk — your account, your responsibility.\n");
 
@@ -276,7 +287,9 @@ async fn main() -> Result<()> {
                         0 => {
                             // ── Device Flow OAuth ──
                             let confirm = dialoguer::Confirm::with_theme(&ColorfulTheme::default())
-                                .with_prompt("This will open your browser for GitHub login. Continue?")
+                                .with_prompt(
+                                    "This will open your browser for GitHub login. Continue?",
+                                )
                                 .default(true)
                                 .interact()?;
 
@@ -295,7 +308,9 @@ async fn main() -> Result<()> {
                                 }
                                 Err(e) => {
                                     println!("[!] Copilot Device Flow failed: {}", e);
-                                    println!("    You can try keychain extraction or manual PAT instead.");
+                                    println!(
+                                        "    You can try keychain extraction or manual PAT instead."
+                                    );
                                 }
                             }
                         }
@@ -308,21 +323,34 @@ async fn main() -> Result<()> {
                                     match auth::copilot::validate_github_token(&token).await {
                                         Ok(login) => {
                                             auth::persistence::save_tokens(&token, None)?;
-                                            let _ = auth::persistence::save_auth_method("copilot_oauth");
-                                            let _ = auth::persistence::save_endpoint_mode("copilot");
-                                            println!("[+] Copilot CLI token extracted! User: {}", login);
+                                            let _ = auth::persistence::save_auth_method(
+                                                "copilot_oauth",
+                                            );
+                                            let _ =
+                                                auth::persistence::save_endpoint_mode("copilot");
+                                            println!(
+                                                "[+] Copilot CLI token extracted! User: {}",
+                                                login
+                                            );
 
                                             copilot_model_selection().await;
                                         }
                                         Err(e) => {
-                                            println!("[!] Token found but validation failed: {}", e);
-                                            println!("    The token may have expired. Try Device Flow instead.");
+                                            println!(
+                                                "[!] Token found but validation failed: {}",
+                                                e
+                                            );
+                                            println!(
+                                                "    The token may have expired. Try Device Flow instead."
+                                            );
                                         }
                                     }
                                 }
                                 None => {
                                     println!("[!] No Copilot CLI credentials found.");
-                                    println!("    Install @github/copilot and run: github-copilot login");
+                                    println!(
+                                        "    Install @github/copilot and run: github-copilot login"
+                                    );
                                     println!("    Or use Device Flow instead.");
                                 }
                             }
@@ -334,30 +362,46 @@ async fn main() -> Result<()> {
                                     match auth::copilot::validate_github_token(&token).await {
                                         Ok(login) => {
                                             auth::persistence::save_tokens(&token, None)?;
-                                            let _ = auth::persistence::save_auth_method("copilot_oauth");
-                                            let _ = auth::persistence::save_endpoint_mode("copilot");
+                                            let _ = auth::persistence::save_auth_method(
+                                                "copilot_oauth",
+                                            );
+                                            let _ =
+                                                auth::persistence::save_endpoint_mode("copilot");
                                             println!("[+] GitHub token imported! User: {}", login);
 
                                             copilot_model_selection().await;
                                         }
                                         Err(e) => {
-                                            println!("[!] Token found but validation failed: {}", e);
-                                            println!("    Ensure COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN is valid.");
+                                            println!(
+                                                "[!] Token found but validation failed: {}",
+                                                e
+                                            );
+                                            println!(
+                                                "    Ensure COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN is valid."
+                                            );
                                         }
                                     }
                                 }
                                 Err(_) => {
                                     println!("[!] No GitHub token found in environment.");
-                                    println!("    Set one of: COPILOT_GITHUB_TOKEN, GH_TOKEN, GITHUB_TOKEN");
-                                    println!("    Note: Classic PATs (ghp_) are not supported for Copilot API.");
+                                    println!(
+                                        "    Set one of: COPILOT_GITHUB_TOKEN, GH_TOKEN, GITHUB_TOKEN"
+                                    );
+                                    println!(
+                                        "    Note: Classic PATs (ghp_) are not supported for Copilot API."
+                                    );
                                 }
                             }
                         }
                         3 => {
                             // ── Manual PAT ──
                             println!("[*] Enter a GitHub fine-grained Personal Access Token.");
-                            println!("    Classic tokens (ghp_) are NOT supported for Copilot API.");
-                            println!("    Create one at: https://github.com/settings/tokens?type=beta\n");
+                            println!(
+                                "    Classic tokens (ghp_) are NOT supported for Copilot API."
+                            );
+                            println!(
+                                "    Create one at: https://github.com/settings/tokens?type=beta\n"
+                            );
 
                             let pat = Password::with_theme(&ColorfulTheme::default())
                                 .with_prompt("Enter your GitHub PAT")
@@ -368,7 +412,9 @@ async fn main() -> Result<()> {
                             }
 
                             if pat.trim().starts_with("ghp_") {
-                                println!("[!] Classic PATs (ghp_) are not supported for Copilot API.");
+                                println!(
+                                    "[!] Classic PATs (ghp_) are not supported for Copilot API."
+                                );
                                 println!("    Please use a fine-grained token instead.");
                                 return Ok(());
                             }
@@ -408,7 +454,8 @@ async fn main() -> Result<()> {
                 println!("Skills: {}", skills.as_deref().unwrap_or("none"));
             }
 
-            let (auth, base_url, model, endpoint_mode, codeassist_ep, gcp_project) = resolve_runtime_config();
+            let (auth, base_url, model, endpoint_mode, codeassist_ep, gcp_project) =
+                resolve_runtime_config();
 
             let provider = llm::create_provider(
                 &endpoint_mode,
@@ -418,7 +465,8 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine = core::engine::DalangEngine::new(provider, cmd_timeout, verbose, !headed, vec![]);
+            let engine =
+                core::engine::DalangEngine::new(provider, cmd_timeout, verbose, !headed, vec![]);
 
             if auto {
                 engine.run_autonomous_loop(&target, max_iter).await?;
@@ -428,11 +476,16 @@ async fn main() -> Result<()> {
                 engine.run_scan_loop(&target, &skills_list).await?;
             }
         }
-        Commands::Interact { target, cmd_timeout, headed } => {
+        Commands::Interact {
+            target,
+            cmd_timeout,
+            headed,
+        } => {
             println!("Starting interactive session...");
             println!("Target: {}", target);
 
-            let (auth, base_url, model, endpoint_mode, codeassist_ep, gcp_project) = resolve_runtime_config();
+            let (auth, base_url, model, endpoint_mode, codeassist_ep, gcp_project) =
+                resolve_runtime_config();
             if matches!(auth, llm::AuthToken::None) {
                 return Err(anyhow::anyhow!(
                     "No API key found. Please run 'dalang login' or set LLM_API_KEY."
@@ -447,7 +500,8 @@ async fn main() -> Result<()> {
                 codeassist_ep,
                 gcp_project,
             )?;
-            let engine = core::engine::DalangEngine::new(provider, cmd_timeout, verbose, !headed, vec![]);
+            let engine =
+                core::engine::DalangEngine::new(provider, cmd_timeout, verbose, !headed, vec![]);
 
             engine.run_interactive_loop(&target).await?;
         }
@@ -498,7 +552,14 @@ async fn main() -> Result<()> {
 }
 
 /// Resolve auth token, base URL, model, endpoint mode, and optional codeassist endpoint.
-fn resolve_runtime_config() -> (llm::AuthToken, String, String, String, Option<String>, Option<String>) {
+fn resolve_runtime_config() -> (
+    llm::AuthToken,
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+) {
     let active_provider =
         auth::persistence::get_active_provider().unwrap_or_else(|_| "gemini".to_string());
     let auth_method = auth::persistence::get_auth_method().unwrap_or_else(|_| "apikey".to_string());
@@ -533,7 +594,14 @@ fn resolve_runtime_config() -> (llm::AuthToken, String, String, String, Option<S
         active_provider, model, auth_method, endpoint_mode
     );
 
-    (auth, base_url, model, endpoint_mode, codeassist_ep, gcp_project)
+    (
+        auth,
+        base_url,
+        model,
+        endpoint_mode,
+        codeassist_ep,
+        gcp_project,
+    )
 }
 
 fn resolve_auth_token(auth_method: &str) -> llm::AuthToken {
