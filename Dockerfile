@@ -27,7 +27,7 @@ RUN echo "deb http://deb.debian.org/debian bullseye main contrib non-free" > /et
     echo "deb http://deb.debian.org/debian bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
     echo "deb http://security.debian.org/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list
 
-# Install system dependencies and security tools available in apt
+# Install system dependencies and apt-available security tools
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -39,6 +39,8 @@ RUN apt-get update && apt-get install -y \
     ruby-dev \
     build-essential \
     libpcap-dev \
+    libssl-dev \
+    libffi-dev \
     nmap \
     sqlmap \
     nikto \
@@ -51,8 +53,6 @@ RUN apt-get update && apt-get install -y \
     masscan \
     sslscan \
     dnsutils \
-    theHarvester \
-    netexec \
     && rm -rf /var/lib/apt/lists/*
 
 # ── ProjectDiscovery suite (Nuclei, Subfinder, httpx, dnsx, naabu, katana) ──
@@ -80,7 +80,7 @@ RUN wget -q https://github.com/projectdiscovery/katana/releases/download/v1.1.0/
     unzip katana_1.1.0_linux_amd64.zip katana && mv katana /usr/local/bin/ && \
     rm katana_1.1.0_linux_amd64.zip
 
-# ── Directory/Content Discovery ──
+# ── Directory / Content Discovery ──
 RUN wget -q https://github.com/OJ/gobuster/releases/download/v3.6.0/gobuster_Linux_x86_64.tar.gz && \
     tar -xzf gobuster_Linux_x86_64.tar.gz gobuster && mv gobuster /usr/local/bin/ && \
     rm gobuster_Linux_x86_64.tar.gz
@@ -89,14 +89,14 @@ RUN wget -q https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_lin
     tar -xzf ffuf_2.1.0_linux_amd64.tar.gz ffuf && mv ffuf /usr/local/bin/ && \
     rm ffuf_2.1.0_linux_amd64.tar.gz
 
-# feroxbuster - fast recursive content discovery (Rust binary, install via .deb)
+# feroxbuster - fast recursive content discovery
 RUN wget -q https://github.com/epi052/feroxbuster/releases/latest/download/feroxbuster_amd64.deb.zip && \
     unzip feroxbuster_amd64.deb.zip && \
     dpkg -i feroxbuster_*_amd64.deb && \
     rm -f feroxbuster_amd64.deb.zip feroxbuster_*_amd64.deb
 
-# ── XSS ──
-# dalfox - modern XSS scanner (replaces/supplements XSStrike)
+# ── XSS Scanners ──
+# dalfox - modern XSS scanner
 RUN wget -q https://github.com/hahwul/dalfox/releases/download/v2.12.0/dalfox_linux_amd64.tar.gz && \
     tar -xzf dalfox_linux_amd64.tar.gz dalfox && mv dalfox /usr/local/bin/ && \
     rm dalfox_linux_amd64.tar.gz
@@ -113,22 +113,34 @@ RUN wget -q https://github.com/RustScan/RustScan/releases/download/2.2.3/rustsca
     dpkg -i rustscan_2.2.3_amd64.deb && rm rustscan_2.2.3_amd64.deb
 
 # ── OSINT / Recon ──
-# OWASP Amass - attack surface mapping (v5)
+# OWASP Amass - attack surface mapping
 RUN wget -q https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_linux_amd64.zip && \
     unzip amass_linux_amd64.zip && \
     mv amass_linux_amd64/amass /usr/local/bin/ && \
     rm -rf amass_linux_amd64 amass_linux_amd64.zip
 
-# trufflehog - secrets scanner (git repos, S3, etc.)
+# trufflehog - secrets scanner
 RUN wget -q https://github.com/trufflesecurity/trufflehog/releases/download/v3.88.1/trufflehog_3.88.1_linux_amd64.tar.gz && \
     tar -xzf trufflehog_3.88.1_linux_amd64.tar.gz trufflehog && mv trufflehog /usr/local/bin/ && \
     rm trufflehog_3.88.1_linux_amd64.tar.gz
 
-# arjun - HTTP parameter discovery (Python, hidden gem)
+# theHarvester - email/subdomain OSINT (not in Debian apt, install from source)
+RUN git clone --depth 1 https://github.com/laramies/theHarvester.git /opt/theHarvester && \
+    pip3 install --no-cache-dir -r /opt/theHarvester/requirements/base.txt && \
+    printf '#!/bin/sh\nexec python3 /opt/theHarvester/theHarvester.py "$@"\n' > /usr/local/bin/theHarvester && \
+    chmod +x /usr/local/bin/theHarvester
+
+# arjun - hidden HTTP parameter discovery
 RUN pip3 install --no-cache-dir arjun
 
+# netexec (nxc) - CrackMapExec successor for network enumeration (not in Debian apt)
+RUN pip3 install --no-cache-dir pipx && \
+    pipx install git+https://github.com/Pennyw0rth/NetExec --pip-args="--no-cache-dir" && \
+    ln -s /root/.local/bin/nxc /usr/local/bin/nxc && \
+    ln -s /root/.local/bin/netexec /usr/local/bin/netexec || true
+
 # ── Cloud Security ──
-# trivy - container/IaC/cloud scanner (install via official script)
+# trivy - container/IaC/cloud scanner
 RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
 # ── WordPress ──
@@ -145,6 +157,8 @@ RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "aw
 # ── Environment ──
 ENV CHROME_PATH=/usr/bin/chromium
 ENV DALANG_DOCKER=true
+# Ensure pipx-installed binaries are in PATH
+ENV PATH="/root/.local/bin:${PATH}"
 
 COPY --from=backend-builder /app/target/release/dalang /usr/local/bin/dalang
 

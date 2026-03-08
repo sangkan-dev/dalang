@@ -23,17 +23,17 @@ async fn main() -> Result<()> {
                 println!("[+] Created skills/ directory.");
             }
 
-            let bundled = skills_parser::bundled::BUNDLED_SKILLS;
             let mut installed = 0;
             let mut skipped = 0;
 
-            for skill in bundled {
-                let skill_path = skills_dir.join(skill.filename);
+            for file in skills_parser::bundled::BUNDLED_SKILLS.files() {
+                let filename = file.path().to_str().unwrap_or_default();
+                let skill_path = skills_dir.join(filename);
                 if skill_path.exists() {
                     skipped += 1;
                 } else {
-                    std::fs::write(&skill_path, skill.content)?;
-                    println!("[+] Installed skill: {}", skill.filename);
+                    std::fs::write(&skill_path, file.contents())?;
+                    println!("[+] Installed skill: {}", filename);
                     installed += 1;
                 }
             }
