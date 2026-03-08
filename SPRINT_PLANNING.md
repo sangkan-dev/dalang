@@ -620,56 +620,55 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
-## Sprint 29: Agent Concurrency & Open Providers ⬜
+## Sprint 29: Agent Concurrency & Open Providers ✅
 
 **Goal:** Mengoptimalkan performa agent dengan eksekusi tool secara konkuren (async), menampilkan visual UI browser saat testing, dan memperluas dukungan LLM ke semua provider berstandar OpenAI (Groq, OpenRouter, dll).
 
-- ⬜ **[DAL-2901] - Feature - Concurrent Tool Execution (`src/application/usecases/orchestrator.rs`)**
+- ✅ **[DAL-2901] - Feature - Concurrent Tool Execution (`src/application/usecases/orchestrator.rs`)**
   - Ubah loop eksekusi tool LLM (reaksi atas `tool_calls`) agar tidak berjalan secara skuensial (satu per satu) jika LLM merespons dengan beberapa tool call sekaligus.
   - Gunakan fitur `tokio::spawn` atau `futures::future::join_all` dengan _concurrency limit_ (misal maksimal 5 proses paralel via `BufferUnordered`).
   - Kumpulkan semua `Observation` dari proses paralel tersebut sebelum mengembalikannya (yield) ke LLM untuk iterasi berikutnya.
-- ⬜ **[DAL-2902] - Feature - Headed Browser Mode (`src/adapters/outbound/browser_cdp/mod.rs`)**
+- ✅ **[DAL-2902] - Feature - Headed Browser Mode (`src/adapters/outbound/browser_cdp/mod.rs`)**
   - Ubah logika inisialisasi Chromiumoxide agar ketika parameter/flag `--headed` (atau via config) disematkan, browser diluncurkan tanpa mode _headless_.
   - Pastikan tab browser benar-benar tampil (bukan di background memory) sehingga developer/pengguna bisa melihat langsung navigasi, klik, dan form filling yang dilakukan oleh agen AI secara _real-time_.
-- ⬜ **[DAL-2903] - Feature - Generic OpenAI-Compatible Providers (`src/adapters/outbound/llm/openai.rs`)**
+- ✅ **[DAL-2903] - Feature - Generic OpenAI-Compatible Providers (`src/adapters/outbound/llm/openai.rs`)**
   - Manfaatkan _compatibility_ adapter OpenAI yang sudah ada untuk mendukung layanan dari pihak ketiga seperti Groq, OpenRouter, TogetherAI, atau LLM lokal seperti vLLM.
   - Tambahkan cara bagi pengguna untuk memberikan Custom Base URL dan API Key secara dinamis (via CLI argumen atau Settings Web UI), sehingga Dalang bisa langsung dipakai dengan provider mana pun yang mengadopsi standar API OpenAI tanpa perlu membuat adapter spesifik baru.
 
-
 ## Ringkasan Status
 
-| Sprint | Nama                                                | Status         |
-| ------ | --------------------------------------------------- | -------------- |
-| 1      | Core Foundation & Basic OS Execution                | ✅ Done        |
-| 2      | LLM Integration & Tool Calling Bridge               | ✅ Done        |
-| 3      | CDP Web Crawler Integration                         | ✅ Done        |
-| 4      | Defensive Prompting Engine                          | ✅ Done        |
-| 5      | Universal Tool Ecosystem Integration                | ✅ Done        |
-| 6      | Expanded Skill Library                              | ✅ Done        |
-| 7      | Local Auth & Multi-Provider OAuth                   | ✅ Done        |
-| 8      | Autonomous Orchestrator (Auto-Pilot)                | ✅ Done        |
-| 9      | Robust Skill Meta-Library                           | ✅ Done        |
-| 10     | Advanced Auto-Pilot & Context Memory                | ✅ Done        |
-| 11     | Addressing TODOs & Code Cleanup                     | ✅ Done        |
-| 12     | Interactive Model Selection                         | ✅ Done        |
-| 13     | Dynamic Provider Configuration                      | ✅ Done        |
-| 14     | Gemini CloudCode Native Provider & OAuth            | ✅ Done        |
-| 15     | Internationalization & Skill Library Expansion      | ✅ Done        |
-| 16     | Enhanced Report Quality & Prompt Engineering        | ✅ Done        |
-| 17     | Robustness & Developer Experience                   | ✅ Done        |
-| 18     | Documentation Site Overhaul                         | ✅ Done        |
-| 19     | Web UI — Backend Foundation (axum + WebSocket)      | ✅ Done        |
-| 20     | Web UI — Svelte Frontend, WebSocket Chat & REST API | ✅ Done        |
-| 21     | Web UI — Hardening, Polish & Testing                | ✅ Done        |
-| 22     | Web UI — Chat & Skills Polish                       | ✅ Done        |
-| 23     | Settings Enhancement & Skill Toggle Backend         | ✅ Done        |
-| 24     | Documentation & Final Polish                        | ✅ Done        |
-| 25     | GitHub Copilot Provider Integration                 | ✅ Done        |
-| 26     | Skill Tool Availability Validation & Bug Fixes      | ✅ Done        |
-| 27     | File-Based Session Persistence & MEMORY.md          | ✅ Done        |
-| 28     | Full Browser Agent Capabilities                     | ✅ Done        |
-| 29     | Agent Concurrency & Open Providers                  | ⬜ Not Started |
+| Sprint | Nama                                                | Status  |
+| ------ | --------------------------------------------------- | ------- |
+| 1      | Core Foundation & Basic OS Execution                | ✅ Done |
+| 2      | LLM Integration & Tool Calling Bridge               | ✅ Done |
+| 3      | CDP Web Crawler Integration                         | ✅ Done |
+| 4      | Defensive Prompting Engine                          | ✅ Done |
+| 5      | Universal Tool Ecosystem Integration                | ✅ Done |
+| 6      | Expanded Skill Library                              | ✅ Done |
+| 7      | Local Auth & Multi-Provider OAuth                   | ✅ Done |
+| 8      | Autonomous Orchestrator (Auto-Pilot)                | ✅ Done |
+| 9      | Robust Skill Meta-Library                           | ✅ Done |
+| 10     | Advanced Auto-Pilot & Context Memory                | ✅ Done |
+| 11     | Addressing TODOs & Code Cleanup                     | ✅ Done |
+| 12     | Interactive Model Selection                         | ✅ Done |
+| 13     | Dynamic Provider Configuration                      | ✅ Done |
+| 14     | Gemini CloudCode Native Provider & OAuth            | ✅ Done |
+| 15     | Internationalization & Skill Library Expansion      | ✅ Done |
+| 16     | Enhanced Report Quality & Prompt Engineering        | ✅ Done |
+| 17     | Robustness & Developer Experience                   | ✅ Done |
+| 18     | Documentation Site Overhaul                         | ✅ Done |
+| 19     | Web UI — Backend Foundation (axum + WebSocket)      | ✅ Done |
+| 20     | Web UI — Svelte Frontend, WebSocket Chat & REST API | ✅ Done |
+| 21     | Web UI — Hardening, Polish & Testing                | ✅ Done |
+| 22     | Web UI — Chat & Skills Polish                       | ✅ Done |
+| 23     | Settings Enhancement & Skill Toggle Backend         | ✅ Done |
+| 24     | Documentation & Final Polish                        | ✅ Done |
+| 25     | GitHub Copilot Provider Integration                 | ✅ Done |
+| 26     | Skill Tool Availability Validation & Bug Fixes      | ✅ Done |
+| 27     | File-Based Session Persistence & MEMORY.md          | ✅ Done |
+| 28     | Full Browser Agent Capabilities                     | ✅ Done |
+| 29     | Agent Concurrency & Open Providers                  | ✅ Done |
 
-**Total: 29 Sprint — 28 ✅ Selesai, 1 ⬜ Belum Dimulai**
+**Total: 29 Sprint — 29 ✅ Selesai, 0 ⬜ Belum Dimulai**
 
 ---
