@@ -15,7 +15,6 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
 COPY src/ ./src/
 COPY skills/ ./skills/
-# The build will include embedded frontend assets if the code is configured for it
 COPY --from=frontend-builder /app/web/dist ./web/dist
 RUN touch src/main.rs && cargo build --release
 
@@ -38,6 +37,8 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     ruby \
     ruby-dev \
+    build-essential \
+    libpcap-dev \
     nmap \
     sqlmap \
     nikto \
@@ -49,66 +50,106 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     masscan \
     sslscan \
+    dnsutils \
+    theHarvester \
+    netexec \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Go-based tools (Nuclei, Gobuster, FFUF) from binaries
+# ── ProjectDiscovery suite (Nuclei, Subfinder, httpx, dnsx, naabu, katana) ──
 RUN wget -q https://github.com/projectdiscovery/nuclei/releases/download/v3.3.0/nuclei_3.3.0_linux_amd64.zip && \
-    unzip nuclei_3.3.0_linux_amd64.zip nuclei && \
-    mv nuclei /usr/local/bin/ && \
+    unzip nuclei_3.3.0_linux_amd64.zip nuclei && mv nuclei /usr/local/bin/ && \
     rm nuclei_3.3.0_linux_amd64.zip
 
+RUN wget -q https://github.com/projectdiscovery/subfinder/releases/download/v2.6.6/subfinder_2.6.6_linux_amd64.zip && \
+    unzip subfinder_2.6.6_linux_amd64.zip subfinder && mv subfinder /usr/local/bin/ && \
+    rm subfinder_2.6.6_linux_amd64.zip
+
+RUN wget -q https://github.com/projectdiscovery/httpx/releases/download/v1.6.10/httpx_1.6.10_linux_amd64.zip && \
+    unzip httpx_1.6.10_linux_amd64.zip httpx && mv httpx /usr/local/bin/ && \
+    rm httpx_1.6.10_linux_amd64.zip
+
+RUN wget -q https://github.com/projectdiscovery/dnsx/releases/download/v1.2.1/dnsx_1.2.1_linux_amd64.zip && \
+    unzip dnsx_1.2.1_linux_amd64.zip dnsx && mv dnsx /usr/local/bin/ && \
+    rm dnsx_1.2.1_linux_amd64.zip
+
+RUN wget -q https://github.com/projectdiscovery/naabu/releases/download/v2.3.1/naabu_2.3.1_linux_amd64.zip && \
+    unzip naabu_2.3.1_linux_amd64.zip naabu && mv naabu /usr/local/bin/ && \
+    rm naabu_2.3.1_linux_amd64.zip
+
+RUN wget -q https://github.com/projectdiscovery/katana/releases/download/v1.1.0/katana_1.1.0_linux_amd64.zip && \
+    unzip katana_1.1.0_linux_amd64.zip katana && mv katana /usr/local/bin/ && \
+    rm katana_1.1.0_linux_amd64.zip
+
+# ── Directory/Content Discovery ──
 RUN wget -q https://github.com/OJ/gobuster/releases/download/v3.6.0/gobuster_Linux_x86_64.tar.gz && \
-    tar -xzf gobuster_Linux_x86_64.tar.gz gobuster && \
-    mv gobuster /usr/local/bin/ && \
+    tar -xzf gobuster_Linux_x86_64.tar.gz gobuster && mv gobuster /usr/local/bin/ && \
     rm gobuster_Linux_x86_64.tar.gz
 
 RUN wget -q https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz && \
-    tar -xzf ffuf_2.1.0_linux_amd64.tar.gz ffuf && \
-    mv ffuf /usr/local/bin/ && \
+    tar -xzf ffuf_2.1.0_linux_amd64.tar.gz ffuf && mv ffuf /usr/local/bin/ && \
     rm ffuf_2.1.0_linux_amd64.tar.gz
 
-# Install Subfinder (subdomain enumeration) - binary from GitHub
-RUN wget -q https://github.com/projectdiscovery/subfinder/releases/download/v2.6.6/subfinder_2.6.6_linux_amd64.zip && \
-    unzip subfinder_2.6.6_linux_amd64.zip subfinder && \
-    mv subfinder /usr/local/bin/ && \
-    rm subfinder_2.6.6_linux_amd64.zip
+# feroxbuster - fast recursive content discovery (Rust binary, install via .deb)
+RUN wget -q https://github.com/epi052/feroxbuster/releases/latest/download/feroxbuster_amd64.deb.zip && \
+    unzip feroxbuster_amd64.deb.zip && \
+    dpkg -i feroxbuster_*_amd64.deb && \
+    rm -f feroxbuster_amd64.deb.zip feroxbuster_*_amd64.deb
 
-# Install RustScan via .deb package from GitHub
-RUN wget -q https://github.com/RustScan/RustScan/releases/download/2.2.3/rustscan_2.2.3_amd64.deb && \
-    dpkg -i rustscan_2.2.3_amd64.deb && \
-    rm rustscan_2.2.3_amd64.deb
+# ── XSS ──
+# dalfox - modern XSS scanner (replaces/supplements XSStrike)
+RUN wget -q https://github.com/hahwul/dalfox/releases/download/v2.12.0/dalfox_linux_amd64.tar.gz && \
+    tar -xzf dalfox_linux_amd64.tar.gz dalfox && mv dalfox /usr/local/bin/ && \
+    rm dalfox_linux_amd64.tar.gz
 
-# Install XSStrike (XSS scanner - Python tool)
+# XSStrike - XSS scanner (Python)
 RUN git clone --depth 1 https://github.com/s0md3v/XSStrike.git /opt/xsstrike && \
     pip3 install --no-cache-dir -r /opt/xsstrike/requirements.txt && \
     printf '#!/bin/sh\nexec python3 /opt/xsstrike/xsstrike.py "$@"\n' > /usr/local/bin/xsstrike && \
     chmod +x /usr/local/bin/xsstrike
 
-# Install WPScan via RubyGems
+# ── Port Scanners ──
+# rustscan - ultra-fast port scanner
+RUN wget -q https://github.com/RustScan/RustScan/releases/download/2.2.3/rustscan_2.2.3_amd64.deb && \
+    dpkg -i rustscan_2.2.3_amd64.deb && rm rustscan_2.2.3_amd64.deb
+
+# ── OSINT / Recon ──
+# OWASP Amass - attack surface mapping (v5)
+RUN wget -q https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_linux_amd64.zip && \
+    unzip amass_linux_amd64.zip && \
+    mv amass_linux_amd64/amass /usr/local/bin/ && \
+    rm -rf amass_linux_amd64 amass_linux_amd64.zip
+
+# trufflehog - secrets scanner (git repos, S3, etc.)
+RUN wget -q https://github.com/trufflesecurity/trufflehog/releases/download/v3.88.1/trufflehog_3.88.1_linux_amd64.tar.gz && \
+    tar -xzf trufflehog_3.88.1_linux_amd64.tar.gz trufflehog && mv trufflehog /usr/local/bin/ && \
+    rm trufflehog_3.88.1_linux_amd64.tar.gz
+
+# arjun - HTTP parameter discovery (Python, hidden gem)
+RUN pip3 install --no-cache-dir arjun
+
+# ── Cloud Security ──
+# trivy - container/IaC/cloud scanner (install via official script)
+RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+# ── WordPress ──
 RUN gem install wpscan
 
-# Install Kubectl
+# ── Cloud CLI tools ──
 RUN curl -fsSL -o /usr/local/bin/kubectl \
     "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
     chmod +x /usr/local/bin/kubectl
 
-# Install AWS CLI
 RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
-    unzip awscliv2.zip && \
-    ./aws/install && \
-    rm -rf aws awscliv2.zip
+    unzip awscliv2.zip && ./aws/install && rm -rf aws awscliv2.zip
 
-# Environment variables for Dalang
+# ── Environment ──
 ENV CHROME_PATH=/usr/bin/chromium
 ENV DALANG_DOCKER=true
 
-# Copy binary from builder
 COPY --from=backend-builder /app/target/release/dalang /usr/local/bin/dalang
 
-# Prepare data directory
 RUN mkdir -p /root/.dalang
 
-# Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
