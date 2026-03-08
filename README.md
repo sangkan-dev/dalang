@@ -33,6 +33,26 @@ cargo build --release
 # The binary will be available at target/release/dalang
 ```
 
+### Running with Docker (Recommended)
+
+Dalang provides a comprehensive Docker image that comes pre-installed with all necessary security tools (`nmap`, `sqlmap`, `nuclei`, `ffuf`, etc.), so you don't have to install them manually.
+
+Using Docker Compose (easiest):
+
+```bash
+# Start Dalang Web UI and API
+docker-compose up -d
+```
+
+Using Docker directly:
+
+```bash
+docker build -t dalang .
+docker run --rm --network host -v ~/.dalang:/root/.dalang dalang
+```
+
+Note: We use `--network host` to allow the internal browser and security tools to easily reach targets on your local network.
+
 ## Quick Start
 
 You'll need an active LLM provider. Dalang supports extracting sessions directly from your `gcloud` or `gemini-cli` installations, or via OAuth.

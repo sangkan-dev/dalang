@@ -1,0 +1,21 @@
+services:
+  dalang:
+    build: .
+    image: dalang:latest
+    container_name: dalang
+    command: "dalang web --port 4000"
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - dalang_data:/root/.dalang
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+    # network_mode: host handles ports automatically for webhook/rest
+    # but we document it here for clarity
+    # ports:
+    #   - "4000:4000"
+
+volumes:
+  dalang_data:
