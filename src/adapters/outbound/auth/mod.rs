@@ -11,6 +11,7 @@ pub enum AuthProvider {
     Anthropic,
     OpenAi,
     Copilot,
+    Custom,
 }
 
 impl AuthProvider {
@@ -20,6 +21,7 @@ impl AuthProvider {
             "anthropic" | "claude" => Ok(AuthProvider::Anthropic),
             "openai" => Ok(AuthProvider::OpenAi),
             "copilot" | "github" | "github-copilot" => Ok(AuthProvider::Copilot),
+            "custom" | "openai-compatible" => Ok(AuthProvider::Custom),
             _ => Err(anyhow::anyhow!("Unsupported provider: {}", s)),
         }
     }
@@ -30,6 +32,7 @@ impl AuthProvider {
             AuthProvider::Anthropic => "anthropic",
             AuthProvider::OpenAi => "openai",
             AuthProvider::Copilot => "copilot",
+            AuthProvider::Custom => "custom",
         }
     }
 }

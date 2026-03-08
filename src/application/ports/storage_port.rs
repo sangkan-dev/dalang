@@ -34,6 +34,8 @@ pub trait AuthPersistence: Send + Sync {
     fn get_codeassist_endpoint(&self) -> Result<String>;
     fn save_gcp_project(&self, project_id: &str) -> Result<()>;
     fn get_gcp_project(&self) -> Result<String>;
+    fn save_custom_base_url(&self, url: &str) -> Result<()>;
+    fn get_custom_base_url(&self) -> Result<String>;
 }
 
 // ── Session Storage ───────────────────────────────────────────────────────────

@@ -143,6 +143,7 @@ fn build_orchestrator(
     DalangOrchestrator::new(
         llm,
         executor,
+        None, // Browser initialized lazily or on demand
         OrchestratorConfig {
             cmd_timeout,
             verbose: state.verbose,

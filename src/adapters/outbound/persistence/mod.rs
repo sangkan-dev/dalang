@@ -71,6 +71,12 @@ impl AuthPersistence for KeyringAuthPersistence {
     fn get_gcp_project(&self) -> Result<String> {
         crate::auth::persistence::get_gcp_project()
     }
+    fn save_custom_base_url(&self, url: &str) -> Result<()> {
+        crate::adapters::outbound::auth::persistence::save_custom_base_url(url)
+    }
+    fn get_custom_base_url(&self) -> Result<String> {
+        crate::adapters::outbound::auth::persistence::get_custom_base_url()
+    }
 }
 
 // ── Session Storage Adapter ───────────────────────────────────────────────────

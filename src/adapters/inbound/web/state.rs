@@ -126,8 +126,14 @@ impl AppState {
             ));
         }
 
-        let base_url = std::env::var("LLM_BASE_URL")
-            .unwrap_or_else(|_| llm::get_default_base_url(&active_provider));
+        let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| {
+            if endpoint_mode == "openai_compat" {
+                crate::auth::persistence::get_custom_base_url()
+                    .unwrap_or_else(|_| llm::get_default_base_url(&active_provider))
+            } else {
+                llm::get_default_base_url(&active_provider)
+            }
+        });
 
         let (codeassist_ep, gcp_project) = if endpoint_mode == "cloudcode" {
             (

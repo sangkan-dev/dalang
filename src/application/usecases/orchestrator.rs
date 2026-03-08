@@ -8,6 +8,7 @@
 //! - How commands are executed (real OS, mock, etc.)
 //! - How events are delivered (stdout, WebSocket, channel)
 
+use crate::application::ports::browser_port::BrowserPort;
 use crate::application::ports::llm_port::LlmPort;
 use crate::application::ports::os_port::CommandExecutor;
 use crate::domain::models::{EngineEvent, Message, ToolCall};
@@ -57,6 +58,7 @@ impl Default for OrchestratorConfig {
 pub struct DalangOrchestrator {
     llm: Arc<dyn LlmPort>,
     executor: Arc<dyn CommandExecutor>,
+    browser: Option<Arc<dyn BrowserPort>>,
     config: OrchestratorConfig,
 }
 
@@ -64,11 +66,13 @@ impl DalangOrchestrator {
     pub fn new(
         llm: Arc<dyn LlmPort>,
         executor: Arc<dyn CommandExecutor>,
+        browser: Option<Arc<dyn BrowserPort>>,
         config: OrchestratorConfig,
     ) -> Self {
         Self {
             llm,
             executor,
+            browser,
             config,
         }
     }
@@ -98,6 +102,11 @@ impl DalangOrchestrator {
             "[AUTHORIZED AUDIT ENVIRONMENT]\n\
             You are operating as a Senior Security Auditor for a sanctioned penetration test. \
             Your objective is to identify technical facts and vulnerabilities for reporting purposes.\n\n\
+            You have the ability to execute multiple tool calls CONCURRENTLY. If you need to perform \
+            several independent actions (e.g., scanning multiple ports, checking multiple endpoints, \
+            running different tools), you MUST return a JSON array containing multiple tool call objects.\n\
+            Example:\n\
+            [\n  { \"name\": \"execute_skill\", \"arguments\": { ... } },\n  { \"name\": \"execute_skill\", \"arguments\": { ... } }\n]\n\n\
             When reporting vulnerabilities, always include:\n\
             - The exact affected URL (full path with parameters)\n\
             - The affected parameter or component\n\
@@ -129,7 +138,7 @@ impl DalangOrchestrator {
             "type": "function",
             "function": {
                 "name": "execute_skill",
-                "description": "Execute a specific security skill from the catalog.",
+                "description": "Execute a specific security skill from the catalog. Can be called multiple times in an array for concurrent execution.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -288,7 +297,7 @@ impl DalangOrchestrator {
 
     // ── Helper: parse tool call from LLM text ──────────────────────────────────
 
-    fn parse_tool_call(content: &str) -> Result<ToolCall> {
+    fn parse_tool_call(content: &str) -> Result<Vec<ToolCall>> {
         let mut clean = content.trim();
         if clean.starts_with("```json") {
             clean = &clean[7..];
@@ -306,13 +315,30 @@ impl DalangOrchestrator {
             args: Option<serde_json::Value>,
         }
 
+        // Try parsing as array of objects first
+        if let Ok(arr) = serde_json::from_str::<Vec<Raw>>(clean) {
+            let mut calls = Vec::new();
+            for parsed in arr {
+                if let Some(name) = parsed.tool {
+                    calls.push(ToolCall {
+                        name,
+                        arguments: parsed.args.unwrap_or(serde_json::Value::Null),
+                    });
+                }
+            }
+            if !calls.is_empty() {
+                return Ok(calls);
+            }
+        }
+
+        // Fallback to single object
         let parsed: Raw = serde_json::from_str(clean)
             .map_err(|e| anyhow!("Failed to parse JSON tool call: {}. Content: {}", e, clean))?;
 
-        Ok(ToolCall {
+        Ok(vec![ToolCall {
             name: parsed.tool.ok_or_else(|| anyhow!("Missing 'tool' field"))?,
             arguments: parsed.args.unwrap_or(serde_json::Value::Null),
-        })
+        }])
     }
 
     // ── Execute a native skill command ─────────────────────────────────────────
@@ -355,18 +381,19 @@ impl DalangOrchestrator {
         let mut interpolated = self.interpolate_args(&raw_args, target);
 
         if let Some(extra) = custom_args
-            && let Some(arr) = extra.as_array() {
-                let additions: Vec<String> = arr
-                    .iter()
-                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                    .collect();
-                if Self::is_clean_argument(&additions) {
-                    println!("    [+] AI injected {} custom arguments", additions.len());
-                    interpolated.extend(additions);
-                } else {
-                    println!("    [!] AI injected UNSAFE arguments. Blocking.");
-                }
+            && let Some(arr) = extra.as_array()
+        {
+            let additions: Vec<String> = arr
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+            if Self::is_clean_argument(&additions) {
+                println!("    [+] AI injected {} custom arguments", additions.len());
+                interpolated.extend(additions);
+            } else {
+                println!("    [!] AI injected UNSAFE arguments. Blocking.");
             }
+        }
 
         let cmd_str = format!("{} {}", tool_path, interpolated.join(" "));
         println!("    $ {}", cmd_str);
@@ -503,53 +530,101 @@ impl DalangOrchestrator {
 
                 if response_text.trim().starts_with('{')
                     || response_text.trim().starts_with("```json")
+                    || response_text.trim().starts_with('[')
                 {
                     match Self::parse_tool_call(&response_text) {
-                        Ok(tool_call) => {
-                            println!("[>] Tool Call: {}", tool_call.name);
-                            if tool_call.name.starts_with("browser-") {
-                                // Browser tool handling is coordinated by the engine/adapter layer
-                                // which has access to the actual browser instance
-                                messages.push(Message::user(
-                                    "Note: Browser tools are only available in interactive/autonomous WebSocket mode."
-                                ));
-                            } else if skill_def.tool_path.is_some()
-                                && tool_call.name == skill_def.name
-                            {
-                                self.execute_skill_native(
-                                    &skill_def,
-                                    target,
-                                    None,
-                                    &mut messages,
-                                    None,
-                                )
-                                .await;
-                            } else {
-                                // Generic os-command
-                                let args = self.extract_os_command_args(&tool_call);
-                                if !args.is_empty() {
-                                    let program = &args[0];
-                                    let prog_args: Vec<&str> =
-                                        args[1..].iter().map(|s| s.as_str()).collect();
-                                    println!("    $ {} {}", program, prog_args.join(" "));
-                                    match self.executor.execute(program, &prog_args, 30).await {
-                                        Ok((stdout, stderr)) => {
-                                            let mut obs = format!("STDOUT:\n{}\n", stdout);
-                                            if !stderr.is_empty() {
-                                                obs.push_str(&format!("STDERR:\n{}\n", stderr));
-                                            }
-                                            messages.push(Message::user(&format!(
-                                                "Observation:\n{}",
-                                                obs
-                                            )));
-                                        }
-                                        Err(e) => {
-                                            messages.push(Message::user(&format!(
-                                                "Command Error:\n{}",
-                                                e
-                                            )));
-                                        }
+                        Ok(tool_calls) => {
+                            let mut tasks: Vec<
+                                std::pin::Pin<Box<dyn futures::Future<Output = Message> + Send>>,
+                            > = Vec::new();
+
+                            for tool_call in tool_calls {
+                                println!("[>] Tool Call: {}", tool_call.name);
+                                if tool_call.name.starts_with("browser-") {
+                                    if let Some(_browser) = &self.browser {
+                                        // Execute browser tool natively
+                                        let tool_name = tool_call.name.clone();
+                                        tasks.push(Box::pin(async move {
+                                            println!("    [B] Executing native browser tool: {}", tool_name);
+                                            // TODO: We need real browser port dispatching matching the Chromiumoxide wrapper
+                                            // For now, let's just create an Observation indicating unsupported direct call
+                                            Message::user(&format!(
+                                                "Browser native dispatch not fully implemented for: {}. Use web UI.",
+                                                tool_name
+                                            ))
+                                        }));
+                                    } else {
+                                        // Browser tool handling is coordinated by the engine/adapter layer
+                                        // which has access to the actual browser instance
+                                        messages.push(Message::user(
+                                            "Note: Browser tools are only available when a browser session is actively attached."
+                                        ));
                                     }
+                                } else if skill_def.tool_path.is_some()
+                                    && tool_call.name == skill_def.name
+                                {
+                                    // We can't spawn this directly as it requires `&mut messages`
+                                    // For scan loop we'll just await it sequentially since it pushes to messages directly
+                                    self.execute_skill_native(
+                                        &skill_def,
+                                        target,
+                                        None,
+                                        &mut messages,
+                                        None,
+                                    )
+                                    .await;
+                                } else {
+                                    // Generic os-command
+                                    let args = self.extract_os_command_args(&tool_call);
+                                    if !args.is_empty() {
+                                        let executor = Arc::clone(&self.executor);
+                                        let timeout = self.effective_timeout();
+
+                                        tasks.push(Box::pin(async move {
+                                            let program = args[0].clone();
+                                            let prog_args_owned: Vec<String> = args[1..].to_vec();
+                                            let prog_args: Vec<&str> = prog_args_owned
+                                                .iter()
+                                                .map(|s| s.as_str())
+                                                .collect();
+
+                                            println!("    $ {} {}", program, prog_args.join(" "));
+                                            match executor
+                                                .execute(&program, &prog_args, timeout)
+                                                .await
+                                            {
+                                                Ok((stdout, stderr)) => {
+                                                    let mut obs = format!("STDOUT:\n{}\n", stdout);
+                                                    if !stderr.is_empty() {
+                                                        obs.push_str(&format!(
+                                                            "STDERR:\n{}\n",
+                                                            stderr
+                                                        ));
+                                                    }
+                                                    Message::user(&format!(
+                                                        "Observation ({}):\n{}",
+                                                        program, obs
+                                                    ))
+                                                }
+                                                Err(e) => Message::user(&format!(
+                                                    "Command Error ({}):\n{}",
+                                                    program, e
+                                                )),
+                                            }
+                                        }));
+                                    }
+                                }
+                            }
+
+                            if !tasks.is_empty() {
+                                use futures::stream::{self, StreamExt};
+                                let results = stream::iter(tasks)
+                                    .buffer_unordered(5)
+                                    .collect::<Vec<_>>()
+                                    .await;
+
+                                for msg in results {
+                                    messages.push(msg);
                                 }
                             }
                         }
@@ -628,7 +703,8 @@ impl DalangOrchestrator {
             2. Use `execute_skill` tool to run specific skills from the catalog.\n\
             3. Analyze observations to determine the next step.\n\
             4. For each vulnerability found, verify it with a PoC before reporting.\n\
-            5. When done, produce a final VULNERABILITY REPORT.\n\n\
+            5. When done, produce a final VULNERABILITY REPORT.\n\
+            6. You can execute multiple tool calls CONCURRENTLY. If you need to perform several independent actions (e.g., scanning multiple ports, checking multiple endpoints), you MUST return a JSON array containing multiple tool/skill call objects.\n\n\
             ### VULNERABILITY REPORT FORMAT:\n\
             When you have gathered enough evidence:\n\n\
             ```\n\
@@ -643,9 +719,9 @@ impl DalangOrchestrator {
             - Remediation: <fix description>\n\n\
             ## Conclusion\n\
             ```\n\n\
-            To execute a skill, respond with ONLY a JSON object:\n\
+            To execute a skill, respond with ONLY a JSON object or an ARRAY of objects:\n\
             ```json\n\
-            {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"reasoning\": \"<why>\", \"custom_args\": []}}}}\n\
+            [{{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"reasoning\": \"<why>\", \"custom_args\": []}}}}, ...]\n\
             ```",
         );
 
@@ -774,82 +850,133 @@ impl DalangOrchestrator {
             }
 
             // Parse tool call
-            if response_text.trim().starts_with('{') || response_text.trim().starts_with("```json")
+            if response_text.trim().starts_with('{')
+                || response_text.trim().starts_with("```json")
+                || response_text.trim().starts_with('[')
             {
                 match Self::parse_tool_call(&response_text) {
-                    Ok(tool_call) => {
-                        println!("[>] Tool Call: {}", tool_call.name);
+                    Ok(tool_calls) => {
+                        let mut tasks: Vec<
+                            std::pin::Pin<Box<dyn futures::Future<Output = Message> + Send>>,
+                        > = Vec::new();
+                        let mut local_obs = Vec::new();
 
-                        if tool_call.name == "execute_skill" {
-                            let skill_name = tool_call
-                                .arguments
-                                .get("skill_name")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let custom_args = tool_call.arguments.get("custom_args").cloned();
+                        for tool_call in tool_calls {
+                            println!("[>] Tool Call: {}", tool_call.name);
 
-                            let skill_def = match skills.iter().find(|s| s.name == skill_name) {
-                                Some(s) => s.clone(),
-                                None => {
-                                    println!("[!] Skill '{}' not found in catalog.", skill_name);
-                                    messages.push(Message::user(&format!(
-                                        "Error: Skill '{}' not found. Choose from: {}",
-                                        skill_name,
-                                        skills
-                                            .iter()
-                                            .map(|s| s.name.as_str())
-                                            .collect::<Vec<_>>()
-                                            .join(", ")
-                                    )));
-                                    continue;
+                            if tool_call.name == "execute_skill" {
+                                let skill_name = tool_call
+                                    .arguments
+                                    .get("skill_name")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
+                                let custom_args = tool_call.arguments.get("custom_args").cloned();
+
+                                let skill_def = match skills.iter().find(|s| s.name == skill_name) {
+                                    Some(s) => s.clone(),
+                                    None => {
+                                        println!(
+                                            "[!] Skill '{}' not found in catalog.",
+                                            skill_name
+                                        );
+                                        messages.push(Message::user(&format!(
+                                            "Error: Skill '{}' not found. Choose from: {}",
+                                            skill_name,
+                                            skills
+                                                .iter()
+                                                .map(|s| s.name.as_str())
+                                                .collect::<Vec<_>>()
+                                                .join(", ")
+                                        )));
+                                        continue;
+                                    }
+                                };
+
+                                if skill_def.tool_path.is_none() {
+                                    // Browser-based or CDP skill — notify for now
+                                    messages.push(Message::user(
+                                        "Browser-based skills are dispatched by the web UI layer when a browser session is available."
+                                    ));
+                                } else {
+                                    // Sequential execution for skills that need &mut messages/tx
+                                    self.execute_skill_native(
+                                        &skill_def,
+                                        target,
+                                        custom_args.as_ref(),
+                                        &mut messages,
+                                        tx.as_ref(),
+                                    )
+                                    .await;
+                                    // Record in memory
+                                    local_obs.push(format!("Executed skill `{}`", skill_name));
                                 }
-                            };
-
-                            if skill_def.tool_path.is_none() {
-                                // Browser-based or CDP skill — notify for now
-                                messages.push(Message::user(
-                                    "Browser-based skills are dispatched by the web UI layer when a browser session is available."
-                                ));
+                            } else if tool_call.name.starts_with("browser-") {
+                                if let Some(_browser) = &self.browser {
+                                    let tool_name = tool_call.name.clone();
+                                    tasks.push(Box::pin(async move {
+                                        Message::user(&format!(
+                                            "Browser native dispatch not fully implemented for: {}. Use interactive web UI.",
+                                            tool_name
+                                        ))
+                                    }));
+                                } else {
+                                    messages.push(Message::user(
+                                        "Browser tool dispatching requires an attached browser session.",
+                                    ));
+                                }
                             } else {
-                                self.execute_skill_native(
-                                    &skill_def,
-                                    target,
-                                    custom_args.as_ref(),
-                                    &mut messages,
-                                    tx.as_ref(),
-                                )
-                                .await;
-                                // Record in memory
-                                observations.push(format!("Executed skill `{}`", skill_name));
-                                if observations.len() > 20 {
-                                    observations.remove(0);
+                                let args = self.extract_os_command_args(&tool_call);
+                                if !args.is_empty() {
+                                    let executor = Arc::clone(&self.executor);
+                                    let timeout = self.effective_timeout();
+
+                                    tasks.push(Box::pin(async move {
+                                        let program = args[0].clone();
+                                        let prog_args_owned: Vec<String> = args[1..].to_vec();
+                                        let prog_args: Vec<&str> =
+                                            prog_args_owned.iter().map(|s| s.as_str()).collect();
+
+                                        println!("    $ {} {}", program, prog_args.join(" "));
+                                        match executor.execute(&program, &prog_args, timeout).await
+                                        {
+                                            Ok((stdout, stderr)) => {
+                                                let mut obs = format!("STDOUT:\n{}\n", stdout);
+                                                if !stderr.is_empty() {
+                                                    obs.push_str(&format!("STDERR:\n{}\n", stderr));
+                                                }
+                                                Message::user(&format!(
+                                                    "Observation ({}):\n{}",
+                                                    program, obs
+                                                ))
+                                            }
+                                            Err(e) => Message::user(&format!(
+                                                "Command Error ({}):\n{}",
+                                                program, e
+                                            )),
+                                        }
+                                    }));
                                 }
                             }
-                        } else if tool_call.name.starts_with("browser-") {
-                            // Dispatched by adapter layer (engine.rs compat shim)
-                            messages.push(Message::user(
-                                "Browser tool dispatching is handled by the inbound adapter layer.",
-                            ));
-                        } else {
-                            let args = self.extract_os_command_args(&tool_call);
-                            if !args.is_empty() {
-                                let program = &args[0];
-                                let prog_args: Vec<&str> =
-                                    args[1..].iter().map(|s| s.as_str()).collect();
-                                println!("    $ {} {}", program, prog_args.join(" "));
-                                match self.executor.execute(program, &prog_args, 30).await {
-                                    Ok((stdout, stderr)) => {
-                                        let mut obs = format!("STDOUT:\n{}\n", stdout);
-                                        if !stderr.is_empty() {
-                                            obs.push_str(&format!("STDERR:\n{}\n", stderr));
-                                        }
-                                        messages
-                                            .push(Message::user(&format!("Observation:\n{}", obs)));
-                                    }
-                                    Err(e) => messages
-                                        .push(Message::user(&format!("Command Error:\n{}", e))),
-                                }
+                        }
+
+                        // Wait for generic os commands
+                        if !tasks.is_empty() {
+                            use futures::stream::{self, StreamExt};
+                            let results = stream::iter(tasks)
+                                .buffer_unordered(5)
+                                .collect::<Vec<_>>()
+                                .await;
+
+                            for msg in results {
+                                messages.push(msg);
+                            }
+                        }
+
+                        for obs in local_obs {
+                            observations.push(obs);
+                            if observations.len() > 20 {
+                                observations.remove(0);
                             }
                         }
                     }
@@ -972,28 +1099,37 @@ impl DalangOrchestrator {
                 println!("\n[Dalang]\n{}", response);
 
                 // Handle tool calls if present
-                if (response.trim().starts_with('{') || response.trim().starts_with("```json"))
-                    && let Ok(tool_call) = Self::parse_tool_call(&response)
-                        && tool_call.name == "execute_skill" {
-                            let skill_name = tool_call
-                                .arguments
-                                .get("skill_name")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            if let Some(skill_def) = skills.iter().find(|s| s.name == skill_name) {
-                                self.execute_skill_native(
-                                    skill_def,
-                                    target,
-                                    None,
-                                    &mut messages,
-                                    None,
-                                )
-                                .await;
-                            } else {
-                                println!("[!] Skill '{}' not found.", skill_name);
+                if response.trim().starts_with('{')
+                    || response.trim().starts_with("```json")
+                    || response.trim().starts_with('[')
+                {
+                    if let Ok(tool_calls) = Self::parse_tool_call(&response) {
+                        for tool_call in tool_calls {
+                            if tool_call.name == "execute_skill" {
+                                let skill_name = tool_call
+                                    .arguments
+                                    .get("skill_name")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
+                                if let Some(skill_def) =
+                                    skills.iter().find(|s| s.name == skill_name)
+                                {
+                                    self.execute_skill_native(
+                                        skill_def,
+                                        target,
+                                        None,
+                                        &mut messages,
+                                        None,
+                                    )
+                                    .await;
+                                } else {
+                                    println!("[!] Skill '{}' not found.", skill_name);
+                                }
                             }
                         }
+                    }
+                }
             } else {
                 // WebSocket mode — the web adapter drives the loop externally
                 // This is a placeholder; actual WS handling is in the web adapter
@@ -1087,7 +1223,7 @@ mod tests {
             stdout: "mock stdout".to_string(),
             stderr: String::new(),
         });
-        DalangOrchestrator::new(llm, executor, OrchestratorConfig::default())
+        DalangOrchestrator::new(llm, executor, None, OrchestratorConfig::default())
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -1190,7 +1326,7 @@ mod tests {
             disabled_skills: vec!["nmap-scan".to_string()],
             ..Default::default()
         };
-        let o = DalangOrchestrator::new(llm, executor, config);
+        let o = DalangOrchestrator::new(llm, executor, None, config);
 
         let make_skill = |name: &str| SkillDefinition {
             name: name.to_string(),

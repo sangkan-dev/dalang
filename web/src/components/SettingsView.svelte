@@ -141,6 +141,7 @@
               <option value="anthropic">Anthropic</option>
               <option value="copilot">GitHub Copilot</option>
               <option value="ollama">Ollama (local)</option>
+              <option value="custom">Custom (OpenAI Compatible)</option>
             </select>
           </div>
 
@@ -197,6 +198,23 @@
               <option value="google_rest">Google REST</option>
             </select>
           </div>
+
+          {#if settings.endpoint_mode === 'openai_compat'}
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-[var(--text-secondary)]" for="base_url">Custom Base URL</label>
+            <input
+              id="base_url"
+              type="text"
+              bind:value={settings.custom_base_url}
+              placeholder="https://api.example.com/v1"
+              class="w-full px-4 py-2.5 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg
+                text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] font-mono text-sm"
+            />
+            <p class="text-[10px] text-[var(--text-secondary)] mt-1 opacity-70">
+              Leave empty to use the provider's default URL.
+            </p>
+          </div>
+          {/if}
         </div>
 
         <!-- API Key section -->

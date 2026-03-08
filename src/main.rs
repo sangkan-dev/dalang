@@ -429,6 +429,34 @@ async fn main() -> Result<()> {
                         _ => unreachable!(),
                     }
                 }
+                auth::AuthProvider::Custom => {
+                    let base_url =
+                        dialoguer::Input::<String>::with_theme(&ColorfulTheme::default())
+                            .with_prompt("Enter custom OpenAI-compatible Base URL")
+                            .interact()?;
+
+                    let api_key = Password::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Enter your API Key")
+                        .interact()?;
+
+                    if api_key.trim().is_empty() {
+                        return Err(anyhow::anyhow!("API Key cannot be empty."));
+                    }
+
+                    auth::persistence::save_tokens(api_key.trim(), None)?;
+                    auth::persistence::save_custom_base_url(base_url.trim())?;
+                    let _ = auth::persistence::save_auth_method("apikey");
+                    let _ = auth::persistence::save_endpoint_mode("openai_compat");
+                    println!("[+] Custom configuration saved!");
+
+                    interactive_model_selection(
+                        "custom",
+                        base_url.trim(),
+                        api_key.trim(),
+                        "apikey",
+                    )
+                    .await;
+                }
             }
         }
         Commands::Scan {
@@ -472,6 +500,7 @@ async fn main() -> Result<()> {
             let orchestrator = DalangOrchestrator::new(
                 llm_adapter,
                 executor,
+                None, // Browser initialized lazily or injected later if needed
                 OrchestratorConfig {
                     cmd_timeout,
                     verbose,
@@ -528,6 +557,7 @@ async fn main() -> Result<()> {
             let orchestrator = DalangOrchestrator::new(
                 llm_adapter,
                 executor,
+                None, // Browser initialized lazily or injected later if needed
                 OrchestratorConfig {
                     cmd_timeout,
                     verbose,
@@ -603,9 +633,15 @@ fn resolve_runtime_config() -> (
     let auth = resolve_auth_token(&auth_method);
 
     // Resolve base URL — for cloudcode mode, the factory handles it internally;
-    // for openai_compat, use LLM_BASE_URL or provider default
-    let base_url = std::env::var("LLM_BASE_URL")
-        .unwrap_or_else(|_| llm::get_default_base_url(&active_provider));
+    // for openai_compat, use LLM_BASE_URL, stored custom URL, or provider default
+    let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| {
+        if endpoint_mode == "openai_compat" {
+            auth::persistence::get_custom_base_url()
+                .unwrap_or_else(|_| llm::get_default_base_url(&active_provider))
+        } else {
+            llm::get_default_base_url(&active_provider)
+        }
+    });
 
     // Resolve codeassist endpoint and GCP project (only relevant for cloudcode mode)
     let (codeassist_ep, gcp_project) = if endpoint_mode == "cloudcode" {

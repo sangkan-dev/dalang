@@ -15,6 +15,7 @@ const OAUTH_CLIENT_ID_KEY: &str = "oauth_client_id";
 const OAUTH_CLIENT_SECRET_KEY: &str = "oauth_client_secret";
 const API_KEY_KEY: &str = "api_key";
 const VERBOSE_KEY: &str = "verbose";
+const CUSTOM_BASE_URL_KEY: &str = "custom_base_url";
 
 pub fn save_tokens(access_token: &str, refresh_token: Option<&str>) -> Result<()> {
     let entry =
@@ -129,16 +130,16 @@ pub fn get_gcp_project() -> Result<String> {
 // -- Endpoint mode ("openai_compat" | "cloudcode") --
 
 pub fn save_endpoint_mode(mode: &str) -> Result<()> {
-    let entry = Entry::new(SERVICE_NAME, ENDPOINT_MODE_KEY)
-        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    let entry =
+        Entry::new(SERVICE_NAME, ENDPOINT_MODE_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
     entry
         .set_password(mode)
         .map_err(|e| anyhow!("Failed to save endpoint mode: {}", e))
 }
 
 pub fn get_endpoint_mode() -> Result<String> {
-    let entry = Entry::new(SERVICE_NAME, ENDPOINT_MODE_KEY)
-        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    let entry =
+        Entry::new(SERVICE_NAME, ENDPOINT_MODE_KEY).map_err(|e| anyhow!("Keyring error: {}", e))?;
     entry
         .get_password()
         .map_err(|e| anyhow!("No endpoint mode found: {}", e))
@@ -255,4 +256,20 @@ pub fn get_verbose() -> Result<bool> {
         .get_password()
         .map(|v| v == "true")
         .map_err(|e| anyhow!("No verbose setting found: {}", e))
+}
+
+pub fn save_custom_base_url(url: &str) -> Result<()> {
+    let entry = Entry::new(SERVICE_NAME, CUSTOM_BASE_URL_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .set_password(url)
+        .map_err(|e| anyhow!("Failed to save custom base url: {}", e))
+}
+
+pub fn get_custom_base_url() -> Result<String> {
+    let entry = Entry::new(SERVICE_NAME, CUSTOM_BASE_URL_KEY)
+        .map_err(|e| anyhow!("Keyring error: {}", e))?;
+    entry
+        .get_password()
+        .map_err(|e| anyhow!("No custom base url found: {}", e))
 }

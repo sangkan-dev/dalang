@@ -113,6 +113,7 @@ export interface Settings {
   endpoint_mode: string;
   auth_status: string;
   api_key?: string;
+  custom_base_url?: string;
   verbose?: boolean;
 }
 
