@@ -6,7 +6,7 @@ use axum::response::IntoResponse;
 use rust_embed::Embed;
 
 #[derive(Embed)]
-#[folder = "web/dist/"]
+#[folder = "web2/build/"]
 pub struct WebAssets;
 
 /// Serve embedded static files. Falls back to index.html for SPA routing.

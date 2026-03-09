@@ -3,13 +3,13 @@
 # Build everything: frontend + Rust binary
 all: web-build cargo-build
 
-# Build the Svelte frontend
+# Build the SvelteKit frontend
 web-build:
-	@echo "[*] Building Svelte frontend..."
-	cd web && npm install && npm run build
-	@echo "[+] Frontend built to web/dist/"
+	@echo "[*] Building SvelteKit frontend..."
+	cd web2 && npm install && npm run build
+	@echo "[+] Frontend built to web2/build/"
 
-# Build the Rust binary (embeds web/dist/)
+# Build the Rust binary (embeds web2/build/)
 cargo-build:
 	@echo "[*] Building Rust binary..."
 	cargo build --release
@@ -17,10 +17,10 @@ cargo-build:
 
 # Clean all build artifacts
 clean:
-	rm -rf web/dist web/node_modules target
+	rm -rf web2/build web2/node_modules target
 
 # Dev mode: run Vite dev server + Rust backend concurrently
 dev:
 	@echo "[*] Starting dev mode..."
-	@echo "    Run 'cd web && npm run dev' in one terminal"
+	@echo "    Run 'cd web2 && npm run dev' in one terminal"
 	@echo "    Run 'cargo run -- web --port 8080' in another"

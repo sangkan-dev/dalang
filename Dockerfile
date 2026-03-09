@@ -1,9 +1,9 @@
 # --- Stage 1: Frontend Build ---
 FROM node:24-slim AS frontend-builder
-WORKDIR /app/web
-COPY web/package*.json ./
+WORKDIR /app/web2
+COPY web2/package*.json ./
 RUN npm install
-COPY web/ ./
+COPY web2/ ./
 RUN npm run build
 
 # --- Stage 2: Backend Build ---
@@ -15,7 +15,7 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
 COPY src/ ./src/
 COPY skills/ ./skills/
-COPY --from=frontend-builder /app/web/dist ./web/dist
+COPY --from=frontend-builder /app/web2/build ./web2/build
 RUN touch src/main.rs && cargo build --release
 
 # --- Stage 3: Final Runtime ---

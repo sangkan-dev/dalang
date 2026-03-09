@@ -658,7 +658,7 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 **Goal:** Menetapkan fondasi migrasi penuh dari `web/` ke `web2/` (SvelteKit) dengan arsitektur route final dan design system Ancient Cybernetics sebagai baseline seluruh UI Dalang.
 
-- ⬜ **[DAL-3101] - Architecture - Final Route Map & Runtime Strategy (`web2/` + `src/adapters/inbound/web/*`)**
+- ✅ **[DAL-3101] - Architecture - Final Route Map & Runtime Strategy (`web2/` + `src/adapters/inbound/web/*`)**
   - Tetapkan struktur route SvelteKit: landing publik (`/`) dan dashboard aplikasi (`/dashboard/*`) sebagai jalur utama operasional.
   - Terapkan strategi **hybrid runtime**: landing siap deploy mandiri, dashboard tetap terintegrasi dengan backend Dalang.
   - Definisikan kontrak integrasi API + WebSocket agar kompatibel dengan handler axum yang sudah ada.
@@ -670,7 +670,7 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
   - Integrasikan `Plus Jakarta Sans` untuk heading/UI dan `JetBrains Mono` untuk data/log.
   - Self-host `Noto Sans Javanese` (`.woff2`) untuk identitas cipher reveal.
   - Dokumentasikan fallback font chain lintas desktop/mobile.
-- ⬜ **[DAL-3104] - Frontend Infrastructure - SvelteKit App Mode Hardening (`web2/package.json`, `web2/svelte.config.js`)**
+- ✅ **[DAL-3104] - Frontend Infrastructure - SvelteKit App Mode Hardening (`web2/package.json`, `web2/svelte.config.js`)**
   - Rapikan konfigurasi `web2` dari template library menjadi aplikasi production-ready.
   - Finalisasi script dev/build/check/test untuk pipeline Dalang.
   - Verifikasi hasil build siap dikonsumsi untuk mode embed dashboard.

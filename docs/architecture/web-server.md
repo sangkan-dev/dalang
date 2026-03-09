@@ -1,6 +1,6 @@
 # Web Server Architecture
 
-Dalang's web UI is a single-binary full-stack application: an axum HTTP server serves an embedded Svelte 5 SPA and exposes REST + WebSocket APIs.
+Dalang's web UI is a single-binary full-stack application: an axum HTTP server serves an embedded SvelteKit app artifact (`web2/build`) and exposes REST + WebSocket APIs.
 
 ## High-Level Diagram
 
@@ -10,8 +10,8 @@ Dalang's web UI is a single-binary full-stack application: an axum HTTP server s
 │                                                  │
 │  ┌────────────────┐   ┌──────────────────────┐  │
 │  │  axum Router    │   │  rust-embed          │  │
-│  │  /api/*  REST   │   │  web/dist/*          │  │
-│  │  /api/ws  WS    │   │  (Svelte SPA)        │  │
+│  │  /api/*  REST   │   │  web2/build/*        │  │
+│  │  /api/ws  WS    │   │  (SvelteKit static)  │  │
 │  └───────┬────────┘   └──────────┬───────────┘  │
 │          │                       │               │
 │          ▼                       ▼               │
@@ -122,7 +122,34 @@ On startup, the server loads all persisted sessions from disk. When the Web UI l
 | Markdown | marked 15 + highlight.js 11 |
 | Testing | vitest 3.2 + jsdom 26 |
 
-The compiled frontend (`web/dist/`) is embedded into the Rust binary via `rust-embed`, so `dalang web` works as a single self-contained binary with zero external dependencies for serving.
+The compiled frontend (`web2/build/`) is embedded into the Rust binary via `rust-embed`, so `dalang web` works as a single self-contained binary with zero external dependencies for serving.
+
+## Route And Runtime Contract (Sprint 31)
+
+This section defines the current source-of-truth route ownership and deployment behavior.
+
+### Route Ownership
+
+| Route Pattern | Owner | Notes |
+|---|---|---|
+| `/` | SvelteKit landing | Public-facing marketing and product entry route. |
+| `/dashboard/*` | SvelteKit dashboard app | Main operational interface. Future feature routes (chat, skills, reports, settings) live here. |
+| `/api/*` | Rust axum backend | REST API surface for sessions, skills, reports, and settings. |
+| `/api/ws/{session_id}` | Rust axum backend | Real-time engine event stream for interactive and autonomous runs. |
+
+### Runtime Strategy
+
+| Context | Frontend Delivery | Backend Delivery |
+|---|---|---|
+| Local development | `npm run dev` from `web2/` (Vite) | `cargo run -- web --port <port>` |
+| Production single binary | Embedded static assets from `web2/build/` | Same Rust binary serves both static files and APIs |
+
+### Invariants
+
+1. Frontend build output path is `web2/build/`.
+2. Rust embed folder must remain `web2/build/` (`src/adapters/inbound/web/embedded.rs`).
+3. CI/release pipelines must build frontend from `web2/` before `cargo build`.
+4. API and WebSocket namespaces stay under `/api` to avoid route collisions with SvelteKit pages.
 
 ### WebSocket Reconnection
 
