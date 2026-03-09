@@ -1,6 +1,6 @@
 use crate::application::ports::llm_port::LlmPort;
 use crate::domain::models::{AuthToken, Message};
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
 
@@ -62,6 +62,18 @@ pub struct OpenAiCompatibleProvider {
 
 impl OpenAiCompatibleProvider {
     pub fn new(base_url: String, model: String, auth: AuthToken) -> Result<Self> {
+        let normalized_base_url = base_url.trim().trim_end_matches('/').to_string();
+        if normalized_base_url.is_empty() {
+            return Err(anyhow!("Base URL is empty for OpenAI-compatible provider"));
+        }
+
+        let normalized_model = model.trim().to_string();
+        if normalized_model.is_empty() {
+            return Err(anyhow!(
+                "Model name is empty for OpenAI-compatible provider"
+            ));
+        }
+
         let mut headers = header::HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
@@ -70,28 +82,48 @@ impl OpenAiCompatibleProvider {
 
         match &auth {
             AuthToken::ApiKey(key) => {
+                let key = key.trim();
                 let auth_val = format!("Bearer {}", key);
                 headers.insert(
                     header::AUTHORIZATION,
-                    header::HeaderValue::from_str(&auth_val)?,
+                    header::HeaderValue::from_str(&auth_val)
+                        .context("Invalid API key format for Authorization header")?,
                 );
             }
             AuthToken::Bearer(token) => {
+                let token = token.trim();
                 let auth_val = format!("Bearer {}", token);
                 headers.insert(
                     header::AUTHORIZATION,
-                    header::HeaderValue::from_str(&auth_val)?,
+                    header::HeaderValue::from_str(&auth_val)
+                        .context("Invalid bearer token format for Authorization header")?,
                 );
             }
             AuthToken::None => {}
         }
 
-        let client = Client::builder().default_headers(headers).build()?;
+        let client = match Client::builder().default_headers(headers.clone()).build() {
+            Ok(client) => client,
+            Err(primary_err) => {
+                // If system proxy env is malformed, reqwest can fail at build-time.
+                Client::builder()
+                    .default_headers(headers)
+                    .no_proxy()
+                    .build()
+                    .map_err(|fallback_err| {
+                        anyhow!(
+                            "Failed to build HTTP client. with-proxy: {}; no-proxy: {}",
+                            primary_err,
+                            fallback_err
+                        )
+                    })?
+            }
+        };
 
         Ok(Self {
             client,
-            base_url,
-            model,
+            base_url: normalized_base_url,
+            model: normalized_model,
         })
     }
 }
@@ -111,8 +143,13 @@ impl LlmPort for OpenAiCompatibleProvider {
     }
 
     async fn get_available_models(&self) -> Result<Vec<String>> {
-        let endpoint = format!("{}/models", self.base_url.trim_end_matches('/'));
-        let response = self.client.get(&endpoint).send().await?;
+        let endpoint = format!("{}/models", self.base_url);
+        let response = self
+            .client
+            .get(&endpoint)
+            .send()
+            .await
+            .with_context(|| format!("Failed requesting model list at {}", endpoint))?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -151,7 +188,9 @@ impl OpenAiCompatibleProvider {
         messages: &[Message],
         tools: Option<Vec<serde_json::Value>>,
     ) -> Result<String> {
-        let endpoint = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
+        let endpoint = format!("{}/chat/completions", self.base_url);
+        reqwest::Url::parse(&endpoint)
+            .with_context(|| format!("Invalid OpenAI-compatible endpoint URL: {}", endpoint))?;
 
         let req_body = OpenAiRequest {
             model: &self.model,
@@ -160,7 +199,18 @@ impl OpenAiCompatibleProvider {
             tools,
         };
 
-        let response = self.client.post(&endpoint).json(&req_body).send().await?;
+        let response = self
+            .client
+            .post(&endpoint)
+            .json(&req_body)
+            .send()
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed sending LLM request to {} using model {}",
+                    endpoint, self.model
+                )
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();

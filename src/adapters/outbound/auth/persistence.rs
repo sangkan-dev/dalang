@@ -235,11 +235,17 @@ pub fn delete_oauth_credentials() -> Result<()> {
 }
 
 pub fn save_api_key(key: &str) -> Result<()> {
-    STORAGE.set(API_KEY_KEY, key)
+    STORAGE.set(API_KEY_KEY, key.trim())
 }
 
 pub fn get_api_key() -> Result<String> {
-    STORAGE.get(API_KEY_KEY)
+    let key = STORAGE.get(API_KEY_KEY)?;
+    let trimmed = key.trim().to_string();
+    if trimmed.is_empty() {
+        Err(anyhow!("Stored API key is empty"))
+    } else {
+        Ok(trimmed)
+    }
 }
 
 pub fn save_verbose(verbose: bool) -> Result<()> {
@@ -251,9 +257,15 @@ pub fn get_verbose() -> Result<bool> {
 }
 
 pub fn save_custom_base_url(url: &str) -> Result<()> {
-    STORAGE.set(CUSTOM_BASE_URL_KEY, url)
+    STORAGE.set(CUSTOM_BASE_URL_KEY, url.trim())
 }
 
 pub fn get_custom_base_url() -> Result<String> {
-    STORAGE.get(CUSTOM_BASE_URL_KEY)
+    let url = STORAGE.get(CUSTOM_BASE_URL_KEY)?;
+    let trimmed = url.trim().to_string();
+    if trimmed.is_empty() {
+        Err(anyhow!("Stored custom base URL is empty"))
+    } else {
+        Ok(trimmed)
+    }
 }
