@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client.js';
 	import type { Session } from '$lib/api/types.js';
 	import ToastStack from '$lib/dashboard/ToastStack.svelte';
 	import { toast } from '$lib/dashboard/toast.js';
+	import DashboardNav from '$lib/features/layout/DashboardNav.svelte';
+	import SessionsList from '$lib/features/layout/SessionsList.svelte';
+	import CommandPalette from '$lib/features/layout/CommandPalette.svelte';
 
 	const { children } = $props();
 
@@ -13,24 +17,30 @@
 	let mobileOpen = $state(false);
 	let showPalette = $state(false);
 
-	const navItems = [
-		{ href: '/dashboard', label: 'Overview' },
-		{ href: '/dashboard/chat', label: 'Chat' },
-		{ href: '/dashboard/skills', label: 'Skills' },
-		{ href: '/dashboard/reports', label: 'Reports' },
-		{ href: '/dashboard/settings', label: 'Settings' }
-	];
-
-	const paletteItems = [
-		{ href: '/dashboard/chat', label: 'Open Chat', desc: 'Interactive console' },
-		{ href: '/dashboard/skills', label: 'Browse Skills', desc: 'Skill catalog and toggles' },
-		{ href: '/dashboard/reports', label: 'Open Reports', desc: 'Saved report artifacts' },
-		{ href: '/dashboard/settings', label: 'Open Settings', desc: 'Provider and model config' },
-		{ href: '/dashboard/chat', label: 'New Session', desc: 'Start fresh target session' }
-	];
-
 	let paletteQuery = $state('');
 	let selectedIndex = $state(0);
+	type DashboardRoute =
+		| '/dashboard'
+		| '/dashboard/chat'
+		| '/dashboard/skills'
+		| '/dashboard/reports'
+		| '/dashboard/settings';
+
+	const navItems: Array<{ route: DashboardRoute; label: string }> = [
+		{ route: '/dashboard', label: 'Overview' },
+		{ route: '/dashboard/chat', label: 'Chat' },
+		{ route: '/dashboard/skills', label: 'Skills' },
+		{ route: '/dashboard/reports', label: 'Reports' },
+		{ route: '/dashboard/settings', label: 'Settings' }
+	];
+
+	const paletteItems: Array<{ route: DashboardRoute; label: string; desc: string }> = [
+		{ route: '/dashboard/chat', label: 'Open Chat', desc: 'Interactive console' },
+		{ route: '/dashboard/skills', label: 'Browse Skills', desc: 'Skill catalog and toggles' },
+		{ route: '/dashboard/reports', label: 'Open Reports', desc: 'Saved report artifacts' },
+		{ route: '/dashboard/settings', label: 'Open Settings', desc: 'Provider and model config' },
+		{ route: '/dashboard/chat', label: 'New Session', desc: 'Start fresh target session' }
+	];
 
 	const filteredPalette = $derived.by(() => {
 		const query = paletteQuery.trim().toLowerCase();
@@ -74,14 +84,35 @@
 		selectedIndex = 0;
 	}
 
+	function toggleMobileMenu(): void {
+		mobileOpen = !mobileOpen;
+	}
+
+	function closeMobileMenu(): void {
+		mobileOpen = false;
+	}
+
+	function onPaletteInput(): void {
+		selectedIndex = 0;
+	}
+
+	function onPaletteQueryChange(value: string): void {
+		paletteQuery = value;
+	}
+
+	async function openSession(id: string): Promise<void> {
+		window.location.assign(`${resolve('/dashboard/chat')}?session=${id}`);
+		closeMobileMenu();
+	}
+
 	function selectPaletteItem(index: number): void {
 		selectedIndex = index;
 	}
 
-	function runPaletteSelection(): void {
+	async function runPaletteSelection(): Promise<void> {
 		const item = filteredPalette[selectedIndex];
 		if (!item) return;
-		goto(item.href);
+		await goto(resolve(item.route));
 		closePalette();
 	}
 
@@ -94,17 +125,12 @@
 			selectedIndex = Math.max(selectedIndex - 1, 0);
 		} else if (event.key === 'Enter') {
 			event.preventDefault();
-			runPaletteSelection();
+			void runPaletteSelection();
 		} else if (event.key === 'Escape') {
 			event.preventDefault();
 			closePalette();
 		}
 	}
-
-	$effect(() => {
-		paletteQuery;
-		selectedIndex = 0;
-	});
 
 	onMount(() => {
 		loadSessions();
@@ -126,116 +152,44 @@
 </script>
 
 <div class="dashboard-shell">
-	<header class="dashboard-header">
+	<header class="dashboard-header dashboard-command-frame">
 		<div>
 			<p class="dashboard-kicker">DALANG DASHBOARD</p>
 			<h1 class="dashboard-title">Operational Console</h1>
 		</div>
 		<div class="flex items-center gap-2">
 			<button
-				class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+				class="inline-flex items-center justify-center rounded-md border border-(--color-gold)/30 bg-white/5 px-3 py-2 font-mono text-xs tracking-[0.08em] text-(--color-gold-bright) uppercase transition hover:-translate-y-px hover:border-(--color-gold)/50"
 				onclick={openPalette}>Command Palette</button
 			>
 			<button
-				class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)] lg:hidden"
-				onclick={() => (mobileOpen = !mobileOpen)}>Menu</button
+				class="inline-flex items-center justify-center rounded-md border border-(--color-gold)/30 bg-white/5 px-3 py-2 font-mono text-xs tracking-[0.08em] text-(--color-gold-bright) uppercase transition hover:-translate-y-px hover:border-(--color-gold)/50 lg:hidden"
+				onclick={toggleMobileMenu}>Menu</button
 			>
 		</div>
 	</header>
 
 	<div class="grid gap-4 lg:grid-cols-[230px_1fr]">
-		<aside class="surface-panel p-3 {mobileOpen ? 'block' : 'hidden'} lg:block">
-			<nav class="space-y-1">
-				{#each navItems as item}
-					<a
-						href={item.href}
-						class="block rounded-lg px-3 py-2 text-sm transition-colors {page.url.pathname ===
-						item.href
-							? 'bg-[color:var(--color-gold)]/20 text-[color:var(--color-gold-bright)]'
-							: 'text-[color:var(--color-ash)] hover:bg-white/5 hover:text-[color:var(--color-base-text)]'}"
-						onclick={() => (mobileOpen = false)}
-					>
-						{item.label}
-					</a>
-				{/each}
-			</nav>
-
-			<div class="mt-4 border-t border-[color:var(--color-border)] pt-3">
-				<div class="mb-2 flex items-center justify-between">
-					<p class="text-[10px] tracking-[0.16em] text-[color:var(--color-ash)] uppercase">
-						Sessions
-					</p>
-					<a href="/dashboard/chat" class="text-xs text-[color:var(--color-gold-bright)]">new</a>
-				</div>
-				<div class="space-y-1">
-					{#if sessions.length === 0}
-						<p class="px-2 py-1 text-xs text-[color:var(--color-ash)]">No sessions yet</p>
-					{:else}
-						{#each sessions as session}
-							<a
-								href={`/dashboard/chat?session=${session.id}`}
-								class="group flex items-center justify-between rounded-md px-2 py-1.5 text-xs text-[color:var(--color-ash)] hover:bg-white/5"
-							>
-								<span class="truncate pr-2">{session.target}</span>
-								<button
-									class="hidden text-[color:var(--color-rust)] group-hover:block"
-									onclick={(event) => deleteSession(event, session.id)}
-									aria-label="Delete session">x</button
-								>
-							</a>
-						{/each}
-					{/if}
-				</div>
-			</div>
+		<aside class="surface-panel dashboard-nav-panel p-3 {mobileOpen ? 'block' : 'hidden'} lg:block">
+			<DashboardNav {navItems} activePath={page.url.pathname} onNavigate={closeMobileMenu} />
+			<SessionsList {sessions} onOpenSession={openSession} onDeleteSession={deleteSession} />
 		</aside>
 
 		<main class="dashboard-main">{@render children()}</main>
 	</div>
 </div>
 
-{#if showPalette}
-	<div
-		class="fixed inset-0 z-50 bg-black/60"
-		role="presentation"
-		onclick={closePalette}
-		onkeydown={() => {}}
-	>
-		<div
-			class="mx-auto mt-24 w-full max-w-xl rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]"
-			role="dialog"
-			tabindex="-1"
-			onclick={(event) => event.stopPropagation()}
-			onkeydown={onPaletteKeydown}
-		>
-			<div class="border-b border-[color:var(--color-border)] px-4 py-3">
-				<input
-					bind:value={paletteQuery}
-					placeholder="Search command..."
-					class="w-full bg-transparent text-sm text-[color:var(--color-base-text)] outline-none placeholder:text-[color:var(--color-ash)]"
-				/>
-			</div>
-			<div class="max-h-72 overflow-y-auto p-2">
-				{#if filteredPalette.length === 0}
-					<p class="px-2 py-3 text-sm text-[color:var(--color-ash)]">No matches</p>
-				{:else}
-					{#each filteredPalette as item, index}
-						<button
-							class="w-full rounded-lg px-3 py-2 text-left text-sm {index === selectedIndex
-								? 'bg-[color:var(--color-gold)]/20 text-[color:var(--color-gold-bright)]'
-								: 'text-[color:var(--color-ash)] hover:bg-white/5'}"
-							onclick={() => {
-								selectPaletteItem(index);
-								runPaletteSelection();
-							}}
-						>
-							<p>{item.label}</p>
-							<p class="text-xs opacity-70">{item.desc}</p>
-						</button>
-					{/each}
-				{/if}
-			</div>
-		</div>
-	</div>
-{/if}
+<CommandPalette
+	{showPalette}
+	{paletteQuery}
+	{selectedIndex}
+	{filteredPalette}
+	{onPaletteInput}
+	{onPaletteQueryChange}
+	onClose={closePalette}
+	onKeydown={onPaletteKeydown}
+	onSelectItem={selectPaletteItem}
+	onRunSelection={runPaletteSelection}
+/>
 
 <ToastStack />

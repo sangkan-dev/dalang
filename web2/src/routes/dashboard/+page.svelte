@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { apiClient } from '$lib/api/client.js';
 
 	type LoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -38,24 +39,22 @@
 </script>
 
 <section class="space-y-6">
-	<header class="space-y-2">
-		<p class="text-xs tracking-[0.2em] text-[color:var(--color-ash)] uppercase">
-			Sprint 33 Initialization
-		</p>
-		<h2 class="text-2xl font-semibold text-[color:var(--color-text)]">
-			Dashboard Migration Started
-		</h2>
+	<header class="surface-panel dashboard-warboard space-y-3 p-5">
+		<p class="text-xs tracking-[0.2em] text-[color:var(--color-ash)] uppercase">DALANG WAR ROOM</p>
+		<h2 class="text-2xl font-semibold text-[color:var(--color-text)]">Operational Pulse</h2>
 		<p class="max-w-2xl text-sm text-[color:var(--color-ash)]">
-			Shared API client has been moved into SvelteKit. This page verifies REST connectivity while
-			the chat, skills, reports, and settings views are being ported.
+			Live command center for scan operations, skill orchestration, and report readiness. This panel
+			is tuned for high-pressure audit sessions with fast route pivots.
 		</p>
-		<div class="pt-2">
+		<div class="flex flex-wrap gap-2 pt-2">
 			<a
-				href="/dashboard/chat"
-				class="inline-flex items-center rounded-lg bg-[color:var(--color-gold)] px-4 py-2 text-sm font-semibold text-[color:#1f1708]"
+				href={resolve('/dashboard/chat')}
+				class="inline-flex items-center rounded-lg bg-[color:var(--color-gold)] px-4 py-2 text-sm font-semibold text-[color:#1f1708] no-underline"
 			>
-				Open Chat Console
+				Enter Live Console
 			</a>
+			<a href={resolve('/dashboard/reports')} class="control-chip">Review Reports</a>
+			<a href={resolve('/dashboard/skills')} class="control-chip">Skill Matrix</a>
 		</div>
 	</header>
 
@@ -73,30 +72,22 @@
 		</div>
 	{:else}
 		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-			<article
-				class="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4"
-			>
+			<article class="surface-panel dashboard-metric-card p-4">
 				<p class="text-xs tracking-[0.15em] text-[color:var(--color-ash)] uppercase">Sessions</p>
 				<p class="mt-2 text-2xl font-semibold text-[color:var(--color-text)]">{totalSessions}</p>
 				<p class="text-xs text-[color:var(--color-ash)]">{activeSessions} active</p>
 			</article>
-			<article
-				class="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4"
-			>
+			<article class="surface-panel dashboard-metric-card p-4">
 				<p class="text-xs tracking-[0.15em] text-[color:var(--color-ash)] uppercase">Skills</p>
 				<p class="mt-2 text-2xl font-semibold text-[color:var(--color-text)]">{totalSkills}</p>
 				<p class="text-xs text-[color:var(--color-ash)]">registered</p>
 			</article>
-			<article
-				class="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4"
-			>
+			<article class="surface-panel dashboard-metric-card p-4">
 				<p class="text-xs tracking-[0.15em] text-[color:var(--color-ash)] uppercase">Reports</p>
 				<p class="mt-2 text-2xl font-semibold text-[color:var(--color-text)]">{totalReports}</p>
 				<p class="text-xs text-[color:var(--color-ash)]">stored artifacts</p>
 			</article>
-			<article
-				class="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4"
-			>
+			<article class="surface-panel dashboard-metric-card p-4">
 				<p class="text-xs tracking-[0.15em] text-[color:var(--color-ash)] uppercase">Model</p>
 				<p class="mt-2 truncate text-sm font-semibold text-[color:var(--color-text)]">
 					{currentModel}
