@@ -151,20 +151,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_static_fallback_serves_index_html() {
+    async fn test_static_root_redirects_to_dashboard() {
         let req = Request::builder().uri("/").body(Body::empty()).unwrap();
 
         let res = app().oneshot(req).await.unwrap();
-        assert_eq!(res.status(), StatusCode::OK);
-
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let html = String::from_utf8(body.to_vec()).unwrap();
-        assert!(
-            html.contains("<!DOCTYPE html>") || html.contains("<!doctype html>"),
-            "Expected HTML content"
-        );
+        assert_eq!(res.status(), StatusCode::TEMPORARY_REDIRECT);
+        let location = res
+            .headers()
+            .get("location")
+            .and_then(|value| value.to_str().ok());
+        assert_eq!(location, Some("/dashboard"));
     }
 
     #[tokio::test]

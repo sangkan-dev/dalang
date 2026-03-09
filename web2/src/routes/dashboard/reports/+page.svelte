@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client.js';
+	import { renderMarkdown } from '$lib/markdown.js';
 	import type { ReportEntry } from '$lib/api/types.js';
 	import { toast } from '$lib/dashboard/toast.js';
 
@@ -9,6 +10,7 @@
 	let error = $state('');
 	let reports = $state<ReportEntry[]>([]);
 	let selectedReport = $state<string | null>(null);
+	let reportMarkdown = $state('');
 	let reportHtml = $state('');
 
 	async function loadReports(): Promise<void> {
@@ -26,8 +28,13 @@
 	async function viewReport(filename: string): Promise<void> {
 		loadingReport = true;
 		try {
-			const response = await fetch(`/api/reports/${filename}?format=html`);
-			reportHtml = await response.text();
+			const response = await fetch(`/api/reports/${filename}`);
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+			const data = (await response.json()) as { filename: string; content: string };
+			reportMarkdown = data.content;
+			reportHtml = renderMarkdown(data.content);
 			selectedReport = filename;
 		} catch (err) {
 			toast.error(`Failed to load report: ${err instanceof Error ? err.message : 'unknown error'}`);
@@ -37,11 +44,9 @@
 	}
 
 	async function downloadMarkdown(): Promise<void> {
-		if (!selectedReport) return;
+		if (!selectedReport || !reportMarkdown) return;
 		try {
-			const response = await fetch(`/api/reports/${selectedReport}`);
-			const text = await response.text();
-			const blob = new Blob([text], { type: 'text/markdown' });
+			const blob = new Blob([reportMarkdown], { type: 'text/markdown' });
 			const url = URL.createObjectURL(blob);
 			const anchor = document.createElement('a');
 			anchor.href = url;
@@ -55,7 +60,7 @@
 
 	function downloadHtml(): void {
 		if (!selectedReport || !reportHtml) return;
-		const html = `<!doctype html><html><head><meta charset="utf-8"><title>${selectedReport}</title></head><body>${reportHtml}</body></html>`;
+		const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${selectedReport}</title></head><body style="font-family: ui-sans-serif, system-ui; margin: 24px; line-height: 1.55;">${reportHtml}</body></html>`;
 		const blob = new Blob([html], { type: 'text/html' });
 		const url = URL.createObjectURL(blob);
 		const anchor = document.createElement('a');
@@ -75,7 +80,7 @@
 	</header>
 
 	<div class="grid gap-3 lg:grid-cols-[300px_1fr]">
-		<div class="surface-panel max-h-[72vh] overflow-y-auto p-2">
+		<div class="surface-panel max-h-[72vh] overflow-auto p-2">
 			{#if loading}
 				<p class="px-2 py-2 text-sm text-[color:var(--color-ash)]">Loading reports...</p>
 			{:else if error}
@@ -100,7 +105,7 @@
 					<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={downloadMarkdown}>Download MD</button>
 					<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={downloadHtml}>Download HTML</button>
 				</div>
-				<div class="rounded-lg border border-[color:var(--color-border)] p-3">
+				<div class="dashboard-markdown rounded-lg border border-[color:var(--color-border)] p-3" dir="auto">
 					{@html reportHtml}
 				</div>
 			{:else}

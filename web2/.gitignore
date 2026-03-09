@@ -26,3 +26,6 @@ vite.config.ts.timestamp-*
 test-results
 # Cloudflare Types
 /worker-configuration.d.ts
+
+build-landing
+build-dashboard

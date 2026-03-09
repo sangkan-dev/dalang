@@ -1,0 +1,43 @@
+name: Deploy Landing to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web2/**'
+      - '.github/workflows/deploy-landing-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web2/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web2
+
+      - name: Build landing artifact
+        run: npm run build:landing
+        working-directory: web2
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: dalang-landing
+          directory: web2/build-landing
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

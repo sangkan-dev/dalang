@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { apiClient } from '$lib/api/client.js';
+	import { renderMarkdown } from '$lib/markdown.js';
 	import type { SkillDetail, SkillSummary } from '$lib/api/types.js';
 	import { toast } from '$lib/dashboard/toast.js';
 	import { onMount } from 'svelte';
@@ -72,7 +73,7 @@
 			<div class="surface-panel p-4 text-sm text-[color:var(--color-rust)]">{error}</div>
 		{:else if viewMode === 'list'}
 			<div class="grid gap-3 lg:grid-cols-[320px_1fr]">
-				<div class="surface-panel max-h-[70vh] overflow-y-auto p-2">
+				<div class="surface-panel max-h-[72vh] overflow-auto p-2">
 					{#if filteredSkills.length === 0}
 						<p class="px-2 py-2 text-sm text-[color:var(--color-ash)]">No matching skills</p>
 					{:else}
@@ -90,7 +91,7 @@
 					{/if}
 				</div>
 
-				<div class="surface-panel p-4">
+				<div class="surface-panel max-h-[72vh] overflow-auto p-4">
 					{#if selectedSkill}
 						<div class="mb-3 flex items-start justify-between gap-3">
 							<div>
@@ -118,18 +119,24 @@
 							{#if selectedSkill.role}
 								<article class="rounded-lg border border-[color:var(--color-border)] p-3">
 									<p class="mb-1 text-xs uppercase tracking-[0.12em] text-[color:var(--color-ash)]">Role</p>
-									<pre class="whitespace-pre-wrap text-xs text-[color:var(--color-base-text)]">{selectedSkill.role}</pre>
+									<div class="dashboard-markdown text-xs" dir="auto">
+										{@html renderMarkdown(selectedSkill.role)}
+									</div>
 								</article>
 							{/if}
 							{#if selectedSkill.task}
 								<article class="rounded-lg border border-[color:var(--color-border)] p-3">
 									<p class="mb-1 text-xs uppercase tracking-[0.12em] text-[color:var(--color-ash)]">Task</p>
-									<pre class="whitespace-pre-wrap text-xs text-[color:var(--color-base-text)]">{selectedSkill.task}</pre>
+									<div class="dashboard-markdown text-xs" dir="auto">
+										{@html renderMarkdown(selectedSkill.task)}
+									</div>
 								</article>
 							{/if}
 							<article class="rounded-lg border border-[color:var(--color-border)] p-3">
 								<p class="mb-1 text-xs uppercase tracking-[0.12em] text-[color:var(--color-ash)]">System Prompt</p>
-								<pre class="whitespace-pre-wrap text-xs text-[color:var(--color-base-text)]">{selectedSkill.system_prompt}</pre>
+								<div class="dashboard-markdown text-xs" dir="auto">
+									{@html renderMarkdown(selectedSkill.system_prompt)}
+								</div>
 							</article>
 						</div>
 					{:else}

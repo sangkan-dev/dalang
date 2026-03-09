@@ -4,7 +4,7 @@ WORKDIR /app/web2
 COPY web2/package*.json ./
 RUN npm install
 COPY web2/ ./
-RUN npm run build
+RUN npm run build:dashboard
 
 # --- Stage 2: Backend Build ---
 FROM rust:1.94-slim-bookworm AS backend-builder
@@ -15,7 +15,7 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
 COPY src/ ./src/
 COPY skills/ ./skills/
-COPY --from=frontend-builder /app/web2/build ./web2/build
+COPY --from=frontend-builder /app/web2/build-dashboard ./web2/build-dashboard
 RUN touch src/main.rs && cargo build --release
 
 # --- Stage 3: Final Runtime ---

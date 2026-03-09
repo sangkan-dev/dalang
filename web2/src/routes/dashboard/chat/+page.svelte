@@ -2,6 +2,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import { apiClient } from '$lib/api/client.js';
 	import { replayEvents } from '$lib/api/events.js';
+	import { renderMarkdown } from '$lib/markdown.js';
 	import { createDalangWebSocket } from '$lib/api/websocket.js';
 	import type { ChatMessage, DalangWebSocket, EngineEvent, SessionMode } from '$lib/api/types.js';
 	import { toast } from '$lib/dashboard/toast.js';
@@ -255,11 +256,13 @@
 				<p>{isReconnecting ? 'Reconnecting...' : isConnected ? 'Connected' : 'Disconnected'}</p>
 			</div>
 
-			<div bind:this={chatContainer} class="max-h-[55vh] space-y-2 overflow-y-auto px-4 py-3">
+			<div bind:this={chatContainer} class="max-h-[62vh] min-h-[45vh] space-y-2 overflow-auto px-4 py-3">
 				{#each messages as message}
-					<div class="rounded-lg border border-[color:var(--color-border)] p-3 text-sm">
+					<div class="overflow-x-hidden rounded-lg border border-[color:var(--color-border)] p-3 text-sm">
 						<p class="mb-1 text-xs uppercase tracking-[0.12em] text-[color:var(--color-ash)]">{message.role}</p>
-						<pre class="whitespace-pre-wrap break-words font-sans text-[color:var(--color-text)]">{message.content}</pre>
+						<div class="dashboard-markdown" dir="auto">
+							{@html renderMarkdown(message.content)}
+						</div>
 					</div>
 				{/each}
 			</div>

@@ -75,10 +75,10 @@ pub async fn start_server(
     let addr = format!("0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
-    println!("[*] Dalang Web UI running at http://localhost:{}", port);
+    println!("[*] Dalang Dashboard running at http://localhost:{}/dashboard", port);
 
     if open_browser {
-        let url = format!("http://localhost:{}", port);
+        let url = format!("http://localhost:{}/dashboard", port);
         if open::that(&url).is_err() {
             println!("[!] Could not open browser. Please navigate to: {}", url);
         }

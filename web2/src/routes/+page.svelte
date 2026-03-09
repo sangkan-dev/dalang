@@ -341,6 +341,7 @@ $ dalang web --port 8080 --open</code></pre>
 		</p>
 		<div class="flex flex-wrap gap-4 font-mono text-[0.78rem] uppercase tracking-[0.06em] text-[var(--color-gold-bright)]">
 			<a class="hover:brightness-110" href="/dashboard" onclick={onActionClick}>Dashboard</a>
+			<a class="hover:brightness-110" href="https://docs-dalang.sangkan.dev" target="_blank" rel="noreferrer" onclick={onActionClick}>Docs</a>
 			<a class="hover:brightness-110" href="/api/skills" onclick={onActionClick}>API</a>
 			<a class="hover:brightness-110" href="https://github.com/sangkan-dev/dalang" target="_blank" rel="noreferrer" onclick={onActionClick}
 				>GitHub</a
