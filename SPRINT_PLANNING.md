@@ -677,21 +677,21 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
-## Sprint 32: Landing Experience + Signature Brand Effects ⬜
+## Sprint 32: Landing Experience + Signature Brand Effects 🔄
 
 **Goal:** Membangun landing page Dalang yang siap deploy publik dengan identitas penuh Sangkan (Ancient Cybernetics), termasuk sonic interaction, cipher reveal, dan holographic CRT layer.
 
-- ⬜ **[DAL-3201] - Feature - Dalang Landing Page in SvelteKit (`web2/src/routes/+page.svelte`)**
+- 🔄 **[DAL-3201] - Feature - Dalang Landing Page in SvelteKit (`web2/src/routes/+page.svelte`)**
   - Bangun narasi produk: hero, problem framing, feature arsenal, install path, CTA ke dashboard/docs/repo.
   - Pastikan responsif mobile-first tanpa mengorbankan visual karakter brand.
-- ⬜ **[DAL-3202] - Feature - UI Sonics Engine (WebAudio) (`web2/src/lib/audio/*`)**
+- 🔄 **[DAL-3202] - Feature - UI Sonics Engine (WebAudio) (`web2/src/lib/audio/*`)**
   - Tambahkan procedural sound hooks (tick/hum) untuk interaksi UI utama.
   - Sediakan global toggle mute dan preferensi user persistence.
   - Hormati kebijakan browser autoplay serta fallback mode senyap.
-- ⬜ **[DAL-3203] - Feature - Cipher Reveal Component (`web2/src/lib/components/CipherReveal.svelte`)**
+- 🔄 **[DAL-3203] - Feature - Cipher Reveal Component (`web2/src/lib/components/CipherReveal.svelte`)**
   - Implement transisi teks dari script Javanese (ꦱꦁꦏꦤ꧀) ke latin menggunakan mekanisme scramble reveal.
   - Trigger berbasis viewport/scroll dengan kontrol performa.
-- ⬜ **[DAL-3204] - Feature - Holographic/CRT Layer (`web2/src/lib/visual/*`)**
+- 🔄 **[DAL-3204] - Feature - Holographic/CRT Layer (`web2/src/lib/visual/*`)**
   - Integrasi layer point-cloud/overlay + scanline + noise global sesuai signature Sangkan.
   - Tetapkan fallback untuk device low-power dan mode reduced motion.
 
@@ -768,7 +768,7 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 29     | Agent Concurrency & Open Providers                  | ✅ Done |
 | 30     | Dockerization & Tool Bundling                       | ✅ Done |
 | 31     | SvelteKit Cutover Architecture & Design Foundation  | ⬜ Todo |
-| 32     | Landing Experience & Signature Effects              | ⬜ Todo |
+| 32     | Landing Experience & Signature Effects              | 🔄 In Progress |
 | 33     | Dashboard Migration & Backend Embedding             | ⬜ Todo |
 | 34     | Repository Rebrand & Docs Migration                 | ⬜ Todo |
 
