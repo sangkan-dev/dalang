@@ -1,7 +1,7 @@
 ---
 name: dalfox_xss
 description: Advanced automated XSS scanner. Detects reflected, stored, and DOM-based XSS with WAF bypass support. More powerful than manual parameter testing.
-tool_path: dalfox
+tool_path: dalfox-linux-amd64
 args:
   - "url"
   - "{{target}}"

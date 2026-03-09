@@ -19,13 +19,13 @@ COPY --from=frontend-builder /app/web/dist ./web/dist
 RUN touch src/main.rs && cargo build --release
 
 # --- Stage 3: Final Runtime ---
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 WORKDIR /app
 
 # Enable non-free repository (required for nikto, etc.)
-RUN echo "deb http://deb.debian.org/debian bullseye main contrib non-free" > /etc/apt/sources.list && \
-    echo "deb http://deb.debian.org/debian bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb http://security.debian.org/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list
+RUN echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+    echo "deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
 
 # Install system dependencies and apt-available security tools
 RUN apt-get update && apt-get install -y \
@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     python3 \
     python3-pip \
+    python3-venv \
     ruby \
     ruby-dev \
     build-essential \
@@ -48,7 +49,7 @@ RUN apt-get update && apt-get install -y \
     smbclient \
     snmp \
     chromium \
-    libssl1.1 \
+    libssl3 \
     ca-certificates \
     masscan \
     sslscan \
@@ -101,10 +102,11 @@ RUN wget -q https://github.com/hahwul/dalfox/releases/download/v2.12.0/dalfox-li
     tar -xzf dalfox-linux-amd64.tar.gz dalfox-linux-amd64 && mv dalfox-linux-amd64 /usr/local/bin/ && \
     rm dalfox-linux-amd64.tar.gz
 
-# XSStrike - XSS scanner (Python)
+# XSStrike - XSS scanner (Python, isolated venv to avoid PEP 668 conflict)
 RUN git clone --depth 1 https://github.com/s0md3v/XSStrike.git /opt/xsstrike && \
-    pip3 install --no-cache-dir -r /opt/xsstrike/requirements.txt && \
-    printf '#!/bin/sh\nexec python3 /opt/xsstrike/xsstrike.py "$@"\n' > /usr/local/bin/xsstrike && \
+    python3 -m venv /opt/xsstrike/venv && \
+    /opt/xsstrike/venv/bin/pip install --no-cache-dir -r /opt/xsstrike/requirements.txt && \
+    printf '#!/bin/sh\nexec /opt/xsstrike/venv/bin/python /opt/xsstrike/xsstrike.py "$@"\n' > /usr/local/bin/xsstrike && \
     chmod +x /usr/local/bin/xsstrike
 
 # ── Port Scanners ──
@@ -125,20 +127,24 @@ RUN wget -q https://github.com/trufflesecurity/trufflehog/releases/download/v3.9
     rm trufflehog_3.93.7_linux_amd64.tar.gz
 
 # theHarvester - OSINT tool (uses uv as package manager, no requirements.txt)
-RUN pip3 install --no-cache-dir uv && \
+RUN pip3 install --no-cache-dir --break-system-packages uv && \
     git clone --depth 1 https://github.com/laramies/theHarvester.git /opt/theHarvester && \
     cd /opt/theHarvester && uv sync && \
     printf '#!/bin/sh\nexec /opt/theHarvester/.venv/bin/python /opt/theHarvester/theHarvester.py "$@"\n' > /usr/local/bin/theHarvester && \
     chmod +x /usr/local/bin/theHarvester
 
-# arjun - hidden HTTP parameter discovery
-RUN pip3 install --no-cache-dir arjun
+# arjun - hidden HTTP parameter discovery (isolated venv)
+RUN python3 -m venv /opt/arjun/venv && \
+    /opt/arjun/venv/bin/pip install --no-cache-dir arjun && \
+    printf '#!/bin/sh\nexec /opt/arjun/venv/bin/arjun "$@"\n' > /usr/local/bin/arjun && \
+    chmod +x /usr/local/bin/arjun
 
-# netexec (nxc) - CrackMapExec successor for network enumeration (not in Debian apt)
-RUN pip3 install --no-cache-dir pipx && \
-    pipx install git+https://github.com/Pennyw0rth/NetExec --pip-args="--no-cache-dir" && \
-    ln -s /root/.local/bin/nxc /usr/local/bin/nxc && \
-    ln -s /root/.local/bin/netexec /usr/local/bin/netexec || true
+# netexec (nxc) - CrackMapExec successor for network/AD enumeration
+# PIPX_BIN_DIR=/usr/local/bin ensures binaries land directly in PATH during build
+# (pipx ensurepath only modifies .bashrc which is not sourced during docker build)
+RUN pip3 install --no-cache-dir --break-system-packages pipx && \
+    PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin \
+    pipx install git+https://github.com/Pennyw0rth/NetExec
 
 # ── Cloud Security ──
 # trivy - container/IaC/cloud scanner
