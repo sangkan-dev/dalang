@@ -10,6 +10,23 @@ dalang web --port 1337
 
 This launches the web server at `http://localhost:1337` and opens your default browser. The UI is embedded directly in the Dalang binary (`web2/build`) so runtime deployment remains single-binary.
 
+## Starting the Web Server in Docker
+
+If you run Dalang with the repository `docker-compose.yml`, start the stack from project root:
+
+```bash
+docker compose up --build
+```
+
+Runtime behavior in compose mode:
+
+- Web UI is exposed on `http://localhost:4000`.
+- `LLM_PROVIDER`, `LLM_API_KEY`, and optional `LLM_BASE_URL` are read from your compose
+	environment (usually `.env`).
+- `network_mode: host` is enabled by default in compose for better local/LAN scan reachability.
+- Runtime data persists via the mounted `dalang_data` volume at `/root/.dalang` in the container.
+- Startup runs `dalang init` via the entrypoint before launching `dalang web --port 4000`.
+
 ### Options
 
 | Flag | Default | Description |
@@ -102,6 +119,14 @@ dalang web --port 8080
 - Ensure `~/.dalang` is writable on host.
 - For Docker, verify volume mapping to `/root/.dalang`.
 - Confirm session IDs are present under `~/.dalang/sessions/` after operations.
+
+### Docker deployment checklist
+
+- Verify `.env` contains valid `LLM_PROVIDER` and `LLM_API_KEY` values.
+- Confirm the `dalang_data` volume exists and is attached to the `dalang` service.
+- Check that port `4000` is free before startup (or adjust compose command/service settings).
+- If WebSocket events fail, inspect container logs with `docker compose logs -f dalang`.
+- For local/LAN targets, keep `network_mode: host`; switch to bridge mode only if isolation is required.
 
 ### Skill marked unavailable
 

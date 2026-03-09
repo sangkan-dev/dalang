@@ -2,6 +2,30 @@
 
 Get up and running with Dalang in under 5 minutes.
 
+## 0. Fast Path (Docker Compose)
+
+Use this if you want the quickest route to a working environment with pre-bundled tools.
+
+```bash
+git clone https://github.com/sangkan-dev/dalang.git
+cd dalang
+
+cat > .env << 'EOF'
+LLM_PROVIDER=openai
+LLM_API_KEY=your-api-key-here
+# Optional:
+# LLM_BASE_URL=https://your-endpoint.example.com/v1
+EOF
+
+docker compose up --build
+```
+
+Then open `http://localhost:4000` and start from the Web UI.
+
+## CLI Path (Source Install)
+
+If you installed Dalang directly on your host (non-Docker), follow the steps below.
+
 ## 1. Login to an LLM Provider
 
 Dalang supports multiple AI providers. Choose one:

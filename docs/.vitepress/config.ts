@@ -34,6 +34,7 @@ export default defineConfig({
             { text: 'Auto-Pilot Mode', link: '/guide/auto-pilot' },
             { text: 'Interactive Mode', link: '/guide/interactive-mode' },
             { text: 'Web UI', link: '/guide/web-ui' },
+            { text: 'Docker Deployment', link: '/guide/docker-deployment' },
           ],
         },
       ],

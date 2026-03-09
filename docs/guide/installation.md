@@ -6,6 +6,52 @@
 - **Chromium** or **Google Chrome** — required for CDP browser features
 - **Security Tools** — tools referenced by skills (e.g., `nmap`, `ffuf`, `sqlmap`)
 
+## Installing with Docker Compose
+
+This is the fastest path to a full Dalang runtime. The provided image bundles the Dalang binary,
+web UI assets, and common offensive security tooling so you can start with a single command.
+
+### Prerequisites
+
+- Docker Engine 24+
+- Docker Compose v2 (`docker compose` command)
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/sangkan-dev/dalang.git
+cd dalang
+```
+
+### 2. Configure environment variables
+
+Create a `.env` file beside `docker-compose.yml`:
+
+```bash
+LLM_PROVIDER=openai
+LLM_API_KEY=your-api-key-here
+# Optional for custom OpenAI-compatible endpoint
+# LLM_BASE_URL=https://your-endpoint.example.com/v1
+```
+
+### 3. Build and start
+
+```bash
+docker compose up --build
+```
+
+The service starts Dalang web mode on `http://localhost:4000`.
+
+### 4. Persistence and startup behavior
+
+- Session data and runtime state are persisted through the `dalang_data` volume.
+- Container startup runs `dalang init` automatically via `docker-entrypoint.sh`, so built-in
+	skills are initialized before the web server starts.
+
+::: tip
+Use `docker compose up -d` for detached mode and `docker compose logs -f dalang` for live logs.
+:::
+
 ## Building from Source
 
 ```bash

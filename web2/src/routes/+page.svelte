@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { resolve } from '$app/paths';
 	import CipherReveal from '$lib/components/CipherReveal.svelte';
 	import OverlayLayer from '$lib/visual/OverlayLayer.svelte';
 	import { getVisualTier } from '$lib/visual/perf.js';
@@ -173,13 +172,13 @@
 		<div class="mt-6 flex gap-3 max-sm:flex-col max-sm:items-stretch">
 			<a
 				class="inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[linear-gradient(135deg,var(--color-gold),var(--color-gold-bright))] px-4 py-2.5 font-semibold !text-[#1a1406] no-underline shadow-[var(--shadow-hairline),var(--shadow-gold-soft)] transition duration-150 ease-out hover:-translate-y-px hover:brightness-105"
-				href={resolve('/dashboard')}
+				href="https://docs-dalang.sangkan.dev/guide/quick-start"
 				onclick={onActionClick}
-				onmouseenter={onActionHover}>Enter Dashboard</a
+				onmouseenter={onActionHover}>Read Quick Start</a
 			>
 			<a
 				class="inline-flex items-center justify-center rounded-[var(--radius-md)] border border-[rgb(228_190_106_/_35%)] bg-[linear-gradient(160deg,rgb(255_255_255_/_3%),rgb(255_255_255_/_1%))] px-4 py-2.5 font-semibold text-[var(--color-gold-bright)] no-underline shadow-[var(--shadow-hairline)] transition duration-150 ease-out hover:-translate-y-px hover:border-[rgb(228_190_106_/_55%)] hover:brightness-105"
-				href={resolve('/dashboard/skills')}
+				href="https://docs-dalang.sangkan.dev/skills/overview"
 				onclick={onActionClick}
 				onmouseenter={onActionHover}>Inspect API Surface</a
 			>
@@ -353,9 +352,9 @@ $ dalang web --port 8080 --open</code
 			<div class="mt-2 flex gap-3 max-sm:flex-col max-sm:items-stretch">
 				<a
 					class="inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[linear-gradient(135deg,var(--color-gold),var(--color-gold-bright))] px-4 py-2.5 font-semibold !text-[#1a1406] no-underline shadow-[var(--shadow-hairline),var(--shadow-gold-soft)] transition duration-150 ease-out hover:-translate-y-px hover:brightness-105"
-					href={resolve('/dashboard')}
+					href="https://docs-dalang.sangkan.dev/guide/web-ui"
 					onclick={onActionClick}
-					onmouseenter={onActionHover}>Open Control Room</a
+					onmouseenter={onActionHover}>Open Web UI Guide</a
 				>
 				<a
 					class="inline-flex items-center justify-center rounded-[var(--radius-md)] border border-[rgb(228_190_106_/_35%)] bg-[linear-gradient(160deg,rgb(255_255_255_/_3%),rgb(255_255_255_/_1%))] px-4 py-2.5 font-semibold text-[var(--color-gold-bright)] no-underline shadow-[var(--shadow-hairline)] transition duration-150 ease-out hover:-translate-y-px hover:border-[rgb(228_190_106_/_55%)] hover:brightness-105"
@@ -379,8 +378,10 @@ $ dalang web --port 8080 --open</code
 		<div
 			class="flex flex-wrap gap-4 font-mono text-[0.78rem] tracking-[0.06em] text-[var(--color-gold-bright)] uppercase"
 		>
-			<a class="hover:brightness-110" href={resolve('/dashboard')} onclick={onActionClick}
-				>Dashboard</a
+			<a
+				class="hover:brightness-110"
+				href="https://docs-dalang.sangkan.dev/guide/web-ui"
+				onclick={onActionClick}>Web UI</a
 			>
 			<a
 				class="hover:brightness-110"
@@ -389,7 +390,10 @@ $ dalang web --port 8080 --open</code
 				rel="noreferrer"
 				onclick={onActionClick}>Docs</a
 			>
-			<a class="hover:brightness-110" href={resolve('/dashboard/skills')} onclick={onActionClick}
+			<a
+				class="hover:brightness-110"
+				href="https://docs-dalang.sangkan.dev/skills/overview"
+				onclick={onActionClick}
 				>API</a
 			>
 			<a
