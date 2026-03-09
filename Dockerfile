@@ -56,32 +56,32 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # ── ProjectDiscovery suite (Nuclei, Subfinder, httpx, dnsx, naabu, katana) ──
-RUN wget -q https://github.com/projectdiscovery/nuclei/releases/download/v3.3.0/nuclei_3.3.0_linux_amd64.zip && \
-    unzip nuclei_3.3.0_linux_amd64.zip nuclei && mv nuclei /usr/local/bin/ && \
-    rm nuclei_3.3.0_linux_amd64.zip
+RUN wget -q https://github.com/projectdiscovery/nuclei/releases/download/v3.7.1/nuclei_3.7.1_linux_amd64.zip && \
+    unzip nuclei_3.7.1_linux_amd64.zip nuclei && mv nuclei /usr/local/bin/ && \
+    rm nuclei_3.7.1_linux_amd64.zip
 
-RUN wget -q https://github.com/projectdiscovery/subfinder/releases/download/v2.6.6/subfinder_2.6.6_linux_amd64.zip && \
-    unzip subfinder_2.6.6_linux_amd64.zip subfinder && mv subfinder /usr/local/bin/ && \
-    rm subfinder_2.6.6_linux_amd64.zip
+RUN wget -q https://github.com/projectdiscovery/subfinder/releases/download/v2.12.0/subfinder_2.12.0_linux_amd64.zip && \
+    unzip subfinder_2.12.0_linux_amd64.zip subfinder && mv subfinder /usr/local/bin/ && \
+    rm subfinder_2.12.0_linux_amd64.zip
 
-RUN wget -q https://github.com/projectdiscovery/httpx/releases/download/v1.6.10/httpx_1.6.10_linux_amd64.zip && \
-    unzip httpx_1.6.10_linux_amd64.zip httpx && mv httpx /usr/local/bin/ && \
-    rm httpx_1.6.10_linux_amd64.zip
+RUN wget -q https://github.com/projectdiscovery/httpx/releases/download/v1.8.1/httpx_1.8.1_linux_amd64.zip && \
+    unzip httpx_1.8.1_linux_amd64.zip httpx && mv httpx /usr/local/bin/ && \
+    rm httpx_1.8.1_linux_amd64.zip
 
-RUN wget -q https://github.com/projectdiscovery/dnsx/releases/download/v1.2.1/dnsx_1.2.1_linux_amd64.zip && \
-    unzip dnsx_1.2.1_linux_amd64.zip dnsx && mv dnsx /usr/local/bin/ && \
-    rm dnsx_1.2.1_linux_amd64.zip
+RUN wget -q https://github.com/projectdiscovery/dnsx/releases/download/v1.2.3/dnsx_1.2.3_linux_amd64.zip && \
+    unzip dnsx_1.2.3_linux_amd64.zip dnsx && mv dnsx /usr/local/bin/ && \
+    rm dnsx_1.2.3_linux_amd64.zip
 
-RUN wget -q https://github.com/projectdiscovery/naabu/releases/download/v2.3.1/naabu_2.3.1_linux_amd64.zip && \
-    unzip naabu_2.3.1_linux_amd64.zip naabu && mv naabu /usr/local/bin/ && \
-    rm naabu_2.3.1_linux_amd64.zip
+RUN wget -q https://github.com/projectdiscovery/naabu/releases/download/v2.4.0/naabu_2.4.0_linux_amd64.zip && \
+    unzip naabu_2.4.0_linux_amd64.zip naabu && mv naabu /usr/local/bin/ && \
+    rm naabu_2.4.0_linux_amd64.zip
 
-RUN wget -q https://github.com/projectdiscovery/katana/releases/download/v1.1.0/katana_1.1.0_linux_amd64.zip && \
-    unzip katana_1.1.0_linux_amd64.zip katana && mv katana /usr/local/bin/ && \
-    rm katana_1.1.0_linux_amd64.zip
+RUN wget -q https://github.com/projectdiscovery/katana/releases/download/v1.4.0/katana_1.4.0_linux_amd64.zip && \
+    unzip katana_1.4.0_linux_amd64.zip katana && mv katana /usr/local/bin/ && \
+    rm katana_1.4.0_linux_amd64.zip
 
 # ── Directory / Content Discovery ──
-RUN wget -q https://github.com/OJ/gobuster/releases/download/v3.6.0/gobuster_Linux_x86_64.tar.gz && \
+RUN wget -q https://github.com/OJ/gobuster/releases/download/v3.8.2/gobuster_Linux_x86_64.tar.gz && \
     tar -xzf gobuster_Linux_x86_64.tar.gz gobuster && mv gobuster /usr/local/bin/ && \
     rm gobuster_Linux_x86_64.tar.gz
 
@@ -97,9 +97,9 @@ RUN wget -q https://github.com/epi052/feroxbuster/releases/latest/download/ferox
 
 # ── XSS Scanners ──
 # dalfox - modern XSS scanner
-RUN wget -q https://github.com/hahwul/dalfox/releases/download/v2.12.0/dalfox_linux_amd64.tar.gz && \
-    tar -xzf dalfox_linux_amd64.tar.gz dalfox && mv dalfox /usr/local/bin/ && \
-    rm dalfox_linux_amd64.tar.gz
+RUN wget -q https://github.com/hahwul/dalfox/releases/download/v2.12.0/dalfox-linux-amd64.tar.gz && \
+    tar -xzf dalfox-linux-amd64.tar.gz dalfox-linux-amd64 && mv dalfox-linux-amd64 /usr/local/bin/ && \
+    rm dalfox-linux-amd64.tar.gz
 
 # XSStrike - XSS scanner (Python)
 RUN git clone --depth 1 https://github.com/s0md3v/XSStrike.git /opt/xsstrike && \
@@ -109,25 +109,25 @@ RUN git clone --depth 1 https://github.com/s0md3v/XSStrike.git /opt/xsstrike && 
 
 # ── Port Scanners ──
 # rustscan - ultra-fast port scanner
-RUN wget -q https://github.com/RustScan/RustScan/releases/download/2.2.3/rustscan_2.2.3_amd64.deb && \
-    dpkg -i rustscan_2.2.3_amd64.deb && rm rustscan_2.2.3_amd64.deb
+RUN wget -q https://github.com/RustScan/RustScan/releases/download/2.4.1/rustscan_2.4.1_amd64.deb && \
+    dpkg -i rustscan_2.4.1_amd64.deb && rm rustscan_2.4.1_amd64.deb
 
 # ── OSINT / Recon ──
 # OWASP Amass - attack surface mapping
-RUN wget -q https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_linux_amd64.zip && \
-    unzip amass_linux_amd64.zip && \
-    mv amass_linux_amd64/amass /usr/local/bin/ && \
-    rm -rf amass_linux_amd64 amass_linux_amd64.zip
+RUN wget -q https://github.com/owasp-amass/amass/releases/download/v5.0.1/amass_linux_amd64.tar.gz && \
+    tar -xzf amass_linux_amd64.tar.gz amass_linux_amd64 && mv amass_linux_amd64/amass /usr/local/bin/ && \
+    rm -rf amass_linux_amd64 amass_linux_amd64.tar.gz
 
 # trufflehog - secrets scanner
-RUN wget -q https://github.com/trufflesecurity/trufflehog/releases/download/v3.88.1/trufflehog_3.88.1_linux_amd64.tar.gz && \
-    tar -xzf trufflehog_3.88.1_linux_amd64.tar.gz trufflehog && mv trufflehog /usr/local/bin/ && \
-    rm trufflehog_3.88.1_linux_amd64.tar.gz
+RUN wget -q https://github.com/trufflesecurity/trufflehog/releases/download/v3.93.7/trufflehog_3.93.7_linux_amd64.tar.gz && \
+    tar -xzf trufflehog_3.93.7_linux_amd64.tar.gz trufflehog && mv trufflehog /usr/local/bin/ && \
+    rm trufflehog_3.93.7_linux_amd64.tar.gz
 
-# theHarvester - email/subdomain OSINT (not in Debian apt, install from source)
-RUN git clone --depth 1 https://github.com/laramies/theHarvester.git /opt/theHarvester && \
-    pip3 install --no-cache-dir -r /opt/theHarvester/requirements/base.txt && \
-    printf '#!/bin/sh\nexec python3 /opt/theHarvester/theHarvester.py "$@"\n' > /usr/local/bin/theHarvester && \
+# theHarvester - OSINT tool (uses uv as package manager, no requirements.txt)
+RUN pip3 install --no-cache-dir uv && \
+    git clone --depth 1 https://github.com/laramies/theHarvester.git /opt/theHarvester && \
+    cd /opt/theHarvester && uv sync && \
+    printf '#!/bin/sh\nexec /opt/theHarvester/.venv/bin/python /opt/theHarvester/theHarvester.py "$@"\n' > /usr/local/bin/theHarvester && \
     chmod +x /usr/local/bin/theHarvester
 
 # arjun - hidden HTTP parameter discovery
