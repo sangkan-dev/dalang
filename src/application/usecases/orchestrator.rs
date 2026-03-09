@@ -92,6 +92,34 @@ impl DalangOrchestrator {
             .collect()
     }
 
+    fn normalize_skill_name(name: &str) -> Vec<String> {
+        let trimmed = name.trim();
+        if trimmed.is_empty() {
+            return Vec::new();
+        }
+
+        let dash = trimmed.replace('_', "-");
+        let underscore = trimmed.replace('-', "_");
+        if dash == underscore {
+            vec![dash]
+        } else {
+            vec![dash, underscore]
+        }
+    }
+
+    fn find_skill_by_name<'a>(
+        skills: &'a [SkillDefinition],
+        requested: &str,
+    ) -> Option<&'a SkillDefinition> {
+        let candidates = Self::normalize_skill_name(requested);
+        if candidates.is_empty() {
+            return None;
+        }
+        skills
+            .iter()
+            .find(|s| candidates.iter().any(|candidate| candidate == &s.name))
+    }
+
     // ── Helper: build system prompt from a skill ────────────────────────────────
 
     fn build_system_prompt(&self, skill: &SkillDefinition) -> String {
@@ -140,10 +168,19 @@ impl DalangOrchestrator {
                     "type": "object",
                     "properties": {
                         "skill_name": { "type": "string", "description": "Name of the skill to execute." },
+                        "target_url": {
+                            "type": "string",
+                            "description": "Optional per-call target override (for example a parameterized endpoint)."
+                        },
                         "custom_args": {
                             "type": "array",
                             "items": { "type": "string" },
                             "description": "Optional flags to append."
+                        },
+                        "args_override": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Optional full argument override for this skill call. Base command remains locked to the skill tool_path."
                         },
                         "reasoning": { "type": "string", "description": "Reasoning for the action." }
                     },
@@ -205,7 +242,7 @@ impl DalangOrchestrator {
         &self,
         skill_def: &SkillDefinition,
         target: &str,
-        custom_args: Option<&serde_json::Value>,
+        tool_arguments: Option<&serde_json::Value>,
         messages: &mut Vec<Message>,
         tx: Option<&mpsc::Sender<EngineEvent>>,
     ) {
@@ -235,10 +272,43 @@ impl DalangOrchestrator {
             }
         };
 
-        let raw_args = skill_def.args.as_ref().cloned().unwrap_or_default();
-        let mut interpolated = self.interpolate_args(&raw_args, target);
+        let effective_target = tool_arguments
+            .and_then(|args| {
+                args.get("target_url")
+                    .or_else(|| args.get("target"))
+                    .and_then(|v| v.as_str())
+            })
+            .unwrap_or(target);
 
-        if let Some(extra) = custom_args
+        let raw_args = skill_def.args.as_ref().cloned().unwrap_or_default();
+        let mut interpolated = self.interpolate_args(&raw_args, effective_target);
+
+        if let Some(override_args) = tool_arguments.and_then(|args| args.get("args_override"))
+            && let Some(arr) = override_args.as_array()
+        {
+            let replacements: Vec<String> = arr
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+
+            if is_clean_argument(&replacements) {
+                println!(
+                    "    [+] AI replaced default args with {} skill-scoped arguments",
+                    replacements.len()
+                );
+                interpolated = replacements;
+            } else {
+                let msg = format!(
+                    "Error: Unsafe args_override rejected for skill `{}`.",
+                    skill_def.name
+                );
+                println!("    [!] {}", msg);
+                messages.push(Message::user(&msg));
+                return;
+            }
+        }
+
+        if let Some(extra) = tool_arguments.and_then(|args| args.get("custom_args"))
             && let Some(arr) = extra.as_array()
         {
             let additions: Vec<String> = arr
@@ -249,7 +319,13 @@ impl DalangOrchestrator {
                 println!("    [+] AI injected {} custom arguments", additions.len());
                 interpolated.extend(additions);
             } else {
-                println!("    [!] AI injected UNSAFE arguments. Blocking.");
+                let msg = format!(
+                    "Error: Unsafe custom_args rejected for skill `{}`.",
+                    skill_def.name
+                );
+                println!("    [!] {}", msg);
+                messages.push(Message::user(&msg));
+                return;
             }
         }
 
@@ -561,7 +637,7 @@ impl DalangOrchestrator {
             ```\n\n\
             To execute a skill, respond with ONLY a JSON object or an ARRAY of objects:\n\
             ```json\n\
-            [{{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"reasoning\": \"<why>\", \"custom_args\": []}}}}, ...]\n\
+            [{{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"target_url\": \"<optional-url>\", \"reasoning\": \"<why>\", \"custom_args\": [], \"args_override\": []}}}}, ...]\n\
             ```",
         );
 
@@ -707,9 +783,8 @@ impl DalangOrchestrator {
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            let custom_args = tool_call.arguments.get("custom_args").cloned();
 
-                            let skill_def = match skills.iter().find(|s| s.name == skill_name) {
+                            let skill_def = match Self::find_skill_by_name(&skills, &skill_name) {
                                 Some(s) => s.clone(),
                                 None => {
                                     println!("[!] Skill '{}' not found in catalog.", skill_name);
@@ -736,7 +811,7 @@ impl DalangOrchestrator {
                                 self.execute_skill_native(
                                     &skill_def,
                                     target,
-                                    custom_args.as_ref(),
+                                    Some(&tool_call.arguments),
                                     &mut messages,
                                     tx.as_ref(),
                                 )
@@ -895,7 +970,7 @@ impl DalangOrchestrator {
             {skills_catalog}\n\n\
             Assist the pentester with their requests. When asked to run a tool, use the JSON tool call format:\n\
             ```json\n\
-            {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"reasoning\": \"<why>\"}}}}\n\
+            {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"target_url\": \"<optional-url>\", \"reasoning\": \"<why>\", \"custom_args\": [], \"args_override\": []}}}}\n\
             ```\n\
             For each finding, include the exact URL, parameter, PoC, and severity."
         );
@@ -934,9 +1009,15 @@ impl DalangOrchestrator {
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string();
-                        if let Some(skill_def) = skills.iter().find(|s| s.name == skill_name) {
-                            self.execute_skill_native(skill_def, target, None, &mut messages, None)
-                                .await;
+                        if let Some(skill_def) = Self::find_skill_by_name(&skills, &skill_name) {
+                            self.execute_skill_native(
+                                skill_def,
+                                target,
+                                Some(&tool_call.arguments),
+                                &mut messages,
+                                None,
+                            )
+                            .await;
                         } else {
                             println!("[!] Skill '{}' not found.", skill_name);
                         }
@@ -1014,7 +1095,7 @@ impl DalangOrchestrator {
                 {skills_catalog}\n\n\
                 Assist the pentester with their requests. When asked to run a tool, use the JSON tool call format:\n\
                 ```json\n\
-                {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"reasoning\": \"<why>\"}}}}\n\
+                {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"target_url\": \"<optional-url>\", \"reasoning\": \"<why>\", \"custom_args\": [], \"args_override\": []}}}}\n\
                 ```\n\
                 For each finding, include the exact URL, parameter, PoC, and severity."
             );
@@ -1076,13 +1157,13 @@ impl DalangOrchestrator {
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            let custom_args = tool_call.arguments.get("custom_args").cloned();
 
-                            if let Some(skill_def) = skills.iter().find(|s| s.name == skill_name) {
+                            if let Some(skill_def) = Self::find_skill_by_name(&skills, &skill_name)
+                            {
                                 self.execute_skill_native(
                                     skill_def,
                                     target,
-                                    custom_args.as_ref(),
+                                    Some(&tool_call.arguments),
                                     messages,
                                     Some(tx),
                                 )
