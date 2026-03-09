@@ -236,6 +236,13 @@ impl DalangOrchestrator {
         }
     }
 
+    fn is_final_report(content: &str) -> bool {
+        let upper = content.to_uppercase();
+        upper.contains("VULNERABILITY REPORT")
+            || upper.contains("PENETRATION TEST REPORT")
+            || upper.contains("LAPORAN PENETRATION TEST")
+    }
+
     // ── Execute a native skill command ─────────────────────────────────────────
 
     async fn execute_skill_native(
@@ -1006,6 +1013,13 @@ impl DalangOrchestrator {
             messages.push(Message::assistant(&response));
             println!("\n[Dalang]\n{}", response);
 
+            if Self::is_final_report(&response) {
+                if let Some(filename) = Self::save_report(target, &response) {
+                    println!("[+] Interactive report saved: {}", filename);
+                }
+                break;
+            }
+
             // Handle tool calls if present
             if let Ok(tool_calls) = parse_llm_tool_call(&response) {
                 for tool_call in tool_calls {
@@ -1158,6 +1172,17 @@ impl DalangOrchestrator {
             }
 
             messages.push(Message::assistant(&response_text));
+
+            if Self::is_final_report(&response_text) {
+                let filename = Self::save_report(target, &response_text);
+                let _ = tx
+                    .send(EngineEvent::Report {
+                        markdown: response_text.clone(),
+                        filename,
+                    })
+                    .await;
+                break;
+            }
 
             match parse_llm_tool_call(&response_text) {
                 Ok(tool_calls) => {
