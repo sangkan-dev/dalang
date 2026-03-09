@@ -497,10 +497,12 @@ async fn main() -> Result<()> {
             let llm_adapter: Arc<dyn LlmPort> = provider;
             let executor: Arc<dyn crate::application::ports::os_port::CommandExecutor> =
                 Arc::new(OsCommandExecutor);
+            let browser: Arc<dyn crate::application::ports::browser_port::BrowserPort> =
+                Arc::new(crate::adapters::outbound::browser_cdp::LazyBrowserAdapter::new(!headed));
             let orchestrator = DalangOrchestrator::new(
                 llm_adapter,
                 executor,
-                None, // Browser initialized lazily or injected later if needed
+                Some(browser),
                 OrchestratorConfig {
                     cmd_timeout,
                     verbose,
@@ -554,10 +556,12 @@ async fn main() -> Result<()> {
             let llm_adapter: Arc<dyn LlmPort> = provider;
             let executor: Arc<dyn crate::application::ports::os_port::CommandExecutor> =
                 Arc::new(OsCommandExecutor);
+            let browser: Arc<dyn crate::application::ports::browser_port::BrowserPort> =
+                Arc::new(crate::adapters::outbound::browser_cdp::LazyBrowserAdapter::new(!headed));
             let orchestrator = DalangOrchestrator::new(
                 llm_adapter,
                 executor,
-                None, // Browser initialized lazily or injected later if needed
+                Some(browser),
                 OrchestratorConfig {
                     cmd_timeout,
                     verbose,

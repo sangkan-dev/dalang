@@ -1,6 +1,7 @@
 //! Skills management REST API handlers.
 
-use crate::skills_parser::{self, SkillDefinition};
+use crate::domain::models::SkillDefinition;
+use crate::skills_parser;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;

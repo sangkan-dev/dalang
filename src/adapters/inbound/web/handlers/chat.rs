@@ -140,10 +140,12 @@ fn build_orchestrator(
         .collect();
     let llm = provider;
     let executor = Arc::new(OsCommandExecutor);
+    let browser: Arc<dyn crate::application::ports::browser_port::BrowserPort> =
+        Arc::new(crate::adapters::outbound::browser_cdp::LazyBrowserAdapter::new(state.headless));
     DalangOrchestrator::new(
         llm,
         executor,
-        None, // Browser initialized lazily or on demand
+        Some(browser),
         OrchestratorConfig {
             cmd_timeout,
             verbose: state.verbose,
@@ -183,24 +185,25 @@ async fn handle_chat_message(
     let tx = event_tx.clone();
     let state_for_task = state.clone();
 
-    // Get target and cmd_timeout from session
-    let (target, cmd_timeout) = state
+    // Get target, cmd_timeout, and current message history from session
+    let (target, cmd_timeout, mut messages) = state
         .sessions
         .get(&session_id)
-        .map(|s| (s.target.clone(), s.cmd_timeout))
+        .map(|s| (s.target.clone(), s.cmd_timeout, s.messages.clone()))
         .unwrap_or_default();
 
     let orchestrator = build_orchestrator(state, provider, cmd_timeout);
 
-    // Spawn orchestrator task: run_interactive_loop emits events via tx
+    // Spawn orchestrator task: process_chat_message handles one round of ReAct
     tokio::spawn(async move {
         match orchestrator
-            .run_interactive_loop(&target, Some(tx.clone()))
+            .process_chat_message(&target, &mut messages, &tx)
             .await
         {
             Ok(()) => {
-                // Persist any session state updates
-                if let Some(session) = state_for_task.sessions.get(&session_id) {
+                // Persist updated messages back to session
+                if let Some(mut session) = state_for_task.sessions.get_mut(&session_id) {
+                    session.messages = messages;
                     persistence::save_messages(&session_id, &session.messages);
                 }
                 let _ = tx

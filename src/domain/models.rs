@@ -7,9 +7,27 @@ use serde::{Deserialize, Serialize};
 
 // ── Skill Definition ──────────────────────────────────────────────────────────
 
-/// Re-exported from `crate::skills_parser` — single source of truth.
-/// Both `crate::skills_parser::SkillDefinition` and `crate::domain::models::SkillDefinition` refer to the same type.
-pub use crate::skills_parser::SkillDefinition;
+/// A parsed skill definition from a `.md` skill file.
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+pub struct SkillDefinition {
+    pub name: String,
+    pub description: String,
+    pub tool_path: Option<String>,
+    pub args: Option<Vec<String>>,
+    pub requires_root: Option<bool>,
+    #[serde(skip)]
+    pub system_prompt: String,
+    #[serde(skip)]
+    pub role: Option<String>,
+    #[serde(skip)]
+    pub task: Option<String>,
+    #[serde(skip)]
+    pub constraints: Option<String>,
+    /// Whether the tool binary is installed and reachable on the system PATH.
+    /// Skills with `tool_path: null` (browser-based) are always considered available.
+    #[serde(skip)]
+    pub tool_available: bool,
+}
 
 // ── LLM Conversation ─────────────────────────────────────────────────────────
 

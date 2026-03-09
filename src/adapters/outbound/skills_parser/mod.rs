@@ -1,30 +1,11 @@
 use anyhow::{Result, anyhow};
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
 pub mod bundled;
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
-pub struct SkillDefinition {
-    pub name: String,
-    pub description: String,
-    pub tool_path: Option<String>,
-    pub args: Option<Vec<String>>,
-    pub requires_root: Option<bool>,
-    #[serde(skip)]
-    pub system_prompt: String,
-    #[serde(skip)]
-    pub role: Option<String>,
-    #[serde(skip)]
-    pub task: Option<String>,
-    #[serde(skip)]
-    pub constraints: Option<String>,
-    /// Whether the tool binary is installed and reachable on the system PATH.
-    /// Skills with `tool_path: null` (browser-based) are always considered available.
-    #[serde(skip)]
-    pub tool_available: bool,
-}
+// SkillDefinition is defined in the domain layer
+pub use crate::domain::models::SkillDefinition;
 
 /// Check if a binary exists on the system PATH.
 pub fn check_tool_available(tool_path: &str) -> bool {

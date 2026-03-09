@@ -1,6 +1,6 @@
 /// Maximum bytes for a single tool observation injected into LLM context.
 /// Keeps first + last portions with a truncation notice in the middle.
-const MAX_OBSERVATION_BYTES: usize = 12_000;
+pub const MAX_OBSERVATION_BYTES: usize = 12_000;
 
 /// Rough token budget: leave headroom below model context limit.
 /// Most models support 128k tokens; we aim to stay under ~100k tokens
@@ -8,7 +8,7 @@ const MAX_OBSERVATION_BYTES: usize = 12_000;
 const TOKEN_BUDGET: usize = 100_000;
 
 /// Rough estimate: 1 token ≈ 4 characters for English text.
-fn estimate_tokens(text: &str) -> usize {
+pub fn estimate_tokens(text: &str) -> usize {
     text.len() / 4
 }
 
