@@ -716,22 +716,22 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
-## Sprint 34: Repository Rebrand & Documentation Migration to Sangkan ⬜
+## Sprint 34: Repository Rebrand & Documentation Migration to Sangkan ✅
 
 **Goal:** Menyelaraskan seluruh identitas repository, dokumentasi, dan komunikasi publik Dalang dari legacy personal branding ke organisasi `sangkan-dev` dan domain `sangkan.dev`.
 
-- ⬜ **[DAL-3401] - Documentation - README Rebrand (`README.md`)**
+- ✅ **[DAL-3401] - Documentation - README Rebrand (`README.md`)**
   - Ubah narasi, badge, link, dan metadata kepemilikan sesuai identitas `sangkan-dev`.
   - Tambahkan section deployment strategy: landing publik + dashboard runtime.
-- ⬜ **[DAL-3402] - Documentation - Web UI Guide Refresh (`docs/guide/web-ui.md`)**
+- ✅ **[DAL-3402] - Documentation - Web UI Guide Refresh (`docs/guide/web-ui.md`)**
   - Dokumentasikan alur baru SvelteKit landing + dashboard route + autentikasi/settings flow.
   - Sertakan troubleshooting untuk dockerized deployment.
-- ⬜ **[DAL-3403] - Documentation - Architecture Update (`docs/architecture/web-server.md`)**
+- ✅ **[DAL-3403] - Documentation - Architecture Update (`docs/architecture/web-server.md`)**
   - Perbarui diagram dan penjelasan serving strategy hybrid serta jalur data event realtime.
   - Sinkronkan dengan state/session persistence yang sudah ada.
-- ⬜ **[DAL-3404] - Cleanup - Legacy Frontend Decommission (`web/` sunset plan)**
-  - Definisikan kriteria cutover final, timeline sunset, dan langkah rollback minimal.
-  - Setelah parity lulus QA, nonaktifkan jalur build/deploy frontend lama.
+- ✅ **[DAL-3404] - Cleanup - Legacy Frontend Decommission (`web/` sunset plan)**
+  - Jalur build/deploy resmi dikunci ke `web2` dan direktori legacy `web/` disunset dari repository.
+  - Dokumentasi dan panduan developer disinkronkan agar tidak lagi merujuk frontend legacy.
 
 ## Ringkasan Status
 
@@ -770,8 +770,8 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 31     | SvelteKit Cutover Architecture & Design Foundation  | ✅ Done |
 | 32     | Landing Experience & Signature Effects              | ✅ Done |
 | 33     | Dashboard Migration & Backend Embedding             | ✅ Done |
-| 34     | Repository Rebrand & Docs Migration                 | ⬜ Todo |
+| 34     | Repository Rebrand & Docs Migration                 | ✅ Done |
 
-**Total: 34 Sprint — 33 ✅ Selesai, 0 🔄 Sedang Dikerjakan, 1 ⬜ Belum Dimulai**
+**Total: 34 Sprint — 34 ✅ Selesai, 0 🔄 Sedang Dikerjakan, 0 ⬜ Belum Dimulai**
 
 ---

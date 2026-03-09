@@ -10,7 +10,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/HasanH47/dalang.git
+git clone https://github.com/sangkan-dev/dalang.git
 cd dalang
 
 # Build in release mode

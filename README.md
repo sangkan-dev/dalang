@@ -6,9 +6,9 @@
   <img src="assets/logo.png" alt="Dalang Logo" width="250">
 </p>
 
-# Dalang: Autonomous AI Cyber Security Agent Framework
+# Dalang by Sangkan: Autonomous AI Cyber Security Agent Framework
 
-Dalang is a modern, extensible framework written in Rust that turns Large Language Models (LLMs) into autonomous, context-aware cybersecurity orchestrators. Instead of relying on rigid, pre-programmed scripts, Dalang gives AI the ability to interpret targets, select appropriate security tools from a modular library, execute them safely on the local operating system, and chain observations together to discover vulnerabilities.
+Dalang is a modern, extensible framework written in Rust by **sangkan-dev** that turns Large Language Models (LLMs) into autonomous, context-aware cybersecurity orchestrators. Instead of relying on rigid, pre-programmed scripts, Dalang gives AI the ability to interpret targets, select appropriate security tools from a modular library, execute them safely on the local operating system, and chain observations together to discover vulnerabilities.
 
 ## Core Features
 
@@ -24,7 +24,7 @@ Dalang requires Rust and Cargo to be installed on your system. It also relies on
 
 ```bash
 # Clone the repository
-git clone https://github.com/HasanH47/dalang.git
+git clone https://github.com/sangkan-dev/dalang.git
 cd dalang
 
 # Build the project in release mode
@@ -52,6 +52,21 @@ docker run --rm --network host -v ~/.dalang:/root/.dalang dalang
 ```
 
 Note: We use `--network host` to allow the internal browser and security tools to easily reach targets on your local network.
+
+## Deployment Strategy
+
+Dalang uses a hybrid serving model with one Rust runtime:
+
+- **Public landing route**: `/` (SvelteKit static artifact from `web2/build`)
+- **Operational dashboard**: `/dashboard/*` (chat, skills, reports, settings)
+- **Runtime APIs**: `/api/*` and WebSocket `/api/ws/{session_id}`
+
+In production, the Rust binary embeds `web2/build` and serves both UI and backend APIs from one process. This keeps deployment simple while preserving real-time event streaming and session persistence.
+
+Recommended production modes:
+
+- **Single binary**: run `dalang web --port <port>` behind your reverse proxy.
+- **Docker**: use `docker-compose up -d` with persistent volume mapped to `/root/.dalang`.
 
 ## Quick Start
 
@@ -88,6 +103,9 @@ dalang web --port 1337
 ```
 
 The web UI provides real-time chat, skill management, report viewing, and settings configuration — all from a single self-contained binary.
+
+Repository: `https://github.com/sangkan-dev/dalang`
+Website: `https://sangkan.dev`
 
 ## Creating a Custom Skill
 

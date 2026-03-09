@@ -106,6 +106,7 @@ Each WebSocket connection generates a unique `conn_id` (UUID). The `event_sender
 Sessions are persisted to `~/.dalang/sessions/<session-id>/`:
 
 - **`session.json`** — Metadata: id, target, mode, created_at, updated_at, active flag
+- **`messages.json`** — Stored chat messages for user/assistant continuity
 - **`events.json`** — Ordered array of all `EngineEvent`s emitted during the session
 - **`MEMORY.md`** — Human-readable audit log with findings and observations
 
@@ -123,6 +124,19 @@ On startup, the server loads all persisted sessions from disk. When the Web UI l
 | Testing | vitest 3.2 + jsdom 26 |
 
 The compiled frontend (`web2/build/`) is embedded into the Rust binary via `rust-embed`, so `dalang web` works as a single self-contained binary with zero external dependencies for serving.
+
+## Hybrid Serving Strategy
+
+Dalang serves public and operational surfaces from one runtime while preserving route ownership boundaries.
+
+| Surface | Route | Source |
+|---|---|---|
+| Public landing | `/` | Embedded SvelteKit artifact (`web2/build`) |
+| Dashboard app | `/dashboard/*` | Embedded SvelteKit artifact (`web2/build`) |
+| REST API | `/api/*` | axum handlers |
+| WebSocket | `/api/ws/{session_id}` | axum WebSocket upgrade handler |
+
+**Critical routing rule**: API and WebSocket namespaces are registered separately and must not be shadowed by SPA fallback.
 
 ## Route And Runtime Contract (Sprint 31)
 
@@ -168,3 +182,10 @@ The frontend WebSocket client includes automatic reconnection:
 4. **rust-embed** — zero-copy static serving from the binary. SPA fallback to `index.html` for client-side routing.
 5. **File-based persistence** — sessions survive server restarts. JSON format for events enables full replay.
 6. **Keyring persistence** — API keys and settings stored in the OS keyring (via `keyring` crate), not in plain-text config files.
+
+## Docker Deployment Considerations
+
+1. **Volume persistence** — map host state into `/root/.dalang` so sessions, memory, and reports survive container restarts.
+2. **Networking** — host mode simplifies scanning local/LAN targets and avoids browser-agent reachability issues.
+3. **Build order** — frontend artifact (`web2/build`) must be produced before Rust release build so embed step includes latest UI.
+4. **Troubleshooting** — if dashboard loads but WS/API fails, verify container port/network mode and route path consistency (`/api/*`, `/api/ws/*`).

@@ -71,3 +71,4 @@ Oleh karena itu, setiap file `.md` skill wajib menggunakan teknik **Defensive Pr
 
 Selalu gunakan cargo/npm/bun untuk menginstall package yang di perlukan, jangan edit file Cargo.toml/package.json secara manual.
 Gunakan MCP Server jika diperlukan misal untuk sveltekit.
+Frontend aktif Dalang adalah `web2/` (SvelteKit). Direktori legacy `web/` tidak digunakan lagi untuk build/deploy.

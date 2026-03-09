@@ -14,7 +14,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Architecture', link: '/architecture/overview' },
       { text: 'Skills', link: '/skills/overview' },
-      { text: 'GitHub', link: 'https://github.com/HasanH47/dalang' },
+      { text: 'GitHub', link: 'https://github.com/sangkan-dev/dalang' },
     ],
     sidebar: {
       '/guide/': [
@@ -63,11 +63,11 @@ export default defineConfig({
       ],
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/HasanH47/dalang' },
+      { icon: 'github', link: 'https://github.com/sangkan-dev/dalang' },
     ],
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2026-present HasanH47',
+      copyright: 'Copyright © 2026-present sangkan-dev',
     },
     search: {
       provider: 'local',
