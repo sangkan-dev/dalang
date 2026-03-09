@@ -654,7 +654,7 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
-## Sprint 31: SvelteKit Cutover Architecture & Ancient Cybernetics Foundation ⬜
+## Sprint 31: SvelteKit Cutover Architecture & Ancient Cybernetics Foundation ✅
 
 **Goal:** Menetapkan fondasi migrasi penuh dari `web/` ke `web2/` (SvelteKit) dengan arsitektur route final dan design system Ancient Cybernetics sebagai baseline seluruh UI Dalang.
 
@@ -662,11 +662,11 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
   - Tetapkan struktur route SvelteKit: landing publik (`/`) dan dashboard aplikasi (`/dashboard/*`) sebagai jalur utama operasional.
   - Terapkan strategi **hybrid runtime**: landing siap deploy mandiri, dashboard tetap terintegrasi dengan backend Dalang.
   - Definisikan kontrak integrasi API + WebSocket agar kompatibel dengan handler axum yang sudah ada.
-- ⬜ **[DAL-3102] - Design System - Ancient Cybernetics Tokens (`web2/src/routes/layout.css` + `web2/src/lib/*`)**
+- ✅ **[DAL-3102] - Design System - Ancient Cybernetics Tokens (`web2/src/routes/layout.css` + `web2/src/lib/*`)**
   - Implementasi token warna resmi: Andesite, Gold, Base Text, Ash, Smoke, Rust.
   - Buat token typography dan komponen utilitas spacing/radius/shadow berbasis CSS variables.
   - Pastikan guardrail aksesibilitas (kontras, focus state, reduced motion baseline) sejak awal.
-- ⬜ **[DAL-3103] - Typography - Brand Font Stack & Self-Hosted Javanese Font (`web2/static/fonts/*`)**
+- ✅ **[DAL-3103] - Typography - Brand Font Stack & Self-Hosted Javanese Font (`web2/static/fonts/*`)**
   - Integrasikan `Plus Jakarta Sans` untuk heading/UI dan `JetBrains Mono` untuk data/log.
   - Self-host `Noto Sans Javanese` (`.woff2`) untuk identitas cipher reveal.
   - Dokumentasikan fallback font chain lintas desktop/mobile.
