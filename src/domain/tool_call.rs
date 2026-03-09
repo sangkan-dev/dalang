@@ -45,6 +45,30 @@ pub fn parse_llm_tool_call(content: &str) -> Result<Vec<ToolCall>> {
         }
     }
 
+    // Support concatenated JSON objects (newline-delimited / streaming style), e.g.:
+    // {"tool":"execute_skill",...}\n{"tool":"execute_skill",...}
+    let mut stream_calls = Vec::new();
+    let stream = serde_json::Deserializer::from_str(clean).into_iter::<RawToolResponse>();
+    let mut had_stream_item = false;
+    for item in stream {
+        had_stream_item = true;
+        if let Ok(parsed) = item {
+            if let Some(name) = parsed.tool {
+                stream_calls.push(ToolCall {
+                    name,
+                    arguments: parsed.args.unwrap_or(serde_json::Value::Null),
+                });
+            }
+        } else {
+            // If this wasn't valid concatenated JSON, continue to single-object fallback below.
+            stream_calls.clear();
+            break;
+        }
+    }
+    if had_stream_item && !stream_calls.is_empty() {
+        return Ok(stream_calls);
+    }
+
     // Fallback to single object
     let parsed: RawToolResponse = serde_json::from_str(clean)
         .map_err(|e| anyhow!("Failed to parse JSON tool call: {}. Content: {}", e, clean))?;
@@ -117,6 +141,16 @@ mod tests {
             {"tool": "execute_skill", "args": {"skill_name": "nmap_scanner"}},
             {"tool": "execute_skill", "args": {"skill_name": "nikto_scanner"}}
         ]"#;
+        let calls = parse_llm_tool_call(json).unwrap();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].name, "execute_skill");
+        assert_eq!(calls[1].name, "execute_skill");
+    }
+
+    #[test]
+    fn test_parse_concatenated_tool_calls() {
+        let json = r#"{"tool": "execute_skill", "args": {"skill_name": "nmap_scanner"}}
+{"tool": "execute_skill", "args": {"skill_name": "nikto_scanner"}}"#;
         let calls = parse_llm_tool_call(json).unwrap();
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[0].name, "execute_skill");

@@ -161,6 +161,10 @@ RUN curl -fsSL -o /usr/local/bin/kubectl \
 RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
     unzip awscliv2.zip && ./aws/install && rm -rf aws awscliv2.zip
 
+# ── Misc Tools ──
+# Add common wordlists for directory brute-forcing (used by dalang and others)
+RUN curl https://raw.githubusercontent.com/v0re/dirb/refs/heads/master/wordlists/common.txt -o /usr/share/wordlists/dirb/common.txt
+
 # ── Environment ──
 ENV CHROME_PATH=/usr/bin/chromium
 ENV DALANG_DOCKER=true

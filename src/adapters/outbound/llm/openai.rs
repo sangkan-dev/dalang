@@ -1,8 +1,38 @@
 use crate::application::ports::llm_port::LlmPort;
 use crate::domain::models::{AuthToken, Message};
 use anyhow::{Context, Result, anyhow};
-use reqwest::{Client, header};
+use reqwest::{Client, StatusCode, header};
+use std::time::Duration;
 use serde::{Deserialize, Serialize};
+use tokio::time::sleep;
+
+const MAX_RATE_LIMIT_RETRIES: usize = 2;
+
+fn parse_retry_after_seconds(retry_after_header: Option<&str>, body: &str) -> Option<f64> {
+    if let Some(raw) = retry_after_header {
+        let trimmed = raw.trim();
+        if let Ok(sec) = trimmed.parse::<f64>()
+            && sec.is_finite() && sec > 0.0
+        {
+            return Some(sec);
+        }
+    }
+
+    // Groq typically returns: "Please try again in 13.982s"
+    let marker = "try again in ";
+    let lower = body.to_lowercase();
+    if let Some(start) = lower.find(marker) {
+        let rest = &lower[start + marker.len()..];
+        if let Some(end) = rest.find('s')
+            && let Ok(sec) = rest[..end].trim().parse::<f64>()
+            && sec.is_finite() && sec > 0.0
+        {
+            return Some(sec);
+        }
+    }
+
+    None
+}
 
 #[derive(Serialize)]
 struct OpenAiRequest<'a> {
@@ -199,53 +229,89 @@ impl OpenAiCompatibleProvider {
             tools,
         };
 
-        let response = self
-            .client
-            .post(&endpoint)
-            .json(&req_body)
-            .send()
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed sending LLM request to {} using model {}",
-                    endpoint, self.model
-                )
-            })?;
+        for attempt in 0..=MAX_RATE_LIMIT_RETRIES {
+            let response = self
+                .client
+                .post(&endpoint)
+                .json(&req_body)
+                .send()
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed sending LLM request to {} using model {}",
+                        endpoint, self.model
+                    )
+                })?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            return Err(anyhow!("LLM request failed with {}: {}", status, text));
-        }
+            if response.status() == StatusCode::TOO_MANY_REQUESTS {
+                let retry_after = response
+                    .headers()
+                    .get("retry-after")
+                    .and_then(|v| v.to_str().ok())
+                    .map(|s| s.to_string());
+                let text = response.text().await.unwrap_or_default();
 
-        let mut parsed: OpenAiResponse = response.json().await?;
+                if attempt < MAX_RATE_LIMIT_RETRIES {
+                    let wait_secs = parse_retry_after_seconds(retry_after.as_deref(), &text)
+                        .unwrap_or(15.0)
+                        .clamp(1.0, 60.0);
+                    sleep(Duration::from_secs_f64(wait_secs)).await;
+                    continue;
+                }
 
-        let choice = parsed
-            .choices
-            .pop()
-            .ok_or_else(|| anyhow!("No choices returned by LLM"))?;
+                return Err(anyhow!(
+                    "LLM request hit rate limit after {} attempt(s) using model {}: {}",
+                    MAX_RATE_LIMIT_RETRIES + 1,
+                    self.model,
+                    text
+                ));
+            }
 
-        // Priority 1: Check for native tool calls
-        if let Some(tool_calls) = choice.message.tool_calls
-            && !tool_calls.is_empty()
-        {
-            let call = &tool_calls[0];
-            // Convert native tool call back to JSON string for the Dalang Engine to parse
-            // so we don't need to refactor the entire orchestrator loop yet.
-            let dalang_json = serde_json::json!({
-                "tool": call.function.name,
-                "args": serde_json::from_str::<serde_json::Value>(&call.function.arguments).unwrap_or_default()
-            });
-            return Ok(serde_json::to_string(&dalang_json)?);
-        }
+            if !response.status().is_success() {
+                let status = response.status();
+                let text = response.text().await.unwrap_or_default();
+                return Err(anyhow!(
+                    "LLM request failed with {} using model {}: {}",
+                    status,
+                    self.model,
+                    text
+                ));
+            }
 
-        // Priority 2: Check for text content (regular response or JSON-in-string)
-        if let Some(content) = choice.message.content {
-            Ok(content)
-        } else {
-            Err(anyhow!(
+            let mut parsed: OpenAiResponse = response.json().await?;
+
+            let choice = parsed
+                .choices
+                .pop()
+                .ok_or_else(|| anyhow!("No choices returned by LLM"))?;
+
+            // Priority 1: Check for native tool calls
+            if let Some(tool_calls) = choice.message.tool_calls
+                && !tool_calls.is_empty()
+            {
+                let call = &tool_calls[0];
+                // Convert native tool call back to JSON string for the Dalang Engine to parse
+                // so we don't need to refactor the entire orchestrator loop yet.
+                let dalang_json = serde_json::json!({
+                    "tool": call.function.name,
+                    "args": serde_json::from_str::<serde_json::Value>(&call.function.arguments).unwrap_or_default()
+                });
+                return Ok(serde_json::to_string(&dalang_json)?);
+            }
+
+            // Priority 2: Check for text content (regular response or JSON-in-string)
+            if let Some(content) = choice.message.content {
+                return Ok(content);
+            }
+
+            return Err(anyhow!(
                 "Received null content and no tool calls. LLM response is empty."
-            ))
+            ));
         }
+
+        Err(anyhow!(
+            "LLM request exhausted retries unexpectedly for model {}",
+            self.model
+        ))
     }
 }
