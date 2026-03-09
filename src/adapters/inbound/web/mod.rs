@@ -35,15 +35,15 @@ pub fn build_router(state: AppState) -> Router {
             "/sessions/{id}/events",
             get(handlers::sessions::get_session_events),
         )
-        .route(
-            "/sessions/{id}",
-            delete(handlers::sessions::delete_session),
-        )
+        .route("/sessions/{id}", delete(handlers::sessions::delete_session))
         // WebSocket
         .route("/ws/{session_id}", get(handlers::chat::ws_handler))
         // Skills
         .route("/skills", get(handlers::skills::list_skills))
-        .route("/skills/{name}", get(handlers::skills::get_skill).put(handlers::skills::update_skill))
+        .route(
+            "/skills/{name}",
+            get(handlers::skills::get_skill).put(handlers::skills::update_skill),
+        )
         // Reports
         .route("/reports", get(handlers::reports::list_reports))
         .route("/reports/{filename}", get(handlers::reports::get_report))
@@ -63,7 +63,12 @@ pub fn build_router(state: AppState) -> Router {
 }
 
 /// Start the web server on the given port.
-pub async fn start_server(port: u16, open_browser: bool, verbose: bool, headless: bool) -> anyhow::Result<()> {
+pub async fn start_server(
+    port: u16,
+    open_browser: bool,
+    verbose: bool,
+    headless: bool,
+) -> anyhow::Result<()> {
     let state = AppState::new(verbose, headless);
     let app = build_router(state);
 

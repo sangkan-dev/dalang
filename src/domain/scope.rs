@@ -48,25 +48,30 @@ impl TargetScope {
 
         // 1. Try to parse as a full URL (has scheme)
         if trimmed.contains("://")
-            && let Ok(parsed) = Url::parse(trimmed) {
-                let host = parsed.host_str().unwrap_or("").to_string();
-                let port = parsed.port();
-                let path = {
-                    let p = parsed.path().to_string();
-                    if p == "/" { None } else { Some(p) }
-                };
-                let is_ip = is_ip_address(&host);
-                let base_domain = if is_ip { None } else { Some(extract_base_domain(&host)) };
-                return Self {
-                    raw_target: trimmed.to_string(),
-                    target_type: TargetType::Url,
-                    primary_host: host,
-                    base_domain,
-                    port,
-                    path,
-                    cidr: None,
-                };
-            }
+            && let Ok(parsed) = Url::parse(trimmed)
+        {
+            let host = parsed.host_str().unwrap_or("").to_string();
+            let port = parsed.port();
+            let path = {
+                let p = parsed.path().to_string();
+                if p == "/" { None } else { Some(p) }
+            };
+            let is_ip = is_ip_address(&host);
+            let base_domain = if is_ip {
+                None
+            } else {
+                Some(extract_base_domain(&host))
+            };
+            return Self {
+                raw_target: trimmed.to_string(),
+                target_type: TargetType::Url,
+                primary_host: host,
+                base_domain,
+                port,
+                path,
+                cidr: None,
+            };
+        }
 
         // 2. CIDR notation (contains '/' with digits on both sides)
         if trimmed.contains('/') {
@@ -89,17 +94,18 @@ impl TargetScope {
             let maybe_host = &trimmed[..colon_pos];
             let maybe_port = &trimmed[colon_pos + 1..];
             if is_ip_address(maybe_host)
-                && let Ok(port) = maybe_port.parse::<u16>() {
-                    return Self {
-                        raw_target: trimmed.to_string(),
-                        target_type: TargetType::IpPort,
-                        primary_host: maybe_host.to_string(),
-                        base_domain: None,
-                        port: Some(port),
-                        path: None,
-                        cidr: None,
-                    };
-                }
+                && let Ok(port) = maybe_port.parse::<u16>()
+            {
+                return Self {
+                    raw_target: trimmed.to_string(),
+                    target_type: TargetType::IpPort,
+                    primary_host: maybe_host.to_string(),
+                    base_domain: None,
+                    port: Some(port),
+                    path: None,
+                    cidr: None,
+                };
+            }
         }
 
         // 4. Bare IP address
@@ -205,8 +211,10 @@ impl TargetScope {
                     "Primary target: `{}:{}`\n\
                     Authorized scope: all TCP/UDP ports on `{}`, all paths and services. \
                     Port {} is the starting point but explore all ports.\n",
-                    self.primary_host, self.port.unwrap_or(0),
-                    self.primary_host, self.port.unwrap_or(0)
+                    self.primary_host,
+                    self.port.unwrap_or(0),
+                    self.primary_host,
+                    self.port.unwrap_or(0)
                 ));
             }
             TargetType::Cidr => {
@@ -265,12 +273,9 @@ fn extract_base_domain(host: &str) -> String {
 
     // Common two-part TLDs
     let two_part_tlds = [
-        "co.uk", "co.id", "co.jp", "co.kr", "co.nz", "co.za", "co.in",
-        "com.au", "com.br", "com.cn", "com.mx", "com.sg", "com.tw",
-        "org.uk", "org.au", "net.au", "net.uk",
-        "ac.uk", "ac.id", "ac.jp",
-        "go.id", "go.jp", "go.kr",
-        "or.id", "or.jp", "or.kr",
+        "co.uk", "co.id", "co.jp", "co.kr", "co.nz", "co.za", "co.in", "com.au", "com.br",
+        "com.cn", "com.mx", "com.sg", "com.tw", "org.uk", "org.au", "net.au", "net.uk", "ac.uk",
+        "ac.id", "ac.jp", "go.id", "go.jp", "go.kr", "or.id", "or.jp", "or.kr",
     ];
 
     let last_two = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);

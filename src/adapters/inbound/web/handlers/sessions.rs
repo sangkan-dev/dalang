@@ -1,11 +1,11 @@
 //! Session management REST API handlers.
 
-use crate::web::state::{AppState, SessionMode};
 use crate::web::persistence;
+use crate::web::state::{AppState, SessionMode};
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::Deserialize;
 use uuid::Uuid;
 

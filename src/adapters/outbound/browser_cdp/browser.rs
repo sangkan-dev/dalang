@@ -1,13 +1,12 @@
 use anyhow::{Result, anyhow};
 use chromiumoxide::browser::{Browser, BrowserConfig};
-use chromiumoxide::page::Page;
-use chromiumoxide::cdp::browser_protocol::network::{
-    CookieParam, DeleteCookiesParams, EnableParams as NetworkEnableParams,
-    EventRequestWillBeSent, EventResponseReceived, Headers,
-    SetExtraHttpHeadersParams, SetUserAgentOverrideParams,
-};
 use chromiumoxide::cdp::browser_protocol::emulation::SetDeviceMetricsOverrideParams;
+use chromiumoxide::cdp::browser_protocol::network::{
+    CookieParam, DeleteCookiesParams, EnableParams as NetworkEnableParams, EventRequestWillBeSent,
+    EventResponseReceived, Headers, SetExtraHttpHeadersParams, SetUserAgentOverrideParams,
+};
 use chromiumoxide::cdp::browser_protocol::page::CaptureScreenshotFormat;
+use chromiumoxide::page::Page;
 use futures::StreamExt;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -89,9 +88,13 @@ impl DalangBrowser {
 
     /// Get reference to the active page, or error.
     fn active_page(&self) -> Result<&Page> {
-        self.pages
-            .get(self.active_idx)
-            .ok_or_else(|| anyhow!("No active page (idx {} of {})", self.active_idx, self.pages.len()))
+        self.pages.get(self.active_idx).ok_or_else(|| {
+            anyhow!(
+                "No active page (idx {} of {})",
+                self.active_idx,
+                self.pages.len()
+            )
+        })
     }
 
     // ──────────────────────────────────────────────
@@ -180,7 +183,9 @@ impl DalangBrowser {
     /// Query a single element by CSS selector and return its info as JSON.
     pub async fn query_selector(&self, selector: &str) -> Result<String> {
         let page = self.active_page()?;
-        let el = page.find_element(selector).await
+        let el = page
+            .find_element(selector)
+            .await
             .map_err(|e| anyhow!("Element not found '{}': {}", selector, e))?;
         let desc = el.description().await?;
         let text = el.inner_text().await?.unwrap_or_default();
@@ -201,11 +206,15 @@ impl DalangBrowser {
     /// Query all elements matching a CSS selector (capped at `limit`).
     pub async fn query_selector_all(&self, selector: &str, limit: usize) -> Result<String> {
         let page = self.active_page()?;
-        let elements = page.find_elements(selector).await
+        let elements = page
+            .find_elements(selector)
+            .await
             .map_err(|e| anyhow!("Elements not found '{}': {}", selector, e))?;
         let mut results = Vec::new();
         for (i, el) in elements.into_iter().enumerate() {
-            if i >= limit { break; }
+            if i >= limit {
+                break;
+            }
             let text = el.inner_text().await?.unwrap_or_default();
             let text_trunc = if text.len() > 200 {
                 format!("{}...", &text[..200])
@@ -239,7 +248,9 @@ impl DalangBrowser {
     /// Get a specific attribute of an element.
     pub async fn get_attribute(&self, selector: &str, attribute: &str) -> Result<String> {
         let page = self.active_page()?;
-        let el = page.find_element(selector).await
+        let el = page
+            .find_element(selector)
+            .await
             .map_err(|e| anyhow!("Element not found '{}': {}", selector, e))?;
         let val = el.attribute(attribute).await?;
         Ok(val.unwrap_or_default())
@@ -252,10 +263,18 @@ impl DalangBrowser {
         let timeout = tokio::time::Duration::from_millis(timeout_ms);
         loop {
             if page.find_element(selector.to_string()).await.is_ok() {
-                return Ok(format!("Element '{}' found after {}ms", selector, start.elapsed().as_millis()));
+                return Ok(format!(
+                    "Element '{}' found after {}ms",
+                    selector,
+                    start.elapsed().as_millis()
+                ));
             }
             if start.elapsed() > timeout {
-                return Err(anyhow!("Timeout waiting for '{}' after {}ms", selector, timeout_ms));
+                return Err(anyhow!(
+                    "Timeout waiting for '{}' after {}ms",
+                    selector,
+                    timeout_ms
+                ));
             }
             tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
         }
@@ -268,7 +287,9 @@ impl DalangBrowser {
     /// Click an element by CSS selector.
     pub async fn click(&self, selector: &str) -> Result<String> {
         let page = self.active_page()?;
-        let el = page.find_element(selector).await
+        let el = page
+            .find_element(selector)
+            .await
             .map_err(|e| anyhow!("Element not found '{}': {}", selector, e))?;
         el.scroll_into_view().await?;
         el.click().await?;
@@ -279,7 +300,9 @@ impl DalangBrowser {
     /// Type text into an element. If `clear` is true, clear the field first.
     pub async fn type_text(&self, selector: &str, text: &str, clear: bool) -> Result<String> {
         let page = self.active_page()?;
-        let el = page.find_element(selector).await
+        let el = page
+            .find_element(selector)
+            .await
             .map_err(|e| anyhow!("Element not found '{}': {}", selector, e))?;
         el.scroll_into_view().await?;
         el.focus().await?;
@@ -298,7 +321,9 @@ impl DalangBrowser {
     /// Hover over an element by CSS selector.
     pub async fn hover(&self, selector: &str) -> Result<String> {
         let page = self.active_page()?;
-        let el = page.find_element(selector).await
+        let el = page
+            .find_element(selector)
+            .await
             .map_err(|e| anyhow!("Element not found '{}': {}", selector, e))?;
         el.scroll_into_view().await?;
         el.hover().await?;
@@ -308,7 +333,9 @@ impl DalangBrowser {
     /// Focus on an element by CSS selector.
     pub async fn focus(&self, selector: &str) -> Result<String> {
         let page = self.active_page()?;
-        let el = page.find_element(selector).await
+        let el = page
+            .find_element(selector)
+            .await
             .map_err(|e| anyhow!("Element not found '{}': {}", selector, e))?;
         el.focus().await?;
         Ok(format!("Focused on '{}'", selector))
@@ -329,7 +356,9 @@ impl DalangBrowser {
     /// Press a keyboard key on a focused element (e.g., "Enter", "Tab", "Escape").
     pub async fn press_key(&self, selector: &str, key: &str) -> Result<String> {
         let page = self.active_page()?;
-        let el = page.find_element(selector).await
+        let el = page
+            .find_element(selector)
+            .await
             .map_err(|e| anyhow!("Element not found '{}': {}", selector, e))?;
         el.press_key(key).await?;
         Ok(format!("Pressed '{}' on '{}'", key, selector))
@@ -337,13 +366,16 @@ impl DalangBrowser {
 
     /// Fill multiple form fields at once. `fields` is a JSON object: {"selector": "value", ...}.
     pub async fn fill_form(&self, fields: &serde_json::Value) -> Result<String> {
-        let obj = fields.as_object()
+        let obj = fields
+            .as_object()
             .ok_or_else(|| anyhow!("fill_form fields must be a JSON object"))?;
         let page = self.active_page()?;
         let mut filled = 0;
         for (selector, value) in obj {
             let val = value.as_str().unwrap_or("");
-            let el = page.find_element(selector.as_str()).await
+            let el = page
+                .find_element(selector.as_str())
+                .await
                 .map_err(|e| anyhow!("Field '{}' not found: {}", selector, e))?;
             el.focus().await?;
             let js = format!(
@@ -381,12 +413,15 @@ impl DalangBrowser {
     pub async fn scroll(&self, x: i64, y: i64, selector: Option<&str>) -> Result<String> {
         let page = self.active_page()?;
         if let Some(sel) = selector {
-            let el = page.find_element(sel).await
+            let el = page
+                .find_element(sel)
+                .await
                 .map_err(|e| anyhow!("Element not found '{}': {}", sel, e))?;
             el.scroll_into_view().await?;
             Ok(format!("Scrolled '{}' into view", sel))
         } else {
-            page.evaluate(format!("window.scrollTo({}, {})", x, y)).await?;
+            page.evaluate(format!("window.scrollTo({}, {})", x, y))
+                .await?;
             Ok(format!("Scrolled to ({}, {})", x, y))
         }
     }
@@ -399,7 +434,9 @@ impl DalangBrowser {
     pub async fn screenshot(&self, full_page: bool, selector: Option<&str>) -> Result<String> {
         let page = self.active_page()?;
         let bytes = if let Some(sel) = selector {
-            let el = page.find_element(sel).await
+            let el = page
+                .find_element(sel)
+                .await
                 .map_err(|e| anyhow!("Element not found '{}': {}", sel, e))?;
             el.screenshot(CaptureScreenshotFormat::Png).await?
         } else if full_page {
@@ -419,8 +456,17 @@ impl DalangBrowser {
         use base64::Engine as _;
         let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
         let size_kb = bytes.len() / 1024;
-        let mode = if selector.is_some() { "element" } else if full_page { "full-page" } else { "viewport" };
-        Ok(format!("Screenshot captured: {}KB ({}). Base64 data: {}", size_kb, mode, b64))
+        let mode = if selector.is_some() {
+            "element"
+        } else if full_page {
+            "full-page"
+        } else {
+            "viewport"
+        };
+        Ok(format!(
+            "Screenshot captured: {}KB ({}). Base64 data: {}",
+            size_kb, mode, b64
+        ))
     }
 
     /// Take a screenshot and save to a file path.
@@ -441,7 +487,11 @@ impl DalangBrowser {
             page.screenshot(params).await?
         };
         std::fs::write(path, &bytes)?;
-        Ok(format!("Screenshot saved to {} ({}KB)", path, bytes.len() / 1024))
+        Ok(format!(
+            "Screenshot saved to {} ({}KB)",
+            path,
+            bytes.len() / 1024
+        ))
     }
 
     // ──────────────────────────────────────────────
@@ -452,18 +502,21 @@ impl DalangBrowser {
     pub async fn get_cookies(&self) -> Result<String> {
         let page = self.active_page()?;
         let cookies = page.get_cookies().await?;
-        let cookie_list: Vec<serde_json::Value> = cookies.iter().map(|c| {
-            serde_json::json!({
-                "name": c.name,
-                "value": c.value,
-                "domain": c.domain,
-                "path": c.path,
-                "secure": c.secure,
-                "httpOnly": c.http_only,
-                "sameSite": format!("{:?}", c.same_site),
-                "expires": c.expires,
+        let cookie_list: Vec<serde_json::Value> = cookies
+            .iter()
+            .map(|c| {
+                serde_json::json!({
+                    "name": c.name,
+                    "value": c.value,
+                    "domain": c.domain,
+                    "path": c.path,
+                    "secure": c.secure,
+                    "httpOnly": c.http_only,
+                    "sameSite": format!("{:?}", c.same_site),
+                    "expires": c.expires,
+                })
             })
-        }).collect();
+            .collect();
         Ok(serde_json::to_string_pretty(&cookie_list)?)
     }
 
@@ -538,7 +591,9 @@ impl DalangBrowser {
         let page = self.active_page()?;
         let js = format!(
             "{}.setItem(\"{}\", \"{}\")",
-            st, key.replace('"', "\\\""), value.replace('"', "\\\"")
+            st,
+            key.replace('"', "\\\""),
+            value.replace('"', "\\\"")
         );
         page.evaluate(js).await?;
         Ok(format!("Set {}.{} = '{}'", st, key, value))
@@ -562,7 +617,8 @@ impl DalangBrowser {
     /// Set extra HTTP headers for all subsequent requests.
     pub async fn set_extra_headers(&self, headers: &serde_json::Value) -> Result<String> {
         let page = self.active_page()?;
-        let obj = headers.as_object()
+        let obj = headers
+            .as_object()
             .ok_or_else(|| anyhow!("headers must be a JSON object"))?;
         let header_json = serde_json::Value::Object(obj.clone());
         let params = SetExtraHttpHeadersParams::new(Headers::new(header_json));
@@ -620,7 +676,9 @@ impl DalangBrowser {
                     entry.mime_type = event.response.mime_type.clone().into();
                     if let serde_json::Value::Object(hdrs) = event.response.headers.inner() {
                         for (k, v) in hdrs {
-                            entry.response_headers.insert(k.clone(), v.as_str().unwrap_or("").to_string());
+                            entry
+                                .response_headers
+                                .insert(k.clone(), v.as_str().unwrap_or("").to_string());
                         }
                     }
                 }
@@ -639,7 +697,12 @@ impl DalangBrowser {
         if clear {
             log.clear();
         }
-        Ok(format!("[{} entries{}]\n{}", count, if clear { ", cleared" } else { "" }, json))
+        Ok(format!(
+            "[{} entries{}]\n{}",
+            count,
+            if clear { ", cleared" } else { "" },
+            json
+        ))
     }
 
     /// Set the viewport size (device emulation).
@@ -688,7 +751,11 @@ impl DalangBrowser {
     /// Switch to a specific tab by index.
     pub fn switch_tab(&mut self, index: usize) -> Result<String> {
         if index >= self.pages.len() {
-            return Err(anyhow!("Tab index {} out of range (0..{})", index, self.pages.len()));
+            return Err(anyhow!(
+                "Tab index {} out of range (0..{})",
+                index,
+                self.pages.len()
+            ));
         }
         self.active_idx = index;
         Ok(format!("Switched to tab #{}", index))
@@ -708,6 +775,9 @@ impl DalangBrowser {
         if self.active_idx >= self.pages.len() {
             self.active_idx = self.pages.len() - 1;
         }
-        Ok(format!("Closed tab #{}, active is now #{}", idx, self.active_idx))
+        Ok(format!(
+            "Closed tab #{}, active is now #{}",
+            idx, self.active_idx
+        ))
     }
 }

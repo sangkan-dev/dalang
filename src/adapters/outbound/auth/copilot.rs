@@ -128,9 +128,7 @@ pub fn extract_copilot_keychain_token() -> Result<String> {
 
 /// Try to extract a GitHub token from the `gh` CLI.
 pub fn extract_gh_cli_token() -> Result<String> {
-    let output = Command::new("gh")
-        .args(["auth", "token"])
-        .output()?;
+    let output = Command::new("gh").args(["auth", "token"]).output()?;
 
     if output.status.success() {
         let token = String::from_utf8(output.stdout)?.trim().to_string();
@@ -246,10 +244,7 @@ pub async fn login_copilot_device_flow() -> Result<CopilotLoginResult> {
         .header("Accept", "application/json")
         .header("Content-Type", "application/x-www-form-urlencoded")
         .header("User-Agent", "GithubCopilot/1.155.0")
-        .form(&[
-            ("client_id", COPILOT_CLIENT_ID),
-            ("scope", COPILOT_SCOPES),
-        ])
+        .form(&[("client_id", COPILOT_CLIENT_ID), ("scope", COPILOT_SCOPES)])
         .send()
         .await?;
 
@@ -304,7 +299,10 @@ pub async fn login_copilot_device_flow() -> Result<CopilotLoginResult> {
             });
     }
 
-    println!("[*] Waiting for authorization (polling every {}s)...", device.interval);
+    println!(
+        "[*] Waiting for authorization (polling every {}s)...",
+        device.interval
+    );
 
     // Step 3: Poll for access token
     let mut interval = std::cmp::max(device.interval, 5);
@@ -351,7 +349,10 @@ pub async fn login_copilot_device_flow() -> Result<CopilotLoginResult> {
         match token_resp.error.as_deref() {
             Some("authorization_pending") => {
                 if attempt % 6 == 0 {
-                    println!("[*] Still waiting for authorization... (attempt {}/{})", attempt, max_attempts);
+                    println!(
+                        "[*] Still waiting for authorization... (attempt {}/{})",
+                        attempt, max_attempts
+                    );
                 }
             }
             Some("slow_down") => {

@@ -2,10 +2,10 @@
 
 use crate::domain::models::SkillDefinition;
 use crate::skills_parser;
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::web::state::AppState;
@@ -144,5 +144,7 @@ pub async fn update_skill(
         state.disabled_skills.insert(name.clone(), true);
     }
 
-    Ok(Json(serde_json::json!({ "name": name, "enabled": body.enabled })))
+    Ok(Json(
+        serde_json::json!({ "name": name, "enabled": body.enabled }),
+    ))
 }

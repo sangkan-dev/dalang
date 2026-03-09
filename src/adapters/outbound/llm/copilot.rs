@@ -181,15 +181,16 @@ impl CopilotProvider {
 
         // Priority 1: Native tool calls
         if let Some(tool_calls) = choice.message.tool_calls
-            && !tool_calls.is_empty() {
-                let call = &tool_calls[0];
-                let dalang_json = serde_json::json!({
-                    "tool": call.function.name,
-                    "args": serde_json::from_str::<serde_json::Value>(&call.function.arguments)
-                        .unwrap_or_default()
-                });
-                return Ok(serde_json::to_string(&dalang_json)?);
-            }
+            && !tool_calls.is_empty()
+        {
+            let call = &tool_calls[0];
+            let dalang_json = serde_json::json!({
+                "tool": call.function.name,
+                "args": serde_json::from_str::<serde_json::Value>(&call.function.arguments)
+                    .unwrap_or_default()
+            });
+            return Ok(serde_json::to_string(&dalang_json)?);
+        }
 
         // Priority 2: Text content
         if let Some(content) = choice.message.content {

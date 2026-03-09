@@ -1,9 +1,9 @@
 //! Reports management REST API handlers.
 
+use axum::Json;
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::fs;
 
@@ -29,34 +29,34 @@ pub async fn list_reports() -> impl IntoResponse {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to read directory: {}", e),
-            ))
+            ));
         }
     };
 
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
-        if name.starts_with("dalang_report_") && name.ends_with(".md")
-            && let Ok(meta) = entry.metadata() {
-                let created = meta
-                    .modified()
-                    .ok()
-                    .and_then(|t| {
-                        t.duration_since(std::time::UNIX_EPOCH)
-                            .ok()
-                            .map(|d| {
-                                chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
-                                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                                    .unwrap_or_default()
-                            })
+        if name.starts_with("dalang_report_")
+            && name.ends_with(".md")
+            && let Ok(meta) = entry.metadata()
+        {
+            let created = meta
+                .modified()
+                .ok()
+                .and_then(|t| {
+                    t.duration_since(std::time::UNIX_EPOCH).ok().map(|d| {
+                        chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
+                            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                            .unwrap_or_default()
                     })
-                    .unwrap_or_default();
+                })
+                .unwrap_or_default();
 
-                reports.push(ReportSummary {
-                    filename: name,
-                    size: meta.len(),
-                    created,
-                });
-            }
+            reports.push(ReportSummary {
+                filename: name,
+                size: meta.len(),
+                created,
+            });
+        }
     }
 
     reports.sort_by(|a, b| b.filename.cmp(&a.filename));
@@ -70,7 +70,10 @@ pub async fn get_report(
 ) -> impl IntoResponse {
     // Sanitize: only allow dalang_report_*.md files
     if !filename.starts_with("dalang_report_") || !filename.ends_with(".md") {
-        return Err((StatusCode::BAD_REQUEST, "Invalid report filename".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Invalid report filename".to_string(),
+        ));
     }
 
     let content = match fs::read_to_string(&filename) {

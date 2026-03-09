@@ -309,19 +309,31 @@ impl BrowserPort for LazyBrowserAdapter {
         self.get_or_init().await?.query_selector(selector).await
     }
     async fn query_selector_all(&self, selector: &str, limit: usize) -> Result<String> {
-        self.get_or_init().await?.query_selector_all(selector, limit).await
+        self.get_or_init()
+            .await?
+            .query_selector_all(selector, limit)
+            .await
     }
     async fn get_attribute(&self, selector: &str, attribute: &str) -> Result<String> {
-        self.get_or_init().await?.get_attribute(selector, attribute).await
+        self.get_or_init()
+            .await?
+            .get_attribute(selector, attribute)
+            .await
     }
     async fn wait_for_selector(&self, selector: &str, timeout_ms: u64) -> Result<String> {
-        self.get_or_init().await?.wait_for_selector(selector, timeout_ms).await
+        self.get_or_init()
+            .await?
+            .wait_for_selector(selector, timeout_ms)
+            .await
     }
     async fn click(&self, selector: &str) -> Result<String> {
         self.get_or_init().await?.click(selector).await
     }
     async fn type_text(&self, selector: &str, text: &str, clear: bool) -> Result<String> {
-        self.get_or_init().await?.type_text(selector, text, clear).await
+        self.get_or_init()
+            .await?
+            .type_text(selector, text, clear)
+            .await
     }
     async fn hover(&self, selector: &str) -> Result<String> {
         self.get_or_init().await?.hover(selector).await
@@ -330,7 +342,10 @@ impl BrowserPort for LazyBrowserAdapter {
         self.get_or_init().await?.focus(selector).await
     }
     async fn select_option(&self, selector: &str, value: &str) -> Result<String> {
-        self.get_or_init().await?.select_option(selector, value).await
+        self.get_or_init()
+            .await?
+            .select_option(selector, value)
+            .await
     }
     async fn press_key(&self, selector: &str, key: &str) -> Result<String> {
         self.get_or_init().await?.press_key(selector, key).await
@@ -345,10 +360,16 @@ impl BrowserPort for LazyBrowserAdapter {
         self.get_or_init().await?.scroll(x, y, selector).await
     }
     async fn screenshot(&self, full_page: bool, selector: Option<&str>) -> Result<String> {
-        self.get_or_init().await?.screenshot(full_page, selector).await
+        self.get_or_init()
+            .await?
+            .screenshot(full_page, selector)
+            .await
     }
     async fn screenshot_to_file(&self, path: &str, full_page: bool) -> Result<String> {
-        self.get_or_init().await?.screenshot_to_file(path, full_page).await
+        self.get_or_init()
+            .await?
+            .screenshot_to_file(path, full_page)
+            .await
     }
     async fn get_cookies(&self) -> Result<String> {
         self.get_or_init().await?.get_cookies().await
@@ -362,7 +383,10 @@ impl BrowserPort for LazyBrowserAdapter {
         secure: Option<bool>,
         http_only: Option<bool>,
     ) -> Result<String> {
-        self.get_or_init().await?.set_cookie(name, value, domain, path, secure, http_only).await
+        self.get_or_init()
+            .await?
+            .set_cookie(name, value, domain, path, secure, http_only)
+            .await
     }
     async fn delete_cookies(&self, name: Option<&str>) -> Result<String> {
         self.get_or_init().await?.delete_cookies(name).await
@@ -371,7 +395,10 @@ impl BrowserPort for LazyBrowserAdapter {
         self.get_or_init().await?.get_storage(storage_type).await
     }
     async fn set_storage(&self, storage_type: &str, key: &str, value: &str) -> Result<String> {
-        self.get_or_init().await?.set_storage(storage_type, key, value).await
+        self.get_or_init()
+            .await?
+            .set_storage(storage_type, key, value)
+            .await
     }
     async fn clear_storage(&self, storage_type: &str) -> Result<String> {
         self.get_or_init().await?.clear_storage(storage_type).await

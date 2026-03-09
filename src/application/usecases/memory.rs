@@ -118,13 +118,13 @@ pub fn compact_messages(messages: &mut Vec<crate::domain::models::Message>) {
         if role == "user" && content.contains("OBSERVATION FROM") {
             // Extract skill name and line count from observation
             if let Some(skill_start) = content.find('`')
-                && let Some(skill_end) = content[skill_start + 1..].find('`') {
-                    let skill = &content[skill_start + 1..skill_start + 1 + skill_end];
-                    let lines = content.lines().count();
-                    summary_parts
-                        .push(format!("- Executed `{}`: {} lines of output", skill, lines));
-                    continue;
-                }
+                && let Some(skill_end) = content[skill_start + 1..].find('`')
+            {
+                let skill = &content[skill_start + 1..skill_start + 1 + skill_end];
+                let lines = content.lines().count();
+                summary_parts.push(format!("- Executed `{}`: {} lines of output", skill, lines));
+                continue;
+            }
             let lines = content.lines().count();
             summary_parts.push(format!("- Tool observation: {} lines", lines));
         } else if role == "assistant" && content.len() > 200 {

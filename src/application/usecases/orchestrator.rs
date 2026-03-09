@@ -11,7 +11,9 @@
 use crate::application::ports::browser_port::BrowserPort;
 use crate::application::ports::llm_port::LlmPort;
 use crate::application::ports::os_port::CommandExecutor;
-use crate::application::usecases::memory::{compact_messages, truncate_output, MAX_OBSERVATION_BYTES};
+use crate::application::usecases::memory::{
+    MAX_OBSERVATION_BYTES, compact_messages, truncate_output,
+};
 use crate::domain::models::{EngineEvent, Message, SkillDefinition};
 use crate::domain::safety::{is_clean_argument, is_safety_refusal};
 use crate::domain::tool_call::{build_executor_args, parse_llm_tool_call};
@@ -196,8 +198,6 @@ impl DalangOrchestrator {
             }
         }
     }
-
-
 
     // ── Execute a native skill command ─────────────────────────────────────────
 
@@ -404,9 +404,14 @@ impl DalangOrchestrator {
                                         let tc = tool_call.clone();
                                         tasks.push(Box::pin(async move {
                                             println!("    [B] Browser tool: {}", tc.name);
-                                            let output = Self::dispatch_browser_tool(&*browser, &tc).await;
-                                            let obs = truncate_output(&output, MAX_OBSERVATION_BYTES);
-                                            Message::user(&format!("Browser Observation ({}):\n{}", tc.name, obs))
+                                            let output =
+                                                Self::dispatch_browser_tool(&*browser, &tc).await;
+                                            let obs =
+                                                truncate_output(&output, MAX_OBSERVATION_BYTES);
+                                            Message::user(&format!(
+                                                "Browser Observation ({}):\n{}",
+                                                tc.name, obs
+                                            ))
                                         }));
                                     } else {
                                         messages.push(Message::user(
@@ -770,9 +775,13 @@ impl DalangOrchestrator {
                                     let tc = tool_call.clone();
                                     tasks.push(Box::pin(async move {
                                         println!("    [B] Browser tool: {}", tc.name);
-                                        let output = Self::dispatch_browser_tool(&*browser, &tc).await;
+                                        let output =
+                                            Self::dispatch_browser_tool(&*browser, &tc).await;
                                         let obs = truncate_output(&output, MAX_OBSERVATION_BYTES);
-                                        Message::user(&format!("Browser Observation ({}):\n{}", tc.name, obs))
+                                        Message::user(&format!(
+                                            "Browser Observation ({}):\n{}",
+                                            tc.name, obs
+                                        ))
                                     }));
                                 } else {
                                     messages.push(Message::user(
@@ -962,9 +971,7 @@ impl DalangOrchestrator {
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            if let Some(skill_def) =
-                                skills.iter().find(|s| s.name == skill_name)
-                            {
+                            if let Some(skill_def) = skills.iter().find(|s| s.name == skill_name) {
                                 self.execute_skill_native(
                                     skill_def,
                                     target,
@@ -981,7 +988,11 @@ impl DalangOrchestrator {
                                 let output =
                                     Self::dispatch_browser_tool(&**browser, &tool_call).await;
                                 let obs = truncate_output(&output, MAX_OBSERVATION_BYTES);
-                                println!("    [B] {}: {}", tool_call.name, &obs[..obs.len().min(200)]);
+                                println!(
+                                    "    [B] {}: {}",
+                                    tool_call.name,
+                                    &obs[..obs.len().min(200)]
+                                );
                                 messages.push(Message::user(&format!(
                                     "Browser Observation ({}):\n{}",
                                     tool_call.name, obs
@@ -1007,13 +1018,13 @@ impl DalangOrchestrator {
                                             obs.push_str(&format!("STDERR:\n{}\n", stderr));
                                         }
                                         messages.push(Message::user(&format!(
-                                            "Observation ({}):\n{}", program, obs
+                                            "Observation ({}):\n{}",
+                                            program, obs
                                         )));
                                     }
                                     Err(e) => {
-                                        messages.push(Message::user(&format!(
-                                            "Command Error: {}", e
-                                        )));
+                                        messages
+                                            .push(Message::user(&format!("Command Error: {}", e)));
                                     }
                                 }
                             }
@@ -1045,8 +1056,7 @@ impl DalangOrchestrator {
         // Ensure system prompt exists
         if messages.is_empty() || messages[0].role != "system" {
             let (raw_skills, raw_unavailable) = load_available_skills()?;
-            let (skills, _unavailable) =
-                self.filter_disabled_skills(raw_skills, raw_unavailable);
+            let (skills, _unavailable) = self.filter_disabled_skills(raw_skills, raw_unavailable);
             let skills_catalog = generate_skills_catalog_prompt(&skills);
             let system_prompt = format!(
                 "[AUTHORIZED AUDIT ENVIRONMENT - INTERACTIVE MODE]\n\
@@ -1116,8 +1126,7 @@ impl DalangOrchestrator {
                 Ok(tool_calls) => {
                     // Load skills for execute_skill dispatch
                     let (raw_skills, _) = load_available_skills()?;
-                    let (skills, _) =
-                        self.filter_disabled_skills(raw_skills, vec![]);
+                    let (skills, _) = self.filter_disabled_skills(raw_skills, vec![]);
 
                     for tool_call in tool_calls {
                         if tool_call.name == "execute_skill" {
@@ -1195,10 +1204,8 @@ impl DalangOrchestrator {
                                         )));
                                     }
                                     Err(e) => {
-                                        messages.push(Message::user(&format!(
-                                            "Command Error: {}",
-                                            e
-                                        )));
+                                        messages
+                                            .push(Message::user(&format!("Command Error: {}", e)));
                                     }
                                 }
                             }
@@ -1227,7 +1234,10 @@ impl DalangOrchestrator {
         tool_call: &crate::domain::models::ToolCall,
     ) -> String {
         let args = &tool_call.arguments;
-        let action = tool_call.name.strip_prefix("browser-").unwrap_or(&tool_call.name);
+        let action = tool_call
+            .name
+            .strip_prefix("browser-")
+            .unwrap_or(&tool_call.name);
 
         let result = match action {
             // Navigation
@@ -1266,7 +1276,10 @@ impl DalangOrchestrator {
             }
             "wait-for-selector" => {
                 let selector = args.get("selector").and_then(|v| v.as_str()).unwrap_or("");
-                let timeout = args.get("timeout_ms").and_then(|v| v.as_u64()).unwrap_or(5000);
+                let timeout = args
+                    .get("timeout_ms")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(5000);
                 browser.wait_for_selector(selector, timeout).await
             }
 
@@ -1304,7 +1317,10 @@ impl DalangOrchestrator {
                 browser.fill_form(fields).await
             }
             "submit-form" => {
-                let selector = args.get("selector").and_then(|v| v.as_str()).unwrap_or("form");
+                let selector = args
+                    .get("selector")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("form");
                 browser.submit_form(selector).await
             }
             "scroll" => {
@@ -1316,13 +1332,22 @@ impl DalangOrchestrator {
 
             // Screenshots
             "screenshot" => {
-                let full_page = args.get("full_page").and_then(|v| v.as_bool()).unwrap_or(false);
+                let full_page = args
+                    .get("full_page")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
                 let selector = args.get("selector").and_then(|v| v.as_str());
                 browser.screenshot(full_page, selector).await
             }
             "screenshot-to-file" => {
-                let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("screenshot.png");
-                let full_page = args.get("full_page").and_then(|v| v.as_bool()).unwrap_or(false);
+                let path = args
+                    .get("path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("screenshot.png");
+                let full_page = args
+                    .get("full_page")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
                 browser.screenshot_to_file(path, full_page).await
             }
 
@@ -1335,7 +1360,9 @@ impl DalangOrchestrator {
                 let path = args.get("path").and_then(|v| v.as_str());
                 let secure = args.get("secure").and_then(|v| v.as_bool());
                 let http_only = args.get("http_only").and_then(|v| v.as_bool());
-                browser.set_cookie(name, value, domain, path, secure, http_only).await
+                browser
+                    .set_cookie(name, value, domain, path, secure, http_only)
+                    .await
             }
             "delete-cookies" => {
                 let name = args.get("name").and_then(|v| v.as_str());
@@ -1344,17 +1371,26 @@ impl DalangOrchestrator {
 
             // Storage
             "get-storage" => {
-                let stype = args.get("storage_type").and_then(|v| v.as_str()).unwrap_or("local");
+                let stype = args
+                    .get("storage_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("local");
                 browser.get_storage(stype).await
             }
             "set-storage" => {
-                let stype = args.get("storage_type").and_then(|v| v.as_str()).unwrap_or("local");
+                let stype = args
+                    .get("storage_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("local");
                 let key = args.get("key").and_then(|v| v.as_str()).unwrap_or("");
                 let value = args.get("value").and_then(|v| v.as_str()).unwrap_or("");
                 browser.set_storage(stype, key, value).await
             }
             "clear-storage" => {
-                let stype = args.get("storage_type").and_then(|v| v.as_str()).unwrap_or("local");
+                let stype = args
+                    .get("storage_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("local");
                 browser.clear_storage(stype).await
             }
 
@@ -1364,7 +1400,10 @@ impl DalangOrchestrator {
                 browser.set_extra_headers(headers).await
             }
             "set-user-agent" => {
-                let ua = args.get("user_agent").and_then(|v| v.as_str()).unwrap_or("");
+                let ua = args
+                    .get("user_agent")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 browser.set_user_agent(ua).await
             }
             "enable-network-log" => browser.enable_network_log().await,
@@ -1389,7 +1428,10 @@ impl DalangOrchestrator {
                 browser.switch_tab(index).await
             }
             "close-tab" => {
-                let index = args.get("index").and_then(|v| v.as_u64()).map(|v| v as usize);
+                let index = args
+                    .get("index")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize);
                 browser.close_tab(index).await
             }
 
@@ -1528,11 +1570,7 @@ mod tests {
             "As an AI, I must decline.",
         ];
         for r in &refusals {
-            assert!(
-                is_safety_refusal(r),
-                "Expected safety refusal for: '{}'",
-                r
-            );
+            assert!(is_safety_refusal(r), "Expected safety refusal for: '{}'", r);
         }
     }
 
