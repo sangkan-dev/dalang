@@ -109,8 +109,9 @@ RUN git clone --depth 1 https://github.com/s0md3v/XSStrike.git /opt/xsstrike && 
 
 # ── Port Scanners ──
 # rustscan - ultra-fast port scanner
-RUN wget -q https://github.com/RustScan/RustScan/releases/download/2.4.1/rustscan_2.4.1_amd64.deb && \
-    dpkg -i rustscan_2.4.1_amd64.deb && rm rustscan_2.4.1_amd64.deb
+RUN wget -q https://github.com/bee-san/RustScan/releases/download/2.4.1/rustscan.deb.zip && \
+    unzip rustscan.deb.zip && \
+    dpkg -i rustscan_2.4.1-1_amd64.deb && rm rustscan_2.4.1-1_amd64.deb
 
 # ── OSINT / Recon ──
 # OWASP Amass - attack surface mapping
