@@ -386,116 +386,98 @@ impl DalangOrchestrator {
                 retries = 0;
                 messages.push(Message::assistant(&response_text));
 
-                if response_text.trim().starts_with('{')
-                    || response_text.trim().starts_with("```json")
-                    || response_text.trim().starts_with('[')
-                {
-                    match parse_llm_tool_call(&response_text) {
-                        Ok(tool_calls) => {
-                            let mut tasks: Vec<
-                                std::pin::Pin<Box<dyn futures::Future<Output = Message> + Send>>,
-                            > = Vec::new();
+                match parse_llm_tool_call(&response_text) {
+                    Ok(tool_calls) => {
+                        let mut tasks: Vec<
+                            std::pin::Pin<Box<dyn futures::Future<Output = Message> + Send>>,
+                        > = Vec::new();
 
-                            for tool_call in tool_calls {
-                                println!("[>] Tool Call: {}", tool_call.name);
-                                if tool_call.name.starts_with("browser-") {
-                                    if let Some(browser) = &self.browser {
-                                        let browser = Arc::clone(browser);
-                                        let tc = tool_call.clone();
-                                        tasks.push(Box::pin(async move {
-                                            println!("    [B] Browser tool: {}", tc.name);
-                                            let output =
-                                                Self::dispatch_browser_tool(&*browser, &tc).await;
-                                            let obs =
-                                                truncate_output(&output, MAX_OBSERVATION_BYTES);
-                                            Message::user(&format!(
-                                                "Browser Observation ({}):\n{}",
-                                                tc.name, obs
-                                            ))
-                                        }));
-                                    } else {
-                                        messages.push(Message::user(
+                        for tool_call in tool_calls {
+                            println!("[>] Tool Call: {}", tool_call.name);
+                            if tool_call.name.starts_with("browser-") {
+                                if let Some(browser) = &self.browser {
+                                    let browser = Arc::clone(browser);
+                                    let tc = tool_call.clone();
+                                    tasks.push(Box::pin(async move {
+                                        println!("    [B] Browser tool: {}", tc.name);
+                                        let output =
+                                            Self::dispatch_browser_tool(&*browser, &tc).await;
+                                        let obs = truncate_output(&output, MAX_OBSERVATION_BYTES);
+                                        Message::user(&format!(
+                                            "Browser Observation ({}):\n{}",
+                                            tc.name, obs
+                                        ))
+                                    }));
+                                } else {
+                                    messages.push(Message::user(
                                             "Note: Browser tools are only available when a browser session is actively attached."
                                         ));
-                                    }
-                                } else if skill_def.tool_path.is_some()
-                                    && tool_call.name == skill_def.name
-                                {
-                                    // We can't spawn this directly as it requires `&mut messages`
-                                    // For scan loop we'll just await it sequentially since it pushes to messages directly
-                                    self.execute_skill_native(
-                                        &skill_def,
-                                        target,
-                                        None,
-                                        &mut messages,
-                                        None,
-                                    )
-                                    .await;
-                                } else {
-                                    // Generic os-command
-                                    let args = build_executor_args(&tool_call);
-                                    if !args.is_empty() {
-                                        let executor = Arc::clone(&self.executor);
-                                        let timeout = self.effective_timeout();
-
-                                        tasks.push(Box::pin(async move {
-                                            let program = args[0].clone();
-                                            let prog_args_owned: Vec<String> = args[1..].to_vec();
-                                            let prog_args: Vec<&str> = prog_args_owned
-                                                .iter()
-                                                .map(|s| s.as_str())
-                                                .collect();
-
-                                            println!("    $ {} {}", program, prog_args.join(" "));
-                                            match executor
-                                                .execute(&program, &prog_args, timeout)
-                                                .await
-                                            {
-                                                Ok((stdout, stderr)) => {
-                                                    let mut obs = format!("STDOUT:\n{}\n", stdout);
-                                                    if !stderr.is_empty() {
-                                                        obs.push_str(&format!(
-                                                            "STDERR:\n{}\n",
-                                                            stderr
-                                                        ));
-                                                    }
-                                                    Message::user(&format!(
-                                                        "Observation ({}):\n{}",
-                                                        program, obs
-                                                    ))
-                                                }
-                                                Err(e) => Message::user(&format!(
-                                                    "Command Error ({}):\n{}",
-                                                    program, e
-                                                )),
-                                            }
-                                        }));
-                                    }
                                 }
-                            }
+                            } else if skill_def.tool_path.is_some()
+                                && tool_call.name == skill_def.name
+                            {
+                                // We can't spawn this directly as it requires `&mut messages`
+                                // For scan loop we'll just await it sequentially since it pushes to messages directly
+                                self.execute_skill_native(
+                                    &skill_def,
+                                    target,
+                                    None,
+                                    &mut messages,
+                                    None,
+                                )
+                                .await;
+                            } else {
+                                // Generic os-command
+                                let args = build_executor_args(&tool_call);
+                                if !args.is_empty() {
+                                    let executor = Arc::clone(&self.executor);
+                                    let timeout = self.effective_timeout();
 
-                            if !tasks.is_empty() {
-                                use futures::stream::{self, StreamExt};
-                                let results = stream::iter(tasks)
-                                    .buffer_unordered(5)
-                                    .collect::<Vec<_>>()
-                                    .await;
+                                    tasks.push(Box::pin(async move {
+                                        let program = args[0].clone();
+                                        let prog_args_owned: Vec<String> = args[1..].to_vec();
+                                        let prog_args: Vec<&str> =
+                                            prog_args_owned.iter().map(|s| s.as_str()).collect();
 
-                                for msg in results {
-                                    messages.push(msg);
+                                        println!("    $ {} {}", program, prog_args.join(" "));
+                                        match executor.execute(&program, &prog_args, timeout).await
+                                        {
+                                            Ok((stdout, stderr)) => {
+                                                let mut obs = format!("STDOUT:\n{}\n", stdout);
+                                                if !stderr.is_empty() {
+                                                    obs.push_str(&format!("STDERR:\n{}\n", stderr));
+                                                }
+                                                Message::user(&format!(
+                                                    "Observation ({}):\n{}",
+                                                    program, obs
+                                                ))
+                                            }
+                                            Err(e) => Message::user(&format!(
+                                                "Command Error ({}):\n{}",
+                                                program, e
+                                            )),
+                                        }
+                                    }));
                                 }
                             }
                         }
-                        Err(e) => {
-                            println!("[!] Failed to parse tool call: {}", e);
-                            messages.push(Message::user(
-                                "JSON tool call format is incorrect. Please fix it.",
-                            ));
+
+                        if !tasks.is_empty() {
+                            use futures::stream::{self, StreamExt};
+                            let results = stream::iter(tasks)
+                                .buffer_unordered(5)
+                                .collect::<Vec<_>>()
+                                .await;
+
+                            for msg in results {
+                                messages.push(msg);
+                            }
                         }
                     }
-                } else {
-                    println!("[✓] Final Response:\n{}", response_text);
-                    break;
+                    Err(_) => {
+                        println!("[✓] Final Response:\n{}", response_text);
+                        break;
+                    }
                 }
             }
 
@@ -708,170 +690,155 @@ impl DalangOrchestrator {
             }
 
             // Parse tool call
-            if response_text.trim().starts_with('{')
-                || response_text.trim().starts_with("```json")
-                || response_text.trim().starts_with('[')
-            {
-                match parse_llm_tool_call(&response_text) {
-                    Ok(tool_calls) => {
-                        let mut tasks: Vec<
-                            std::pin::Pin<Box<dyn futures::Future<Output = Message> + Send>>,
-                        > = Vec::new();
-                        let mut local_obs = Vec::new();
+            match parse_llm_tool_call(&response_text) {
+                Ok(tool_calls) => {
+                    let mut tasks: Vec<
+                        std::pin::Pin<Box<dyn futures::Future<Output = Message> + Send>>,
+                    > = Vec::new();
+                    let mut local_obs = Vec::new();
 
-                        for tool_call in tool_calls {
-                            println!("[>] Tool Call: {}", tool_call.name);
+                    for tool_call in tool_calls {
+                        println!("[>] Tool Call: {}", tool_call.name);
 
-                            if tool_call.name == "execute_skill" {
-                                let skill_name = tool_call
-                                    .arguments
-                                    .get("skill_name")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("")
-                                    .to_string();
-                                let custom_args = tool_call.arguments.get("custom_args").cloned();
+                        if tool_call.name == "execute_skill" {
+                            let skill_name = tool_call
+                                .arguments
+                                .get("skill_name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let custom_args = tool_call.arguments.get("custom_args").cloned();
 
-                                let skill_def = match skills.iter().find(|s| s.name == skill_name) {
-                                    Some(s) => s.clone(),
-                                    None => {
-                                        println!(
-                                            "[!] Skill '{}' not found in catalog.",
-                                            skill_name
-                                        );
-                                        messages.push(Message::user(&format!(
-                                            "Error: Skill '{}' not found. Choose from: {}",
-                                            skill_name,
-                                            skills
-                                                .iter()
-                                                .map(|s| s.name.as_str())
-                                                .collect::<Vec<_>>()
-                                                .join(", ")
-                                        )));
-                                        continue;
-                                    }
-                                };
+                            let skill_def = match skills.iter().find(|s| s.name == skill_name) {
+                                Some(s) => s.clone(),
+                                None => {
+                                    println!("[!] Skill '{}' not found in catalog.", skill_name);
+                                    messages.push(Message::user(&format!(
+                                        "Error: Skill '{}' not found. Choose from: {}",
+                                        skill_name,
+                                        skills
+                                            .iter()
+                                            .map(|s| s.name.as_str())
+                                            .collect::<Vec<_>>()
+                                            .join(", ")
+                                    )));
+                                    continue;
+                                }
+                            };
 
-                                if skill_def.tool_path.is_none() {
-                                    // Browser-based or CDP skill — notify for now
-                                    messages.push(Message::user(
+                            if skill_def.tool_path.is_none() {
+                                // Browser-based or CDP skill — notify for now
+                                messages.push(Message::user(
                                         "Browser-based skills are dispatched by the web UI layer when a browser session is available."
                                     ));
-                                } else {
-                                    // Sequential execution for skills that need &mut messages/tx
-                                    self.execute_skill_native(
-                                        &skill_def,
-                                        target,
-                                        custom_args.as_ref(),
-                                        &mut messages,
-                                        tx.as_ref(),
-                                    )
-                                    .await;
-                                    // Record in memory
-                                    local_obs.push(format!("Executed skill `{}`", skill_name));
-                                }
-                            } else if tool_call.name.starts_with("browser-") {
-                                if let Some(browser) = &self.browser {
-                                    let browser = Arc::clone(browser);
-                                    let tc = tool_call.clone();
-                                    tasks.push(Box::pin(async move {
-                                        println!("    [B] Browser tool: {}", tc.name);
-                                        let output =
-                                            Self::dispatch_browser_tool(&*browser, &tc).await;
-                                        let obs = truncate_output(&output, MAX_OBSERVATION_BYTES);
-                                        Message::user(&format!(
-                                            "Browser Observation ({}):\n{}",
-                                            tc.name, obs
-                                        ))
-                                    }));
-                                } else {
-                                    messages.push(Message::user(
+                            } else {
+                                // Sequential execution for skills that need &mut messages/tx
+                                self.execute_skill_native(
+                                    &skill_def,
+                                    target,
+                                    custom_args.as_ref(),
+                                    &mut messages,
+                                    tx.as_ref(),
+                                )
+                                .await;
+                                // Record in memory
+                                local_obs.push(format!("Executed skill `{}`", skill_name));
+                            }
+                        } else if tool_call.name.starts_with("browser-") {
+                            if let Some(browser) = &self.browser {
+                                let browser = Arc::clone(browser);
+                                let tc = tool_call.clone();
+                                tasks.push(Box::pin(async move {
+                                    println!("    [B] Browser tool: {}", tc.name);
+                                    let output = Self::dispatch_browser_tool(&*browser, &tc).await;
+                                    let obs = truncate_output(&output, MAX_OBSERVATION_BYTES);
+                                    Message::user(&format!(
+                                        "Browser Observation ({}):\n{}",
+                                        tc.name, obs
+                                    ))
+                                }));
+                            } else {
+                                messages.push(Message::user(
                                         "Browser tool dispatching requires an attached browser session.",
                                     ));
-                                }
-                            } else {
-                                let args = build_executor_args(&tool_call);
-                                if !args.is_empty() {
-                                    let executor = Arc::clone(&self.executor);
-                                    let timeout = self.effective_timeout();
+                            }
+                        } else {
+                            let args = build_executor_args(&tool_call);
+                            if !args.is_empty() {
+                                let executor = Arc::clone(&self.executor);
+                                let timeout = self.effective_timeout();
 
-                                    tasks.push(Box::pin(async move {
-                                        let program = args[0].clone();
-                                        let prog_args_owned: Vec<String> = args[1..].to_vec();
-                                        let prog_args: Vec<&str> =
-                                            prog_args_owned.iter().map(|s| s.as_str()).collect();
+                                tasks.push(Box::pin(async move {
+                                    let program = args[0].clone();
+                                    let prog_args_owned: Vec<String> = args[1..].to_vec();
+                                    let prog_args: Vec<&str> =
+                                        prog_args_owned.iter().map(|s| s.as_str()).collect();
 
-                                        println!("    $ {} {}", program, prog_args.join(" "));
-                                        match executor.execute(&program, &prog_args, timeout).await
-                                        {
-                                            Ok((stdout, stderr)) => {
-                                                let mut obs = format!("STDOUT:\n{}\n", stdout);
-                                                if !stderr.is_empty() {
-                                                    obs.push_str(&format!("STDERR:\n{}\n", stderr));
-                                                }
-                                                Message::user(&format!(
-                                                    "Observation ({}):\n{}",
-                                                    program, obs
-                                                ))
+                                    println!("    $ {} {}", program, prog_args.join(" "));
+                                    match executor.execute(&program, &prog_args, timeout).await {
+                                        Ok((stdout, stderr)) => {
+                                            let mut obs = format!("STDOUT:\n{}\n", stdout);
+                                            if !stderr.is_empty() {
+                                                obs.push_str(&format!("STDERR:\n{}\n", stderr));
                                             }
-                                            Err(e) => Message::user(&format!(
-                                                "Command Error ({}):\n{}",
-                                                program, e
-                                            )),
+                                            Message::user(&format!(
+                                                "Observation ({}):\n{}",
+                                                program, obs
+                                            ))
                                         }
-                                    }));
-                                }
-                            }
-                        }
-
-                        // Wait for generic os commands
-                        if !tasks.is_empty() {
-                            use futures::stream::{self, StreamExt};
-                            let results = stream::iter(tasks)
-                                .buffer_unordered(5)
-                                .collect::<Vec<_>>()
-                                .await;
-
-                            for msg in results {
-                                messages.push(msg);
-                            }
-                        }
-
-                        for obs in local_obs {
-                            observations.push(obs);
-                            if observations.len() > 20 {
-                                observations.remove(0);
+                                        Err(e) => Message::user(&format!(
+                                            "Command Error ({}):\n{}",
+                                            program, e
+                                        )),
+                                    }
+                                }));
                             }
                         }
                     }
-                    Err(e) => {
-                        println!("[!] Tool call parse failed: {}", e);
-                        messages.push(Message::user(
-                            "JSON tool call format is incorrect. Please retry.",
-                        ));
-                    }
-                }
-            } else {
-                // Narrative response — check for completion signal
-                println!("[~] AI narrative step: {} chars", response_text.len());
-                if response_text.to_lowercase().contains("assessment complete")
-                    || response_text.to_lowercase().contains("no further actions")
-                    || response_text.to_lowercase().contains("all tests completed")
-                {
-                    println!("[✓] Autonomous session determined complete.");
-                    if let Some(tx) = &tx {
-                        let _ = tx
-                            .send(EngineEvent::Done {
-                                reason: "Autonomous session complete".to_string(),
-                            })
+
+                    // Wait for generic os commands
+                    if !tasks.is_empty() {
+                        use futures::stream::{self, StreamExt};
+                        let results = stream::iter(tasks)
+                            .buffer_unordered(5)
+                            .collect::<Vec<_>>()
                             .await;
+
+                        for msg in results {
+                            messages.push(msg);
+                        }
                     }
-                    break;
+
+                    for obs in local_obs {
+                        observations.push(obs);
+                        if observations.len() > 20 {
+                            observations.remove(0);
+                        }
+                    }
                 }
-                // Ask AI to produce the report or continue
-                messages.push(Message::user(
-                    "Please produce a final VULNERABILITY REPORT now, or if you have more tools to run, \
+                Err(_) => {
+                    // Narrative response — check for completion signal
+                    println!("[~] AI narrative step: {} chars", response_text.len());
+                    if response_text.to_lowercase().contains("assessment complete")
+                        || response_text.to_lowercase().contains("no further actions")
+                        || response_text.to_lowercase().contains("all tests completed")
+                    {
+                        println!("[✓] Autonomous session determined complete.");
+                        if let Some(tx) = &tx {
+                            let _ = tx
+                                .send(EngineEvent::Done {
+                                    reason: "Autonomous session complete".to_string(),
+                                })
+                                .await;
+                        }
+                        break;
+                    }
+                    // Ask AI to produce the report or continue
+                    messages.push(Message::user(
+                        "Please produce a final VULNERABILITY REPORT now, or if you have more tools to run, \
                     execute the next skill using the JSON tool call format."
-                ));
+                    ));
+                }
             }
         }
 
@@ -958,74 +925,57 @@ impl DalangOrchestrator {
             println!("\n[Dalang]\n{}", response);
 
             // Handle tool calls if present
-            if response.trim().starts_with('{')
-                || response.trim().starts_with("```json")
-                || response.trim().starts_with('[')
-            {
-                if let Ok(tool_calls) = parse_llm_tool_call(&response) {
-                    for tool_call in tool_calls {
-                        if tool_call.name == "execute_skill" {
-                            let skill_name = tool_call
-                                .arguments
-                                .get("skill_name")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            if let Some(skill_def) = skills.iter().find(|s| s.name == skill_name) {
-                                self.execute_skill_native(
-                                    skill_def,
-                                    target,
-                                    None,
-                                    &mut messages,
-                                    None,
-                                )
+            if let Ok(tool_calls) = parse_llm_tool_call(&response) {
+                for tool_call in tool_calls {
+                    if tool_call.name == "execute_skill" {
+                        let skill_name = tool_call
+                            .arguments
+                            .get("skill_name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        if let Some(skill_def) = skills.iter().find(|s| s.name == skill_name) {
+                            self.execute_skill_native(skill_def, target, None, &mut messages, None)
                                 .await;
-                            } else {
-                                println!("[!] Skill '{}' not found.", skill_name);
-                            }
-                        } else if tool_call.name.starts_with("browser-") {
-                            if let Some(browser) = &self.browser {
-                                let output =
-                                    Self::dispatch_browser_tool(&**browser, &tool_call).await;
-                                let obs = truncate_output(&output, MAX_OBSERVATION_BYTES);
-                                println!(
-                                    "    [B] {}: {}",
-                                    tool_call.name,
-                                    &obs[..obs.len().min(200)]
-                                );
-                                messages.push(Message::user(&format!(
-                                    "Browser Observation ({}):\n{}",
-                                    tool_call.name, obs
-                                )));
-                            } else {
-                                println!("[!] No browser session attached.");
-                            }
                         } else {
-                            let args = build_executor_args(&tool_call);
-                            if !args.is_empty() {
-                                let program = &args[0];
-                                let prog_args: Vec<&str> =
-                                    args[1..].iter().map(|s| s.as_str()).collect();
-                                println!("    $ {} {}", program, prog_args.join(" "));
-                                match self
-                                    .executor
-                                    .execute(program, &prog_args, self.effective_timeout())
-                                    .await
-                                {
-                                    Ok((stdout, stderr)) => {
-                                        let mut obs = format!("STDOUT:\n{}\n", stdout);
-                                        if !stderr.is_empty() {
-                                            obs.push_str(&format!("STDERR:\n{}\n", stderr));
-                                        }
-                                        messages.push(Message::user(&format!(
-                                            "Observation ({}):\n{}",
-                                            program, obs
-                                        )));
+                            println!("[!] Skill '{}' not found.", skill_name);
+                        }
+                    } else if tool_call.name.starts_with("browser-") {
+                        if let Some(browser) = &self.browser {
+                            let output = Self::dispatch_browser_tool(&**browser, &tool_call).await;
+                            let obs = truncate_output(&output, MAX_OBSERVATION_BYTES);
+                            println!("    [B] {}: {}", tool_call.name, &obs[..obs.len().min(200)]);
+                            messages.push(Message::user(&format!(
+                                "Browser Observation ({}):\n{}",
+                                tool_call.name, obs
+                            )));
+                        } else {
+                            println!("[!] No browser session attached.");
+                        }
+                    } else {
+                        let args = build_executor_args(&tool_call);
+                        if !args.is_empty() {
+                            let program = &args[0];
+                            let prog_args: Vec<&str> =
+                                args[1..].iter().map(|s| s.as_str()).collect();
+                            println!("    $ {} {}", program, prog_args.join(" "));
+                            match self
+                                .executor
+                                .execute(program, &prog_args, self.effective_timeout())
+                                .await
+                            {
+                                Ok((stdout, stderr)) => {
+                                    let mut obs = format!("STDOUT:\n{}\n", stdout);
+                                    if !stderr.is_empty() {
+                                        obs.push_str(&format!("STDERR:\n{}\n", stderr));
                                     }
-                                    Err(e) => {
-                                        messages
-                                            .push(Message::user(&format!("Command Error: {}", e)));
-                                    }
+                                    messages.push(Message::user(&format!(
+                                        "Observation ({}):\n{}",
+                                        program, obs
+                                    )));
+                                }
+                                Err(e) => {
+                                    messages.push(Message::user(&format!("Command Error: {}", e)));
                                 }
                             }
                         }
@@ -1111,16 +1061,6 @@ impl DalangOrchestrator {
             }
 
             messages.push(Message::assistant(&response_text));
-
-            // Check for tool calls
-            let has_tool_call = response_text.trim().starts_with('{')
-                || response_text.trim().starts_with("```json")
-                || response_text.trim().starts_with('[');
-
-            if !has_tool_call {
-                // Pure text response — done
-                break;
-            }
 
             match parse_llm_tool_call(&response_text) {
                 Ok(tool_calls) => {
@@ -1213,10 +1153,7 @@ impl DalangOrchestrator {
                     }
                     // Continue loop to let LLM analyze tool outputs
                 }
-                Err(_) => {
-                    // Not valid JSON tool call — treat as text response
-                    break;
-                }
+                Err(_) => break,
             }
         }
 
