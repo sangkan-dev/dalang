@@ -62,9 +62,7 @@ pub async fn static_handler(req: Request<Body>) -> impl IntoResponse {
     }
 
     // Dashboard fallback keeps deep links working under /dashboard/*.
-    if is_dashboard_path
-        && let Some(content) = WebAssets::get("dashboard/index.html")
-    {
+    if is_dashboard_path && let Some(content) = WebAssets::get("dashboard/index.html") {
         return Response::builder()
             .status(StatusCode::OK)
             .header(header::CONTENT_TYPE, "text/html; charset=utf-8")

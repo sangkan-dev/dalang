@@ -75,7 +75,9 @@
 
 <section class="space-y-4">
 	<header>
-		<p class="text-xs uppercase tracking-[0.2em] text-[color:var(--color-ash)]">Dashboard / Reports</p>
+		<p class="text-xs tracking-[0.2em] text-[color:var(--color-ash)] uppercase">
+			Dashboard / Reports
+		</p>
 		<h2 class="text-xl font-semibold text-[color:var(--color-text)]">Reports Archive</h2>
 	</header>
 
@@ -89,9 +91,19 @@
 				<p class="px-2 py-2 text-sm text-[color:var(--color-ash)]">No reports yet</p>
 			{:else}
 				{#each reports as report}
-					<button class="mb-1 w-full rounded-lg border px-3 py-2 text-left {selectedReport === report.filename ? 'border-[color:var(--color-gold)]/40 bg-[color:var(--color-gold)]/10' : 'border-transparent hover:border-[color:var(--color-border)]'}" onclick={() => viewReport(report.filename)}>
-						<p class="truncate text-sm font-semibold text-[color:var(--color-base-text)]">{report.filename}</p>
-						<p class="text-xs text-[color:var(--color-ash)]">{(report.size / 1024).toFixed(1)} KB</p>
+					<button
+						class="mb-1 w-full rounded-lg border px-3 py-2 text-left {selectedReport ===
+						report.filename
+							? 'border-[color:var(--color-gold)]/40 bg-[color:var(--color-gold)]/10'
+							: 'border-transparent hover:border-[color:var(--color-border)]'}"
+						onclick={() => viewReport(report.filename)}
+					>
+						<p class="truncate text-sm font-semibold text-[color:var(--color-base-text)]">
+							{report.filename}
+						</p>
+						<p class="text-xs text-[color:var(--color-ash)]">
+							{(report.size / 1024).toFixed(1)} KB
+						</p>
 					</button>
 				{/each}
 			{/if}
@@ -102,10 +114,19 @@
 				<p class="text-sm text-[color:var(--color-ash)]">Loading report...</p>
 			{:else if reportHtml}
 				<div class="mb-3 flex flex-wrap gap-2">
-					<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={downloadMarkdown}>Download MD</button>
-					<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={downloadHtml}>Download HTML</button>
+					<button
+						class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+						onclick={downloadMarkdown}>Download MD</button
+					>
+					<button
+						class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+						onclick={downloadHtml}>Download HTML</button
+					>
 				</div>
-				<div class="dashboard-markdown rounded-lg border border-[color:var(--color-border)] p-3" dir="auto">
+				<div
+					class="dashboard-markdown rounded-lg border border-[color:var(--color-border)] p-3"
+					dir="auto"
+				>
 					{@html reportHtml}
 				</div>
 			{:else}

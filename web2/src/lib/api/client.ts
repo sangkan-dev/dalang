@@ -34,7 +34,8 @@ export const apiClient = {
 	createSession: (target: string, mode: SessionMode = 'interactive'): Promise<Session> =>
 		request<Session>('/sessions', { method: 'POST', body: JSON.stringify({ target, mode }) }),
 	listSessions: (): Promise<Session[]> => request<Session[]>('/sessions'),
-	deleteSession: (id: string): Promise<null> => request<null>(`/sessions/${id}`, { method: 'DELETE' }),
+	deleteSession: (id: string): Promise<null> =>
+		request<null>(`/sessions/${id}`, { method: 'DELETE' }),
 	getMessages: (id: string): Promise<Array<{ role: string; content: string }>> =>
 		request<Array<{ role: string; content: string }>>(`/sessions/${id}/messages`),
 	getSessionEvents: (id: string): Promise<EngineEvent[]> =>

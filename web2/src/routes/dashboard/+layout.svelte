@@ -56,7 +56,9 @@
 			sessions = sessions.filter((session) => session.id !== id);
 			toast.success('Session deleted');
 		} catch (error) {
-			toast.error(`Failed to delete session: ${error instanceof Error ? error.message : 'unknown'}`);
+			toast.error(
+				`Failed to delete session: ${error instanceof Error ? error.message : 'unknown'}`
+			);
 		}
 	}
 
@@ -130,8 +132,14 @@
 			<h1 class="dashboard-title">Operational Console</h1>
 		</div>
 		<div class="flex items-center gap-2">
-			<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={openPalette}>Command Palette</button>
-			<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)] lg:hidden" onclick={() => (mobileOpen = !mobileOpen)}>Menu</button>
+			<button
+				class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+				onclick={openPalette}>Command Palette</button
+			>
+			<button
+				class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)] lg:hidden"
+				onclick={() => (mobileOpen = !mobileOpen)}>Menu</button
+			>
 		</div>
 	</header>
 
@@ -141,7 +149,10 @@
 				{#each navItems as item}
 					<a
 						href={item.href}
-						class="block rounded-lg px-3 py-2 text-sm transition-colors {page.url.pathname === item.href ? 'bg-[color:var(--color-gold)]/20 text-[color:var(--color-gold-bright)]' : 'text-[color:var(--color-ash)] hover:bg-white/5 hover:text-[color:var(--color-base-text)]'}"
+						class="block rounded-lg px-3 py-2 text-sm transition-colors {page.url.pathname ===
+						item.href
+							? 'bg-[color:var(--color-gold)]/20 text-[color:var(--color-gold-bright)]'
+							: 'text-[color:var(--color-ash)] hover:bg-white/5 hover:text-[color:var(--color-base-text)]'}"
 						onclick={() => (mobileOpen = false)}
 					>
 						{item.label}
@@ -151,7 +162,9 @@
 
 			<div class="mt-4 border-t border-[color:var(--color-border)] pt-3">
 				<div class="mb-2 flex items-center justify-between">
-					<p class="text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-ash)]">Sessions</p>
+					<p class="text-[10px] tracking-[0.16em] text-[color:var(--color-ash)] uppercase">
+						Sessions
+					</p>
 					<a href="/dashboard/chat" class="text-xs text-[color:var(--color-gold-bright)]">new</a>
 				</div>
 				<div class="space-y-1">
@@ -159,9 +172,16 @@
 						<p class="px-2 py-1 text-xs text-[color:var(--color-ash)]">No sessions yet</p>
 					{:else}
 						{#each sessions as session}
-							<a href={`/dashboard/chat?session=${session.id}`} class="group flex items-center justify-between rounded-md px-2 py-1.5 text-xs text-[color:var(--color-ash)] hover:bg-white/5">
+							<a
+								href={`/dashboard/chat?session=${session.id}`}
+								class="group flex items-center justify-between rounded-md px-2 py-1.5 text-xs text-[color:var(--color-ash)] hover:bg-white/5"
+							>
 								<span class="truncate pr-2">{session.target}</span>
-								<button class="hidden text-[color:var(--color-rust)] group-hover:block" onclick={(event) => deleteSession(event, session.id)} aria-label="Delete session">x</button>
+								<button
+									class="hidden text-[color:var(--color-rust)] group-hover:block"
+									onclick={(event) => deleteSession(event, session.id)}
+									aria-label="Delete session">x</button
+								>
 							</a>
 						{/each}
 					{/if}
@@ -174,17 +194,40 @@
 </div>
 
 {#if showPalette}
-	<div class="fixed inset-0 z-50 bg-black/60" role="presentation" onclick={closePalette} onkeydown={() => {}}>
-		<div class="mx-auto mt-24 w-full max-w-xl rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]" role="dialog" tabindex="-1" onclick={(event) => event.stopPropagation()} onkeydown={onPaletteKeydown}>
+	<div
+		class="fixed inset-0 z-50 bg-black/60"
+		role="presentation"
+		onclick={closePalette}
+		onkeydown={() => {}}
+	>
+		<div
+			class="mx-auto mt-24 w-full max-w-xl rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]"
+			role="dialog"
+			tabindex="-1"
+			onclick={(event) => event.stopPropagation()}
+			onkeydown={onPaletteKeydown}
+		>
 			<div class="border-b border-[color:var(--color-border)] px-4 py-3">
-				<input bind:value={paletteQuery} placeholder="Search command..." class="w-full bg-transparent text-sm text-[color:var(--color-base-text)] outline-none placeholder:text-[color:var(--color-ash)]" />
+				<input
+					bind:value={paletteQuery}
+					placeholder="Search command..."
+					class="w-full bg-transparent text-sm text-[color:var(--color-base-text)] outline-none placeholder:text-[color:var(--color-ash)]"
+				/>
 			</div>
 			<div class="max-h-72 overflow-y-auto p-2">
 				{#if filteredPalette.length === 0}
 					<p class="px-2 py-3 text-sm text-[color:var(--color-ash)]">No matches</p>
 				{:else}
 					{#each filteredPalette as item, index}
-						<button class="w-full rounded-lg px-3 py-2 text-left text-sm {index === selectedIndex ? 'bg-[color:var(--color-gold)]/20 text-[color:var(--color-gold-bright)]' : 'text-[color:var(--color-ash)] hover:bg-white/5'}" onclick={() => { selectPaletteItem(index); runPaletteSelection(); }}>
+						<button
+							class="w-full rounded-lg px-3 py-2 text-left text-sm {index === selectedIndex
+								? 'bg-[color:var(--color-gold)]/20 text-[color:var(--color-gold-bright)]'
+								: 'text-[color:var(--color-ash)] hover:bg-white/5'}"
+							onclick={() => {
+								selectPaletteItem(index);
+								runPaletteSelection();
+							}}
+						>
 							<p>{item.label}</p>
 							<p class="text-xs opacity-70">{item.desc}</p>
 						</button>

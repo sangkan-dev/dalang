@@ -26,13 +26,23 @@
 </script>
 
 {#if items.length > 0}
-	<div class="pointer-events-none fixed right-4 top-4 z-50 flex max-w-sm flex-col gap-2">
+	<div class="pointer-events-none fixed top-4 right-4 z-50 flex max-w-sm flex-col gap-2">
 		{#each items as toastItem (toastItem.id)}
-			<div class="pointer-events-auto rounded-lg border px-3 py-2 text-sm backdrop-blur {colors[toastItem.type] ?? colors.info}">
+			<div
+				class="pointer-events-auto rounded-lg border px-3 py-2 text-sm backdrop-blur {colors[
+					toastItem.type
+				] ?? colors.info}"
+			>
 				<div class="flex items-start gap-2">
-					<span class="font-mono text-[10px] tracking-[0.14em] opacity-80">{icons[toastItem.type] ?? icons.info}</span>
+					<span class="font-mono text-[10px] tracking-[0.14em] opacity-80"
+						>{icons[toastItem.type] ?? icons.info}</span
+					>
 					<p class="flex-1">{toastItem.message}</p>
-					<button class="text-xs opacity-80 hover:opacity-100" onclick={() => removeToast(toastItem.id)} aria-label="Dismiss">
+					<button
+						class="text-xs opacity-80 hover:opacity-100"
+						onclick={() => removeToast(toastItem.id)}
+						aria-label="Dismiss"
+					>
 						x
 					</button>
 				</div>

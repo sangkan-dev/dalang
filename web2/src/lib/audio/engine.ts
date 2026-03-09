@@ -39,7 +39,11 @@ function envelope(gain: GainNode, now: number, durationMs: number): void {
 	gain.gain.exponentialRampToValueAtTime(0.0001, end);
 }
 
-function intentProfile(intent: AudioIntent): { freq: number; durationMs: number; type: OscillatorType } {
+function intentProfile(intent: AudioIntent): {
+	freq: number;
+	durationMs: number;
+	type: OscillatorType;
+} {
 	switch (intent) {
 		case 'hover':
 			return { freq: 540, durationMs: 70, type: 'triangle' };

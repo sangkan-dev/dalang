@@ -11,7 +11,13 @@ const config = {
 			handleUnseenRoutes: 'ignore',
 			entries: isLandingBuild
 				? ['/']
-				: ['/dashboard', '/dashboard/chat', '/dashboard/reports', '/dashboard/skills', '/dashboard/settings']
+				: [
+						'/dashboard',
+						'/dashboard/chat',
+						'/dashboard/reports',
+						'/dashboard/skills',
+						'/dashboard/settings'
+					]
 		},
 		adapter: adapter({
 			pages: isLandingBuild ? 'build-landing' : 'build-dashboard',

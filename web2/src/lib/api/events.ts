@@ -30,7 +30,12 @@ export function eventToChatMessages(event: EngineEvent): ChatMessage[] {
 				}
 			];
 		case 'safety_refusal':
-			return [{ role: 'warning', content: `Safety filter triggered (retry ${event.retry}). Re-prompting...` }];
+			return [
+				{
+					role: 'warning',
+					content: `Safety filter triggered (retry ${event.retry}). Re-prompting...`
+				}
+			];
 		case 'browser_action':
 			return [
 				{

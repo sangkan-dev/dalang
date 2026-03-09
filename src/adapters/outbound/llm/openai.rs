@@ -2,8 +2,8 @@ use crate::application::ports::llm_port::LlmPort;
 use crate::domain::models::{AuthToken, Message};
 use anyhow::{Context, Result, anyhow};
 use reqwest::{Client, StatusCode, header};
-use std::time::Duration;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use tokio::time::sleep;
 
 const MAX_RATE_LIMIT_RETRIES: usize = 2;
@@ -12,7 +12,8 @@ fn parse_retry_after_seconds(retry_after_header: Option<&str>, body: &str) -> Op
     if let Some(raw) = retry_after_header {
         let trimmed = raw.trim();
         if let Ok(sec) = trimmed.parse::<f64>()
-            && sec.is_finite() && sec > 0.0
+            && sec.is_finite()
+            && sec > 0.0
         {
             return Some(sec);
         }
@@ -25,7 +26,8 @@ fn parse_retry_after_seconds(retry_after_header: Option<&str>, body: &str) -> Op
         let rest = &lower[start + marker.len()..];
         if let Some(end) = rest.find('s')
             && let Ok(sec) = rest[..end].trim().parse::<f64>()
-            && sec.is_finite() && sec > 0.0
+            && sec.is_finite()
+            && sec > 0.0
         {
             return Some(sec);
         }

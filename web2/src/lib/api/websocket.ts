@@ -1,9 +1,4 @@
-import type {
-	ClientMessage,
-	DalangWebSocket,
-	EngineEvent,
-	WebSocketCallbacks
-} from './types.js';
+import type { ClientMessage, DalangWebSocket, EngineEvent, WebSocketCallbacks } from './types.js';
 
 const API_BASE = '/api';
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -68,7 +63,10 @@ export function createDalangWebSocket(
 				return;
 			}
 
-			const timeout = setTimeout(() => reject(new Error('WebSocket open timeout')), OPEN_TIMEOUT_MS);
+			const timeout = setTimeout(
+				() => reject(new Error('WebSocket open timeout')),
+				OPEN_TIMEOUT_MS
+			);
 			const previousOnOpen = socket.onopen;
 			socket.onopen = (event: Event): void => {
 				clearTimeout(timeout);

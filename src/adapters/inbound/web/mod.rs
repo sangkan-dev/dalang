@@ -75,7 +75,10 @@ pub async fn start_server(
     let addr = format!("0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
-    println!("[*] Dalang Dashboard running at http://localhost:{}/dashboard", port);
+    println!(
+        "[*] Dalang Dashboard running at http://localhost:{}/dashboard",
+        port
+    );
 
     if open_browser {
         let url = format!("http://localhost:{}/dashboard", port);

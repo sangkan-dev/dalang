@@ -109,7 +109,8 @@
 <span
 	bind:this={host}
 	class={`cipher-reveal ${completed ? 'is-complete text-data' : 'text-javanese'} ${props.className ?? ''}`}
->{displayText}</span>
+	>{displayText}</span
+>
 
 <style>
 	.cipher-reveal {

@@ -87,7 +87,9 @@
 				isConnected = false;
 			}
 		} catch (error) {
-			toast.error(`Failed to load session: ${error instanceof Error ? error.message : 'unknown error'}`);
+			toast.error(
+				`Failed to load session: ${error instanceof Error ? error.message : 'unknown error'}`
+			);
 		}
 	}
 
@@ -148,7 +150,10 @@
 				addMessages([
 					{
 						role: 'status',
-						content: maxIter === 0 ? 'Auto-pilot scan started (unlimited iterations).' : `Auto-pilot scan started (max ${maxIter} iterations).`
+						content:
+							maxIter === 0
+								? 'Auto-pilot scan started (unlimited iterations).'
+								: `Auto-pilot scan started (max ${maxIter} iterations).`
 					}
 				]);
 			} else {
@@ -175,7 +180,9 @@
 		try {
 			await hydrateSessionHistory(sessionId);
 		} catch (error) {
-			toast.error(`Failed to replay events: ${error instanceof Error ? error.message : 'unknown error'}`);
+			toast.error(
+				`Failed to replay events: ${error instanceof Error ? error.message : 'unknown error'}`
+			);
 			addMessages([
 				{
 					role: 'error',
@@ -210,56 +217,116 @@
 <section class="space-y-4">
 	<header class="flex items-center justify-between">
 		<div>
-			<p class="text-xs uppercase tracking-[0.2em] text-[color:var(--color-ash)]">Dashboard / Chat</p>
+			<p class="text-xs tracking-[0.2em] text-[color:var(--color-ash)] uppercase">
+				Dashboard / Chat
+			</p>
 			<h2 class="text-xl font-semibold text-[color:var(--color-text)]">Interactive Console</h2>
 		</div>
 		<div class="flex items-center gap-2">
-			<a href="/dashboard" class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]">Overview</a>
+			<a
+				href="/dashboard"
+				class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+				>Overview</a
+			>
 			{#if !showSetup}
-				<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={reloadSessionEvents}>Replay</button>
-				<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={resetSession}>Reset</button>
+				<button
+					class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+					onclick={reloadSessionEvents}>Replay</button
+				>
+				<button
+					class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+					onclick={resetSession}>Reset</button
+				>
 			{/if}
 		</div>
 	</header>
 
 	{#if showSetup}
-		<div class="space-y-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
+		<div
+			class="space-y-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
+		>
 			<div class="space-y-2">
 				<label class="text-sm text-[color:var(--color-ash)]" for="target">Target</label>
-				<input id="target" bind:value={target} type="text" placeholder="https://example.com or 192.168.1.1" class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-text)] outline-none focus:border-[color:var(--color-gold)]" />
+				<input
+					id="target"
+					bind:value={target}
+					type="text"
+					placeholder="https://example.com or 192.168.1.1"
+					class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-text)] outline-none focus:border-[color:var(--color-gold)]"
+				/>
 			</div>
 
 			<div class="grid gap-3 sm:grid-cols-2">
-				<button class="rounded-lg border px-3 py-2 text-sm {mode === 'interactive' ? 'border-[color:var(--color-gold)] text-[color:var(--color-gold)]' : 'border-[color:var(--color-border)] text-[color:var(--color-ash)]'}" onclick={() => (mode = 'interactive')}>Interactive</button>
-				<button class="rounded-lg border px-3 py-2 text-sm {mode === 'scan' ? 'border-[color:var(--color-gold)] text-[color:var(--color-gold)]' : 'border-[color:var(--color-border)] text-[color:var(--color-ash)]'}" onclick={() => (mode = 'scan')}>Auto-pilot</button>
+				<button
+					class="rounded-lg border px-3 py-2 text-sm {mode === 'interactive'
+						? 'border-[color:var(--color-gold)] text-[color:var(--color-gold)]'
+						: 'border-[color:var(--color-border)] text-[color:var(--color-ash)]'}"
+					onclick={() => (mode = 'interactive')}>Interactive</button
+				>
+				<button
+					class="rounded-lg border px-3 py-2 text-sm {mode === 'scan'
+						? 'border-[color:var(--color-gold)] text-[color:var(--color-gold)]'
+						: 'border-[color:var(--color-border)] text-[color:var(--color-ash)]'}"
+					onclick={() => (mode = 'scan')}>Auto-pilot</button
+				>
 			</div>
 
 			{#if mode === 'scan'}
 				<div class="grid gap-3 sm:grid-cols-2">
 					<div class="space-y-2">
-						<label class="text-sm text-[color:var(--color-ash)]" for="max-iter">Max iterations (0 = unlimited)</label>
-						<input id="max-iter" bind:value={maxIter} type="number" min="0" class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-text)] outline-none focus:border-[color:var(--color-gold)]" />
+						<label class="text-sm text-[color:var(--color-ash)]" for="max-iter"
+							>Max iterations (0 = unlimited)</label
+						>
+						<input
+							id="max-iter"
+							bind:value={maxIter}
+							type="number"
+							min="0"
+							class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-text)] outline-none focus:border-[color:var(--color-gold)]"
+						/>
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm text-[color:var(--color-ash)]" for="cmd-timeout">Command timeout (seconds)</label>
-						<input id="cmd-timeout" bind:value={cmdTimeout} type="number" min="0" class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-text)] outline-none focus:border-[color:var(--color-gold)]" />
+						<label class="text-sm text-[color:var(--color-ash)]" for="cmd-timeout"
+							>Command timeout (seconds)</label
+						>
+						<input
+							id="cmd-timeout"
+							bind:value={cmdTimeout}
+							type="number"
+							min="0"
+							class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-text)] outline-none focus:border-[color:var(--color-gold)]"
+						/>
 					</div>
 				</div>
 			{/if}
 
-			<button class="rounded-lg bg-[color:var(--color-gold)] px-4 py-2 text-sm font-semibold text-[color:#1f1708]" onclick={startSession}>Start session</button>
+			<button
+				class="rounded-lg bg-[color:var(--color-gold)] px-4 py-2 text-sm font-semibold text-[color:#1f1708]"
+				onclick={startSession}>Start session</button
+			>
 		</div>
 	{:else}
-		<div class="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
-			<div class="flex items-center justify-between border-b border-[color:var(--color-border)] px-4 py-2 text-xs text-[color:var(--color-ash)]">
+		<div
+			class="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]"
+		>
+			<div
+				class="flex items-center justify-between border-b border-[color:var(--color-border)] px-4 py-2 text-xs text-[color:var(--color-ash)]"
+			>
 				<p>Session: <span class="font-mono">{sessionId}</span></p>
 				<p>{isReconnecting ? 'Reconnecting...' : isConnected ? 'Connected' : 'Disconnected'}</p>
 			</div>
 
-			<div bind:this={chatContainer} class="max-h-[62vh] min-h-[45vh] space-y-2 overflow-auto px-4 py-3">
+			<div
+				bind:this={chatContainer}
+				class="max-h-[62vh] min-h-[45vh] space-y-2 overflow-auto px-4 py-3"
+			>
 				{#each messages as message}
-					<div class="overflow-x-hidden rounded-lg border border-[color:var(--color-border)] p-3 text-sm">
-						<p class="mb-1 text-xs uppercase tracking-[0.12em] text-[color:var(--color-ash)]">{message.role}</p>
+					<div
+						class="overflow-x-hidden rounded-lg border border-[color:var(--color-border)] p-3 text-sm"
+					>
+						<p class="mb-1 text-xs tracking-[0.12em] text-[color:var(--color-ash)] uppercase">
+							{message.role}
+						</p>
 						<div class="dashboard-markdown" dir="auto">
 							{@html renderMarkdown(message.content)}
 						</div>
@@ -268,8 +335,19 @@
 			</div>
 
 			<div class="flex items-end gap-2 border-t border-[color:var(--color-border)] px-4 py-3">
-				<textarea bind:value={inputText} placeholder="Ask the agent..." rows="2" class="min-h-11 flex-1 resize-y rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-text)] outline-none focus:border-[color:var(--color-gold)]" onkeydown={(event) => event.key === 'Enter' && !event.shiftKey && (event.preventDefault(), sendMessage())}></textarea>
-				<button class="rounded-lg bg-[color:var(--color-gold)] px-4 py-2 text-sm font-semibold text-[color:#1f1708] disabled:opacity-50" disabled={!isConnected || isThinking || !inputText.trim()} onclick={sendMessage}>
+				<textarea
+					bind:value={inputText}
+					placeholder="Ask the agent..."
+					rows="2"
+					class="min-h-11 flex-1 resize-y rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-text)] outline-none focus:border-[color:var(--color-gold)]"
+					onkeydown={(event) =>
+						event.key === 'Enter' && !event.shiftKey && (event.preventDefault(), sendMessage())}
+				></textarea>
+				<button
+					class="rounded-lg bg-[color:var(--color-gold)] px-4 py-2 text-sm font-semibold text-[color:#1f1708] disabled:opacity-50"
+					disabled={!isConnected || isThinking || !inputText.trim()}
+					onclick={sendMessage}
+				>
 					Send
 				</button>
 			</div>

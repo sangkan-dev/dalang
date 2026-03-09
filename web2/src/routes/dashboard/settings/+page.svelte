@@ -41,7 +41,9 @@
 			const models = PROVIDER_MODELS[settings.provider] ?? [];
 			useCustomModel = models.length > 0 && !models.includes(settings.model);
 		} catch (err) {
-			toast.error(`Failed to load settings: ${err instanceof Error ? err.message : 'unknown error'}`);
+			toast.error(
+				`Failed to load settings: ${err instanceof Error ? err.message : 'unknown error'}`
+			);
 		} finally {
 			loading = false;
 		}
@@ -76,7 +78,9 @@
 			toast.success('Settings updated');
 			await loadSettings();
 		} catch (err) {
-			toast.error(`Failed to save settings: ${err instanceof Error ? err.message : 'unknown error'}`);
+			toast.error(
+				`Failed to save settings: ${err instanceof Error ? err.message : 'unknown error'}`
+			);
 		} finally {
 			saving = false;
 		}
@@ -93,7 +97,9 @@
 				toast.warning(testResult.message);
 			}
 		} catch (err) {
-			toast.error(`Connection test failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+			toast.error(
+				`Connection test failed: ${err instanceof Error ? err.message : 'unknown error'}`
+			);
 		} finally {
 			testing = false;
 		}
@@ -104,7 +110,9 @@
 
 <section class="space-y-4">
 	<header>
-		<p class="text-xs uppercase tracking-[0.2em] text-[color:var(--color-ash)]">Dashboard / Settings</p>
+		<p class="text-xs tracking-[0.2em] text-[color:var(--color-ash)] uppercase">
+			Dashboard / Settings
+		</p>
 		<h2 class="text-xl font-semibold text-[color:var(--color-text)]">Provider Configuration</h2>
 	</header>
 
@@ -113,7 +121,11 @@
 	{:else}
 		<div class="space-y-4">
 			<div class="surface-panel space-y-3 p-4">
-				<p class="text-sm {settings.auth_status === 'authenticated' ? 'text-emerald-300' : 'text-[color:var(--color-ash)]'}">
+				<p
+					class="text-sm {settings.auth_status === 'authenticated'
+						? 'text-emerald-300'
+						: 'text-[color:var(--color-ash)]'}"
+				>
 					Auth status: {settings.auth_status}
 				</p>
 				<p class="text-xs text-[color:var(--color-ash)]">Method: {settings.auth_method}</p>
@@ -121,8 +133,15 @@
 
 			<div class="surface-panel space-y-4 p-4">
 				<div>
-					<label class="mb-1 block text-sm text-[color:var(--color-ash)]" for="provider">Provider</label>
-					<select id="provider" bind:value={settings.provider} onchange={onProviderChange} class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]">
+					<label class="mb-1 block text-sm text-[color:var(--color-ash)]" for="provider"
+						>Provider</label
+					>
+					<select
+						id="provider"
+						bind:value={settings.provider}
+						onchange={onProviderChange}
+						class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]"
+					>
 						<option value="gemini">Gemini</option>
 						<option value="openai">OpenAI</option>
 						<option value="anthropic">Anthropic</option>
@@ -136,21 +155,38 @@
 					<label class="mb-1 block text-sm text-[color:var(--color-ash)]" for="model">Model</label>
 					{#if useCustomModel}
 						<div class="flex gap-2">
-							<input id="model" bind:value={settings.model} class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]" />
+							<input
+								id="model"
+								bind:value={settings.model}
+								class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]"
+							/>
 							{#if availableModels.length > 0}
-								<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={() => { useCustomModel = false; settings.model = availableModels[0]; }}>
+								<button
+									class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+									onclick={() => {
+										useCustomModel = false;
+										settings.model = availableModels[0];
+									}}
+								>
 									Presets
 								</button>
 							{/if}
 						</div>
 					{:else}
 						<div class="flex gap-2">
-							<select id="model" bind:value={settings.model} class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]">
+							<select
+								id="model"
+								bind:value={settings.model}
+								class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]"
+							>
 								{#each availableModels as model}
 									<option value={model}>{model}</option>
 								{/each}
 							</select>
-							<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={() => (useCustomModel = true)}>
+							<button
+								class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+								onclick={() => (useCustomModel = true)}
+							>
 								Custom
 							</button>
 						</div>
@@ -158,46 +194,87 @@
 				</div>
 
 				<div>
-					<label class="mb-1 block text-sm text-[color:var(--color-ash)]" for="endpoint">Endpoint mode</label>
-					<select id="endpoint" bind:value={settings.endpoint_mode} class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]">
+					<label class="mb-1 block text-sm text-[color:var(--color-ash)]" for="endpoint"
+						>Endpoint mode</label
+					>
+					<select
+						id="endpoint"
+						bind:value={settings.endpoint_mode}
+						class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]"
+					>
 						<option value="openai_compat">OpenAI Compatible</option>
 						<option value="google_rest">Google REST</option>
 					</select>
 				</div>
 
 				<div>
-					<label class="mb-1 block text-sm text-[color:var(--color-ash)]" for="base-url">Custom base URL</label>
-					<input id="base-url" bind:value={settings.custom_base_url} placeholder="https://api.example.com/v1" class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]" />
+					<label class="mb-1 block text-sm text-[color:var(--color-ash)]" for="base-url"
+						>Custom base URL</label
+					>
+					<input
+						id="base-url"
+						bind:value={settings.custom_base_url}
+						placeholder="https://api.example.com/v1"
+						class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]"
+					/>
 				</div>
 			</div>
 
 			<div class="surface-panel space-y-4 p-4">
 				<div>
-					<label class="mb-1 block text-sm text-[color:var(--color-ash)]" for="api-key">API key</label>
+					<label class="mb-1 block text-sm text-[color:var(--color-ash)]" for="api-key"
+						>API key</label
+					>
 					<div class="flex gap-2">
-						<input id="api-key" type={showApiKey ? 'text' : 'password'} bind:value={apiKeyInput} placeholder={settings.has_api_key ? '•••••••• key already saved' : 'sk-...'} class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]" />
-						<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={() => (showApiKey = !showApiKey)}>
+						<input
+							id="api-key"
+							type={showApiKey ? 'text' : 'password'}
+							bind:value={apiKeyInput}
+							placeholder={settings.has_api_key ? '•••••••• key already saved' : 'sk-...'}
+							class="w-full rounded-lg border border-[color:var(--color-border)] bg-transparent px-3 py-2 text-sm text-[color:var(--color-base-text)]"
+						/>
+						<button
+							class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+							onclick={() => (showApiKey = !showApiKey)}
+						>
 							{showApiKey ? 'Hide' : 'Show'}
 						</button>
 					</div>
 				</div>
 
-				<label class="flex items-center gap-2 text-sm text-[color:var(--color-base-text)]" for="verbose">
+				<label
+					class="flex items-center gap-2 text-sm text-[color:var(--color-base-text)]"
+					for="verbose"
+				>
 					<input id="verbose" type="checkbox" bind:checked={settings.verbose} />
 					Verbose mode
 				</label>
 
 				<div class="flex flex-wrap gap-2">
-					<button class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]" onclick={testConnection} disabled={testing}>
+					<button
+						class="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs text-[color:var(--color-ash)]"
+						onclick={testConnection}
+						disabled={testing}
+					>
 						{testing ? 'Testing...' : 'Test Connection'}
 					</button>
 					{#if testResult}
-						<p class="text-xs {testResult.success ? 'text-emerald-300' : 'text-[color:var(--color-rust)]'}">{testResult.message}</p>
+						<p
+							class="text-xs {testResult.success
+								? 'text-emerald-300'
+								: 'text-[color:var(--color-rust)]'}"
+						>
+							{testResult.message}
+						</p>
 					{/if}
 				</div>
 			</div>
 
-			<button class="rounded-lg bg-[color:var(--color-gold)] px-4 py-2 text-sm font-semibold text-[#1f1708] disabled:opacity-50" onclick={saveSettings} disabled={saving}>
+			<button
+				class="rounded-lg bg-[color:var(--color-gold)] px-4 py-2 text-sm font-semibold text-[#1f1708] disabled:opacity-50"
+				onclick={saveSettings}
+				disabled={saving}
+			>
 				{saving ? 'Saving...' : 'Save Settings'}
 			</button>
 		</div>
