@@ -166,6 +166,9 @@ fn resolve_auth_token(auth_method: &str) -> AuthToken {
             _ => AuthToken::ApiKey(token),
         };
     }
+    if let Ok(key) = crate::auth::persistence::get_api_key() {
+        return AuthToken::ApiKey(key);
+    }
     if let Ok(key) = std::env::var("LLM_API_KEY") {
         return AuthToken::ApiKey(key);
     }
