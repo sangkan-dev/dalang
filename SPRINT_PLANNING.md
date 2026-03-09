@@ -697,20 +697,20 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
-## Sprint 33: Dashboard Migration to SvelteKit & Backend Embedding ⬜
+## Sprint 33: Dashboard Migration to SvelteKit & Backend Embedding ✅
 
 **Goal:** Memigrasi dashboard operasional Dalang ke SvelteKit dengan parity fitur penuh, kemudian menghubungkannya ke runtime backend Rust untuk deployment terpadu.
 
-- ⬜ **[DAL-3301] - Feature - Dashboard Route Group Migration (`web2/src/routes/dashboard/*`)**
+- ✅ **[DAL-3301] - Feature - Dashboard Route Group Migration (`web2/src/routes/dashboard/*`)**
   - Porting halaman utama: chat, skills, reports, settings, session list, command palette.
   - Pertahankan behavior event-streaming agar pengalaman interactive/autopilot tetap setara atau lebih baik.
-- ⬜ **[DAL-3302] - Feature - Shared API/WebSocket Client Layer (`web2/src/lib/api/*`)**
+- ✅ **[DAL-3302] - Feature - Shared API/WebSocket Client Layer (`web2/src/lib/api/*`)**
   - Refactor service API dan websocket lifecycle khusus untuk route dashboard.
   - Standarkan handler reconnect, replay event, dan error/toast mapping.
-- ⬜ **[DAL-3303] - Backend - Rust Embedded Static Serving for SvelteKit (`src/adapters/inbound/web/embedded.rs`, `src/adapters/inbound/web/mod.rs`)**
+- ✅ **[DAL-3303] - Backend - Rust Embedded Static Serving for SvelteKit (`src/adapters/inbound/web/embedded.rs`, `src/adapters/inbound/web/mod.rs`)**
   - Ubah pipeline embed agar backend menyajikan artifact dashboard dari SvelteKit.
   - Pastikan routing fallback tidak merusak endpoint REST/WebSocket existing.
-- ⬜ **[DAL-3304] - Infrastructure - Build & Docker Pipeline Alignment (`Dockerfile`, `Makefile`, `docker-compose.yml`)**
+- ✅ **[DAL-3304] - Infrastructure - Build & Docker Pipeline Alignment (`Dockerfile`, `Makefile`, `docker-compose.yml`)**
   - Update tahap build frontend agar memakai `web2` sebagai sumber utama dashboard.
   - Verifikasi image runtime tetap stabil untuk mode web + scan workloads.
 
@@ -767,11 +767,11 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 28     | Full Browser Agent Capabilities                     | ✅ Done |
 | 29     | Agent Concurrency & Open Providers                  | ✅ Done |
 | 30     | Dockerization & Tool Bundling                       | ✅ Done |
-| 31     | SvelteKit Cutover Architecture & Design Foundation  | ⬜ Todo |
+| 31     | SvelteKit Cutover Architecture & Design Foundation  | ✅ Done |
 | 32     | Landing Experience & Signature Effects              | 🔄 In Progress |
-| 33     | Dashboard Migration & Backend Embedding             | ⬜ Todo |
+| 33     | Dashboard Migration & Backend Embedding             | ✅ Done |
 | 34     | Repository Rebrand & Docs Migration                 | ⬜ Todo |
 
-**Total: 34 Sprint — 30 ✅ Selesai, 4 ⬜ Belum Dimulai**
+**Total: 34 Sprint — 32 ✅ Selesai, 1 🔄 Sedang Dikerjakan, 1 ⬜ Belum Dimulai**
 
 ---
