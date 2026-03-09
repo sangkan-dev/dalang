@@ -637,7 +637,7 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 
 ---
 
-## Sprint 30: Dockerization & Tool Bundling ⬜
+## Sprint 30: Dockerization & Tool Bundling ✅
 
 **Goal:** Mempermudah deployment Dalang dengan menyediakan Dockerfile dan docker-compose.yml yang sudah terinstal dengan semua security tools yang diperlukan oleh skill library.
 
@@ -651,6 +651,87 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
   - Tambahkan volume persistence untuk `/root/.dalang` (data session & settings).
 - ✅ **[DAL-3003] - Documentation - Docker Usage Guide**
   - Tambahkan instruksi cara menjalankan Dalang via Docker di README atau dokumentasi internal.
+
+---
+
+## Sprint 31: SvelteKit Cutover Architecture & Ancient Cybernetics Foundation ⬜
+
+**Goal:** Menetapkan fondasi migrasi penuh dari `web/` ke `web2/` (SvelteKit) dengan arsitektur route final dan design system Ancient Cybernetics sebagai baseline seluruh UI Dalang.
+
+- ⬜ **[DAL-3101] - Architecture - Final Route Map & Runtime Strategy (`web2/` + `src/adapters/inbound/web/*`)**
+  - Tetapkan struktur route SvelteKit: landing publik (`/`) dan dashboard aplikasi (`/dashboard/*`) sebagai jalur utama operasional.
+  - Terapkan strategi **hybrid runtime**: landing siap deploy mandiri, dashboard tetap terintegrasi dengan backend Dalang.
+  - Definisikan kontrak integrasi API + WebSocket agar kompatibel dengan handler axum yang sudah ada.
+- ⬜ **[DAL-3102] - Design System - Ancient Cybernetics Tokens (`web2/src/routes/layout.css` + `web2/src/lib/*`)**
+  - Implementasi token warna resmi: Andesite, Gold, Base Text, Ash, Smoke, Rust.
+  - Buat token typography dan komponen utilitas spacing/radius/shadow berbasis CSS variables.
+  - Pastikan guardrail aksesibilitas (kontras, focus state, reduced motion baseline) sejak awal.
+- ⬜ **[DAL-3103] - Typography - Brand Font Stack & Self-Hosted Javanese Font (`web2/static/fonts/*`)**
+  - Integrasikan `Plus Jakarta Sans` untuk heading/UI dan `JetBrains Mono` untuk data/log.
+  - Self-host `Noto Sans Javanese` (`.woff2`) untuk identitas cipher reveal.
+  - Dokumentasikan fallback font chain lintas desktop/mobile.
+- ⬜ **[DAL-3104] - Frontend Infrastructure - SvelteKit App Mode Hardening (`web2/package.json`, `web2/svelte.config.js`)**
+  - Rapikan konfigurasi `web2` dari template library menjadi aplikasi production-ready.
+  - Finalisasi script dev/build/check/test untuk pipeline Dalang.
+  - Verifikasi hasil build siap dikonsumsi untuk mode embed dashboard.
+
+---
+
+## Sprint 32: Landing Experience + Signature Brand Effects ⬜
+
+**Goal:** Membangun landing page Dalang yang siap deploy publik dengan identitas penuh Sangkan (Ancient Cybernetics), termasuk sonic interaction, cipher reveal, dan holographic CRT layer.
+
+- ⬜ **[DAL-3201] - Feature - Dalang Landing Page in SvelteKit (`web2/src/routes/+page.svelte`)**
+  - Bangun narasi produk: hero, problem framing, feature arsenal, install path, CTA ke dashboard/docs/repo.
+  - Pastikan responsif mobile-first tanpa mengorbankan visual karakter brand.
+- ⬜ **[DAL-3202] - Feature - UI Sonics Engine (WebAudio) (`web2/src/lib/audio/*`)**
+  - Tambahkan procedural sound hooks (tick/hum) untuk interaksi UI utama.
+  - Sediakan global toggle mute dan preferensi user persistence.
+  - Hormati kebijakan browser autoplay serta fallback mode senyap.
+- ⬜ **[DAL-3203] - Feature - Cipher Reveal Component (`web2/src/lib/components/CipherReveal.svelte`)**
+  - Implement transisi teks dari script Javanese (ꦱꦁꦏꦤ꧀) ke latin menggunakan mekanisme scramble reveal.
+  - Trigger berbasis viewport/scroll dengan kontrol performa.
+- ⬜ **[DAL-3204] - Feature - Holographic/CRT Layer (`web2/src/lib/visual/*`)**
+  - Integrasi layer point-cloud/overlay + scanline + noise global sesuai signature Sangkan.
+  - Tetapkan fallback untuk device low-power dan mode reduced motion.
+
+---
+
+## Sprint 33: Dashboard Migration to SvelteKit & Backend Embedding ⬜
+
+**Goal:** Memigrasi dashboard operasional Dalang ke SvelteKit dengan parity fitur penuh, kemudian menghubungkannya ke runtime backend Rust untuk deployment terpadu.
+
+- ⬜ **[DAL-3301] - Feature - Dashboard Route Group Migration (`web2/src/routes/dashboard/*`)**
+  - Porting halaman utama: chat, skills, reports, settings, session list, command palette.
+  - Pertahankan behavior event-streaming agar pengalaman interactive/autopilot tetap setara atau lebih baik.
+- ⬜ **[DAL-3302] - Feature - Shared API/WebSocket Client Layer (`web2/src/lib/api/*`)**
+  - Refactor service API dan websocket lifecycle khusus untuk route dashboard.
+  - Standarkan handler reconnect, replay event, dan error/toast mapping.
+- ⬜ **[DAL-3303] - Backend - Rust Embedded Static Serving for SvelteKit (`src/adapters/inbound/web/embedded.rs`, `src/adapters/inbound/web/mod.rs`)**
+  - Ubah pipeline embed agar backend menyajikan artifact dashboard dari SvelteKit.
+  - Pastikan routing fallback tidak merusak endpoint REST/WebSocket existing.
+- ⬜ **[DAL-3304] - Infrastructure - Build & Docker Pipeline Alignment (`Dockerfile`, `Makefile`, `docker-compose.yml`)**
+  - Update tahap build frontend agar memakai `web2` sebagai sumber utama dashboard.
+  - Verifikasi image runtime tetap stabil untuk mode web + scan workloads.
+
+---
+
+## Sprint 34: Repository Rebrand & Documentation Migration to Sangkan ⬜
+
+**Goal:** Menyelaraskan seluruh identitas repository, dokumentasi, dan komunikasi publik Dalang dari legacy personal branding ke organisasi `sangkan-dev` dan domain `sangkan.dev`.
+
+- ⬜ **[DAL-3401] - Documentation - README Rebrand (`README.md`)**
+  - Ubah narasi, badge, link, dan metadata kepemilikan sesuai identitas `sangkan-dev`.
+  - Tambahkan section deployment strategy: landing publik + dashboard runtime.
+- ⬜ **[DAL-3402] - Documentation - Web UI Guide Refresh (`docs/guide/web-ui.md`)**
+  - Dokumentasikan alur baru SvelteKit landing + dashboard route + autentikasi/settings flow.
+  - Sertakan troubleshooting untuk dockerized deployment.
+- ⬜ **[DAL-3403] - Documentation - Architecture Update (`docs/architecture/web-server.md`)**
+  - Perbarui diagram dan penjelasan serving strategy hybrid serta jalur data event realtime.
+  - Sinkronkan dengan state/session persistence yang sudah ada.
+- ⬜ **[DAL-3404] - Cleanup - Legacy Frontend Decommission (`web/` sunset plan)**
+  - Definisikan kriteria cutover final, timeline sunset, dan langkah rollback minimal.
+  - Setelah parity lulus QA, nonaktifkan jalur build/deploy frontend lama.
 
 ## Ringkasan Status
 
@@ -686,7 +767,11 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 28     | Full Browser Agent Capabilities                     | ✅ Done |
 | 29     | Agent Concurrency & Open Providers                  | ✅ Done |
 | 30     | Dockerization & Tool Bundling                       | ✅ Done |
+| 31     | SvelteKit Cutover Architecture & Design Foundation  | ⬜ Todo |
+| 32     | Landing Experience & Signature Effects              | ⬜ Todo |
+| 33     | Dashboard Migration & Backend Embedding             | ⬜ Todo |
+| 34     | Repository Rebrand & Docs Migration                 | ⬜ Todo |
 
-**Total: 30 Sprint — 30 ✅ Selesai, 0 ⬜ Belum Dimulai**
+**Total: 34 Sprint — 30 ✅ Selesai, 4 ⬜ Belum Dimulai**
 
 ---
