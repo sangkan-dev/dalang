@@ -636,16 +636,21 @@ fn resolve_runtime_config() -> (
     // Resolve auth token
     let auth = resolve_auth_token(&auth_method);
 
-    // Resolve base URL — for cloudcode mode, the factory handles it internally;
-    // for openai_compat, use LLM_BASE_URL, stored custom URL, or provider default
-    let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| {
-        if endpoint_mode == "openai_compat" {
-            auth::persistence::get_custom_base_url()
-                .unwrap_or_else(|_| llm::get_default_base_url(&active_provider))
-        } else {
-            llm::get_default_base_url(&active_provider)
-        }
-    });
+    // Resolve base URL — empty env values should not override persisted config.
+    let env_base_url = std::env::var("LLM_BASE_URL")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+
+    // For openai_compat, priority: env (non-empty) -> stored custom URL -> provider default.
+    let base_url = if let Some(url) = env_base_url {
+        url
+    } else if endpoint_mode == "openai_compat" {
+        auth::persistence::get_custom_base_url()
+            .unwrap_or_else(|_| llm::get_default_base_url(&active_provider))
+    } else {
+        llm::get_default_base_url(&active_provider)
+    };
 
     // Resolve codeassist endpoint and GCP project (only relevant for cloudcode mode)
     let (codeassist_ep, gcp_project) = if endpoint_mode == "cloudcode" {
@@ -657,10 +662,18 @@ fn resolve_runtime_config() -> (
         (None, None)
     };
 
-    // Resolve model
+    // Resolve model — ignore blank env/model values to avoid invalid runtime config.
     let model = std::env::var("LLM_MODEL")
-        .or_else(|_| auth::persistence::get_model_preference())
-        .unwrap_or_else(|_| llm::get_default_model(&active_provider));
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .or_else(|| {
+            auth::persistence::get_model_preference()
+                .ok()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+        })
+        .unwrap_or_else(|| llm::get_default_model(&active_provider));
 
     println!(
         "[*] Using Provider: {} | Model: {} | Auth: {} | Mode: {}",
@@ -688,7 +701,10 @@ fn resolve_auth_token(auth_method: &str) -> llm::AuthToken {
     }
 
     if let Ok(key) = std::env::var("LLM_API_KEY") {
-        return llm::AuthToken::ApiKey(key);
+        let key = key.trim();
+        if !key.is_empty() {
+            return llm::AuthToken::ApiKey(key.to_string());
+        }
     }
 
     if let Some(token) = auth::cli_extractor::try_all_cli_extractors() {

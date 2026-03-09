@@ -126,14 +126,19 @@ impl AppState {
             ));
         }
 
-        let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| {
-            if endpoint_mode == "openai_compat" {
-                crate::auth::persistence::get_custom_base_url()
-                    .unwrap_or_else(|_| llm::get_default_base_url(&active_provider))
-            } else {
-                llm::get_default_base_url(&active_provider)
-            }
-        });
+        let env_base_url = std::env::var("LLM_BASE_URL")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
+
+        let base_url = if let Some(url) = env_base_url {
+            url
+        } else if endpoint_mode == "openai_compat" {
+            crate::auth::persistence::get_custom_base_url()
+                .unwrap_or_else(|_| llm::get_default_base_url(&active_provider))
+        } else {
+            llm::get_default_base_url(&active_provider)
+        };
 
         let (codeassist_ep, gcp_project) = if endpoint_mode == "cloudcode" {
             (
@@ -145,8 +150,16 @@ impl AppState {
         };
 
         let model = std::env::var("LLM_MODEL")
-            .or_else(|_| crate::auth::persistence::get_model_preference())
-            .unwrap_or_else(|_| llm::get_default_model(&active_provider));
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .or_else(|| {
+                crate::auth::persistence::get_model_preference()
+                    .ok()
+                    .map(|v| v.trim().to_string())
+                    .filter(|v| !v.is_empty())
+            })
+            .unwrap_or_else(|| llm::get_default_model(&active_provider));
 
         llm::create_provider(
             &endpoint_mode,
@@ -170,7 +183,10 @@ fn resolve_auth_token(auth_method: &str) -> AuthToken {
         return AuthToken::ApiKey(key);
     }
     if let Ok(key) = std::env::var("LLM_API_KEY") {
-        return AuthToken::ApiKey(key);
+        let key = key.trim();
+        if !key.is_empty() {
+            return AuthToken::ApiKey(key.to_string());
+        }
     }
     if let Some(token) = crate::auth::cli_extractor::try_all_cli_extractors() {
         return AuthToken::Bearer(token);
