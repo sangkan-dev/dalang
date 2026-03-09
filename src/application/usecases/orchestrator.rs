@@ -621,6 +621,9 @@ impl DalangOrchestrator {
             4. For each vulnerability found, verify it with a PoC before reporting.\n\
             5. When done, produce a final VULNERABILITY REPORT.\n\
             6. You can execute multiple tool calls CONCURRENTLY. If you need to perform several independent actions (e.g., scanning multiple ports, checking multiple endpoints), you MUST return a JSON array containing multiple tool/skill call objects.\n\n\
+            7. NEVER claim a tool is queued/completed unless the observation has already been returned by the engine.\n\
+            8. Prefer step-by-step execution. Do not schedule a long multi-phase plan in one response.\n\
+            9. If you are executing tools, output ONLY JSON (no prose around it).\n\n\
             ### VULNERABILITY REPORT FORMAT:\n\
             When you have gathered enough evidence:\n\n\
             ```\n\
@@ -968,10 +971,14 @@ impl DalangOrchestrator {
             "[AUTHORIZED AUDIT ENVIRONMENT - INTERACTIVE MODE]\n\
             You are a Senior Security Auditor assistant for a sanctioned pentest of: {target}.\n\n\
             {skills_catalog}\n\n\
-            Assist the pentester with their requests. When asked to run a tool, use the JSON tool call format:\n\
+            Assist the pentester with concise, evidence-first responses. When asked to run a tool, use the JSON tool call format:\n\
             ```json\n\
             {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"target_url\": \"<optional-url>\", \"reasoning\": \"<why>\", \"custom_args\": [], \"args_override\": []}}}}\n\
             ```\n\
+            RULES:\n\
+            - Never claim a tool is queued/completed before observation exists.\n\
+            - Prefer at most 1-2 tool calls per response.\n\
+            - If executing tools, output ONLY JSON (no narrative text).\n\
             For each finding, include the exact URL, parameter, PoC, and severity."
         );
 
@@ -1093,10 +1100,14 @@ impl DalangOrchestrator {
                 "[AUTHORIZED AUDIT ENVIRONMENT - INTERACTIVE MODE]\n\
                 You are a Senior Security Auditor assistant for a sanctioned pentest of: {target}.\n\n\
                 {skills_catalog}\n\n\
-                Assist the pentester with their requests. When asked to run a tool, use the JSON tool call format:\n\
+                Assist the pentester with concise, evidence-first responses. When asked to run a tool, use the JSON tool call format:\n\
                 ```json\n\
                 {{\"tool\": \"execute_skill\", \"args\": {{\"skill_name\": \"<name>\", \"target_url\": \"<optional-url>\", \"reasoning\": \"<why>\", \"custom_args\": [], \"args_override\": []}}}}\n\
                 ```\n\
+                RULES:\n\
+                - Never claim a tool is queued/completed before observation exists.\n\
+                - Prefer at most 1-2 tool calls per response.\n\
+                - If executing tools, output ONLY JSON (no narrative text).\n\
                 For each finding, include the exact URL, parameter, PoC, and severity."
             );
             messages.insert(0, Message::system(&system_prompt));
@@ -1105,7 +1116,9 @@ impl DalangOrchestrator {
         compact_messages(messages);
 
         let max_rounds = 5u32;
+        const MAX_TOOL_CALLS_PER_ROUND: usize = 3;
         let mut round = 0u32;
+        let tool_def = vec![Self::build_execute_skill_tool_def()];
 
         loop {
             round += 1;
@@ -1125,7 +1138,10 @@ impl DalangOrchestrator {
                 })
                 .await;
 
-            let response_text = self.llm.send_messages(messages).await?;
+            let response_text = self
+                .llm
+                .send_messages_with_tools(messages, tool_def.clone())
+                .await?;
 
             let _ = tx
                 .send(EngineEvent::AssistantMessage {
@@ -1149,7 +1165,19 @@ impl DalangOrchestrator {
                     let (raw_skills, _) = load_available_skills()?;
                     let (skills, _) = self.filter_disabled_skills(raw_skills, vec![]);
 
-                    for tool_call in tool_calls {
+                    if tool_calls.len() > MAX_TOOL_CALLS_PER_ROUND {
+                        let _ = tx
+                            .send(EngineEvent::Status {
+                                message: format!(
+                                    "Model returned {} tool calls; executing first {} this round.",
+                                    tool_calls.len(),
+                                    MAX_TOOL_CALLS_PER_ROUND
+                                ),
+                            })
+                            .await;
+                    }
+
+                    for tool_call in tool_calls.into_iter().take(MAX_TOOL_CALLS_PER_ROUND) {
                         if tool_call.name == "execute_skill" {
                             let skill_name = tool_call
                                 .arguments
