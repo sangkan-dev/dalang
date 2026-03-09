@@ -86,6 +86,54 @@ struct ModelItem {
     id: Option<String>,
 }
 
+fn preview_body(body: &str, max: usize) -> String {
+    let trimmed = body.trim();
+    if trimmed.len() <= max {
+        trimmed.to_string()
+    } else {
+        format!("{}...", &trimmed[..max])
+    }
+}
+
+fn extract_last_sse_json_chunk(body: &str) -> Option<String> {
+    let mut last: Option<String> = None;
+
+    for line in body.lines() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("data:") {
+            continue;
+        }
+
+        let payload = trimmed.trim_start_matches("data:").trim();
+        if payload.is_empty() || payload == "[DONE]" {
+            continue;
+        }
+
+        if payload.starts_with('{') {
+            last = Some(payload.to_string());
+        }
+    }
+
+    last
+}
+
+fn parse_openai_body(body: &str) -> Result<OpenAiResponse> {
+    if let Ok(parsed) = serde_json::from_str::<OpenAiResponse>(body) {
+        return Ok(parsed);
+    }
+
+    if let Some(json_chunk) = extract_last_sse_json_chunk(body)
+        && let Ok(parsed) = serde_json::from_str::<OpenAiResponse>(&json_chunk)
+    {
+        return Ok(parsed);
+    }
+
+    Err(anyhow!(
+        "Failed to decode LLM JSON response. Body preview: {}",
+        preview_body(body, 400)
+    ))
+}
+
 pub struct OpenAiCompatibleProvider {
     client: Client,
     base_url: String,
@@ -280,7 +328,14 @@ impl OpenAiCompatibleProvider {
                 ));
             }
 
-            let mut parsed: OpenAiResponse = response.json().await?;
+            let body = response.text().await.with_context(|| {
+                format!(
+                    "Failed reading LLM response body from {} using model {}",
+                    endpoint, self.model
+                )
+            })?;
+
+            let mut parsed = parse_openai_body(&body)?;
 
             let choice = parsed
                 .choices
