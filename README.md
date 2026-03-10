@@ -132,3 +132,7 @@ Run the custom script to identify XYZ vulnerability.
 ## Disclaimer
 
 Dalang is a security assessment tool intended exclusively for authorized auditing and educational purposes. Ensure you have explicit permission to test any target before executing the framework.
+
+## LICENSE
+
+Dalang is licensed under the MIT License. See `LICENSE` file for details.
