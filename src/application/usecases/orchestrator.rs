@@ -20,6 +20,8 @@ use crate::domain::tool_call::{build_executor_args, parse_llm_tool_call};
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+#[cfg(windows)]
+use is_elevated::is_elevated;
 
 // ── Orchestrator Config ───────────────────────────────────────────────────────
 
@@ -245,6 +247,18 @@ impl DalangOrchestrator {
 
     // ── Execute a native skill command ─────────────────────────────────────────
 
+    // helper to check is_admin_or_root
+    #[cfg(windows)]
+    fn is_admin_or_root() -> bool {
+        // Implementation for Windows
+        is_elevated()
+    }
+
+    #[cfg(not(windows))]
+    fn is_admin_or_root() -> bool {
+        unsafe { libc::geteuid() == 0 }
+    }
+
     async fn execute_skill_native(
         &self,
         skill_def: &SkillDefinition,
@@ -255,7 +269,7 @@ impl DalangOrchestrator {
     ) {
         // Root check
         if skill_def.requires_root == Some(true) {
-            let is_root = unsafe { libc::geteuid() == 0 };
+            let is_admin_or_root = self.is_admin_or_root();
             if !is_root {
                 let msg = format!(
                     "Error: Skill `{}` requires root privileges. Re-run with `sudo dalang ...`.",
