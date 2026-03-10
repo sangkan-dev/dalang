@@ -18,10 +18,10 @@ use crate::domain::models::{EngineEvent, Message, SkillDefinition};
 use crate::domain::safety::{is_clean_argument, is_safety_refusal};
 use crate::domain::tool_call::{build_executor_args, parse_llm_tool_call};
 use anyhow::{Result, anyhow};
-use std::sync::Arc;
-use tokio::sync::mpsc;
 #[cfg(windows)]
 use is_elevated::is_elevated;
+use std::sync::Arc;
+use tokio::sync::mpsc;
 
 // ── Orchestrator Config ───────────────────────────────────────────────────────
 
@@ -269,8 +269,8 @@ impl DalangOrchestrator {
     ) {
         // Root check
         if skill_def.requires_root == Some(true) {
-            let is_admin_or_root = self.is_admin_or_root();
-            if !is_root {
+            let is_admin_or_root = Self::is_admin_or_root();
+            if !is_admin_or_root {
                 let msg = format!(
                     "Error: Skill `{}` requires root privileges. Re-run with `sudo dalang ...`.",
                     skill_def.name
