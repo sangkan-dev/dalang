@@ -1,5 +1,5 @@
+use crate::domain::errors::DalangError;
 use crate::domain::models::ToolCall;
-use anyhow::{Result, anyhow};
 
 #[derive(serde::Deserialize)]
 struct RawToolResponse {
@@ -7,7 +7,7 @@ struct RawToolResponse {
     args: Option<serde_json::Value>,
 }
 
-fn parse_clean_tool_payload(clean: &str) -> Result<Vec<ToolCall>> {
+fn parse_clean_tool_payload(clean: &str) -> Result<Vec<ToolCall>, DalangError> {
     // Try parsing as array first
     if let Ok(arr) = serde_json::from_str::<Vec<RawToolResponse>>(clean) {
         let mut calls = Vec::new();
@@ -49,10 +49,10 @@ fn parse_clean_tool_payload(clean: &str) -> Result<Vec<ToolCall>> {
 
     // Fallback to single object
     let parsed: RawToolResponse = serde_json::from_str(clean)
-        .map_err(|e| anyhow!("Failed to parse JSON tool call: {}. Content: {}", e, clean))?;
+        .map_err(|e| DalangError::InvalidToolCallJson(format!("{e}; content: {clean}")))?;
 
     Ok(vec![ToolCall {
-        name: parsed.tool.ok_or_else(|| anyhow!("Missing 'tool' field"))?,
+        name: parsed.tool.ok_or(DalangError::ToolCallMissingName)?,
         arguments: parsed.args.unwrap_or(serde_json::Value::Null),
     }])
 }
@@ -143,7 +143,7 @@ fn extract_balanced_json_slice(s: &str, start: usize) -> Option<String> {
 /// ```json
 /// [{"tool": "execute_skill", "args": {...}}, {"tool": "execute_skill", "args": {...}}]
 /// ```
-pub fn parse_llm_tool_call(content: &str) -> Result<Vec<ToolCall>> {
+pub fn parse_llm_tool_call(content: &str) -> Result<Vec<ToolCall>, DalangError> {
     let clean = strip_code_fence(content);
     if let Ok(calls) = parse_clean_tool_payload(&clean) {
         return Ok(calls);
@@ -164,10 +164,7 @@ pub fn parse_llm_tool_call(content: &str) -> Result<Vec<ToolCall>> {
         }
     }
 
-    Err(anyhow!(
-        "Failed to parse JSON tool call from mixed response. Content: {}",
-        clean
-    ))
+    Err(DalangError::ToolCallNotFound)
 }
 
 /// Converts the ToolCall arguments into a list of strings array that can be passed to the executor

@@ -7,6 +7,7 @@ use dalang_application::application::ports::llm_port::LlmPort;
 use dalang_application::application::usecases::orchestrator::{
     DalangOrchestrator, OrchestratorConfig,
 };
+use dalang_application::skills_parser::FileSystemSkillCatalog;
 use std::sync::Arc;
 
 use crate::runtime::ResolvedLlmRuntime;
@@ -34,6 +35,7 @@ pub fn wire_orchestrator(
         llm_adapter,
         executor,
         Some(browser),
+        Arc::new(FileSystemSkillCatalog),
         config,
     ))
 }

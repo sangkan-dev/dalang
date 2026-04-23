@@ -1,6 +1,6 @@
 //! Browser CDP adapter — **only** outbound surface that talks to Chromiumoxide / CDP.
 //!
-//! - **`browser::DalangBrowser`** — all low-level CDP/session logic lives here; keep it free of
+//! - **`browser::DalangBrowser`** (see `browser/`) — all low-level CDP/session logic lives here; keep it free of
 //!   HTTP or CLI concerns.
 //! - **`ChromiumBrowserAdapter`** / **`LazyBrowserAdapter`** — thin `BrowserPort` impls that
 //!   delegate to `DalangBrowser` (see mutex / `OnceCell` notes below).

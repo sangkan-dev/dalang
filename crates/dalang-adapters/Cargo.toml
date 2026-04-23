@@ -35,6 +35,7 @@ uuid.workspace = true
 
 dalang-application = { path = "../dalang-application" }
 dalang-domain = { path = "../dalang-domain" }
+dalang-skills = { path = "../dalang-skills" }
 
 [dev-dependencies]
 tower = { workspace = true }

@@ -6,4 +6,5 @@
 pub mod browser_port;
 pub mod llm_port;
 pub mod os_port;
+pub mod skill_catalog;
 pub mod storage_port;

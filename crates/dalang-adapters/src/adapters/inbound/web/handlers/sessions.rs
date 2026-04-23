@@ -1,12 +1,15 @@
 //! Session management REST API handlers.
 
+use crate::WsEngineEvent;
 use crate::adapters::inbound::web::persistence;
 use crate::adapters::inbound::web::state::{AppState, SessionMode};
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use dalang_domain::domain::models::Message;
 use serde::Deserialize;
+use serde::Serialize;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -20,13 +23,42 @@ fn default_mode() -> SessionMode {
     SessionMode::Interactive
 }
 
+/// Full session JSON for create/get responses (events in wire format).
+#[derive(Serialize)]
+pub struct SessionWire {
+    pub id: Uuid,
+    pub target: String,
+    pub mode: SessionMode,
+    pub messages: Vec<Message>,
+    pub events: Vec<WsEngineEvent>,
+    pub created_at: String,
+    pub active: bool,
+    pub cmd_timeout: u64,
+}
+
+impl From<&crate::session_files::Session> for SessionWire {
+    fn from(s: &crate::session_files::Session) -> Self {
+        Self {
+            id: s.id,
+            target: s.target.clone(),
+            mode: s.mode.clone(),
+            messages: s.messages.clone(),
+            events: s.events.iter().cloned().map(WsEngineEvent::from).collect(),
+            created_at: s.created_at.clone(),
+            active: s.active,
+            cmd_timeout: s.cmd_timeout,
+        }
+    }
+}
+
 /// POST /api/sessions — create a new session
 pub async fn create_session(
     State(state): State<AppState>,
     Json(body): Json<CreateSessionRequest>,
 ) -> impl IntoResponse {
     let session = state.create_session(body.target, body.mode, 300);
-    (StatusCode::CREATED, Json(session))
+    let wire = SessionWire::from(&session);
+    (StatusCode::CREATED, Json(wire))
 }
 
 /// Lightweight session summary for listing (omits messages & events).
@@ -79,7 +111,15 @@ pub async fn get_session_events(
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
     match state.sessions.get(&id) {
-        Some(session) => Ok(Json(session.events.clone())),
+        Some(session) => {
+            let events: Vec<WsEngineEvent> = session
+                .events
+                .iter()
+                .cloned()
+                .map(WsEngineEvent::from)
+                .collect();
+            Ok(Json(events))
+        }
         None => Err((StatusCode::NOT_FOUND, "Session not found")),
     }
 }

@@ -1,11 +1,11 @@
 //! Skills management REST API handlers.
 
-use dalang_domain::domain::models::SkillDefinition;
 use crate::adapters::outbound::skills_parser;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use dalang_domain::domain::models::SkillDefinition;
 use serde::{Deserialize, Serialize};
 
 use crate::adapters::inbound::web::state::AppState;
@@ -18,8 +18,9 @@ fn skill_markdown_path(name: &str) -> PathBuf {
     if cwd_candidate.exists() {
         return cwd_candidate;
     }
-    let manifest_skills =
-        FsPath::new(env!("CARGO_MANIFEST_DIR")).join("../../skills").join(&file);
+    let manifest_skills = FsPath::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../skills")
+        .join(&file);
     if manifest_skills.exists() {
         return manifest_skills;
     }

@@ -1,8 +1,8 @@
 //! Engine event types for WebSocket streaming.
 //!
-//! **MIGRATION NOTE (Sprint 2):** The canonical definitions now live in
-//! `crate::domain::models`. This module re-exports them so all existing
-//! `use crate::web::events::EngineEvent` imports continue to compile unchanged.
+//! Domain definitions live in `dalang_domain::domain::models`. The wire JSON shape is
+//! [`crate::WsEngineEvent`](crate::WsEngineEvent) (see mapping in the web handler and session persistence).
 
-// Re-export canonical types from the domain layer.
 pub use dalang_domain::domain::models::{ClientMessage, EngineEvent};
+
+pub use crate::WsEngineEvent;

@@ -1,7 +1,7 @@
 //! Persistence adapter — implements storage ports (`AuthPersistence`, `SessionStorage`, `ReportStorage`).
 //!
 //! `KeyringAuthPersistence`: delegates to `auth::persistence` (keyring + config file).
-//! `FileSessionStorage`: delegates to `web::persistence` for session file I/O.
+//! `FileSessionStorage`: delegates to [`crate::session_files`] for session file I/O.
 //! `CwdReportStorage`: lists and reads `dalang_report_*.md` under a directory (default `.`).
 
 use anyhow::{Context, Result, anyhow};
@@ -88,15 +88,12 @@ impl AuthPersistence for KeyringAuthPersistence {
 
 /// Session storage adapter that persists to `~/.dalang/sessions/`.
 ///
-/// Delegates to `web::persistence` for all file I/O, which already handles
-/// `~/.dalang/sessions/{uuid}/` with `session.json`, `events.json`, and `MEMORY.md`.
+/// Delegates to [`crate::session_files`] (not `inbound::web`).
 pub struct FileSessionStorage;
 
 impl SessionStorage for FileSessionStorage {
     fn save_session_meta(&self, meta: &SessionMeta) -> Result<()> {
-        // Build a minimal web::state::Session from the port-level SessionMeta.
-        // Only fields present in SessionMeta are populated; events/messages start empty.
-        use crate::adapters::inbound::web::state::{Session, SessionMode};
+        use crate::session_files::{Session, SessionMode};
         let mode = match meta.mode.as_str() {
             "scan" => SessionMode::Scan,
             _ => SessionMode::Interactive,
@@ -111,27 +108,26 @@ impl SessionStorage for FileSessionStorage {
             active: meta.active,
             cmd_timeout: 300,
         };
-        crate::adapters::inbound::web::persistence::save_session_meta(&session);
+        crate::session_files::save_session_meta(&session);
         Ok(())
     }
 
     fn save_events(&self, session_id: Uuid, events: &[EngineEvent]) -> Result<()> {
-        crate::adapters::inbound::web::persistence::save_events(&session_id, events);
+        crate::session_files::save_events(&session_id, events);
         Ok(())
     }
 
     fn load_all_sessions(&self) -> Result<Vec<SessionMeta>> {
-        let raw = crate::adapters::inbound::web::persistence::load_all_sessions();
+        let raw = crate::session_files::load_all_sessions();
         let metas = raw
             .into_iter()
             .map(|(session, _events)| {
-                use crate::adapters::inbound::web::state::SessionMode;
+                use crate::session_files::SessionMode;
                 let mode = match &session.mode {
                     SessionMode::Scan => "scan",
                     SessionMode::Interactive => "interactive",
                 }
                 .to_string();
-                // Count messages and events from the session struct
                 let message_count = session.messages.len();
                 let event_count = session.events.len();
                 SessionMeta {
@@ -149,13 +145,12 @@ impl SessionStorage for FileSessionStorage {
     }
 
     fn load_events(&self, session_id: Uuid) -> Result<Vec<EngineEvent>> {
-        let events = crate::adapters::inbound::web::persistence::load_events(&session_id)
-            .unwrap_or_default();
+        let events = crate::session_files::load_events(&session_id).unwrap_or_default();
         Ok(events)
     }
 
     fn load_memory(&self, session_id: Uuid) -> Result<Vec<String>> {
-        if let Some(ctx) = crate::adapters::inbound::web::persistence::load_memory(&session_id) {
+        if let Some(ctx) = crate::session_files::load_memory(&session_id) {
             Ok(ctx.observations().to_vec())
         } else {
             Ok(vec![])
@@ -163,17 +158,15 @@ impl SessionStorage for FileSessionStorage {
     }
 
     fn save_memory(&self, session_id: Uuid, observations: &[String]) -> Result<()> {
-        // Build a minimal ContextManager from observations and delegate to persistence.
         use dalang_application::application::usecases::memory::ContextManager;
         let ctx = ContextManager::from_observations(observations.to_vec());
-        // We need a target for the MEMORY.md header; use a placeholder if unknown.
         let target = "unknown";
-        crate::adapters::inbound::web::persistence::save_memory(&session_id, target, &ctx);
+        crate::session_files::save_memory(&session_id, target, &ctx);
         Ok(())
     }
 
     fn delete_session(&self, session_id: Uuid) -> Result<()> {
-        crate::adapters::inbound::web::persistence::delete_session_dir(&session_id);
+        crate::session_files::delete_session_dir(&session_id);
         Ok(())
     }
 }

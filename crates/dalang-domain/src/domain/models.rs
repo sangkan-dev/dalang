@@ -74,10 +74,8 @@ impl Message {
 
 /// Events emitted from the engine during execution.
 ///
-/// These are streamed over WebSocket to the frontend in real-time,
-/// or printed to stdout in CLI mode.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+/// Wire serialization for WebSocket and disk is handled in `dalang-adapters` (`WsEngineEvent`).
+#[derive(Debug, Clone, PartialEq)]
 pub enum EngineEvent {
     /// LLM is reasoning (start of iteration).
     Thinking {

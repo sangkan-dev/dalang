@@ -4,41 +4,13 @@ use crate::adapters::inbound::web::events::EngineEvent;
 use crate::adapters::inbound::web::persistence;
 use crate::adapters::outbound::llm;
 use dalang_application::application::ports::storage_port::{AuthPersistence, ReportStorage};
-use dalang_domain::domain::models::{AuthToken, Message};
+use dalang_domain::domain::models::AuthToken;
 use dashmap::DashMap;
-use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-/// Session mode.
-#[derive(Debug, Clone, Serialize, serde::Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum SessionMode {
-    Interactive,
-    Scan,
-}
-
-/// A single session (one chat conversation with the engine).
-#[derive(Debug, Clone, Serialize, serde::Deserialize)]
-pub struct Session {
-    pub id: Uuid,
-    pub target: String,
-    pub mode: SessionMode,
-    pub messages: Vec<Message>,
-    /// All engine events emitted during this session (for UI replay).
-    #[serde(default)]
-    pub events: Vec<EngineEvent>,
-    pub created_at: String,
-    pub active: bool,
-    /// Command execution timeout in seconds (0 = unlimited).
-    #[serde(default = "default_cmd_timeout")]
-    pub cmd_timeout: u64,
-}
-
-fn default_cmd_timeout() -> u64 {
-    300
-}
+pub use crate::session_files::{Session, SessionMode};
 
 /// Shared app state passed into axum handlers via `Extension<AppState>`.
 #[derive(Clone)]
@@ -64,7 +36,6 @@ impl AppState {
     ) -> Self {
         let sessions = Arc::new(DashMap::new());
 
-        // Restore sessions from disk (~/.dalang/sessions/)
         let restored = persistence::load_all_sessions();
         let count = restored.len();
         for (session, _events) in restored {
@@ -86,9 +57,6 @@ impl AppState {
     }
 
     /// Create an empty AppState with no sessions loaded from disk.
-    ///
-    /// Use this in unit tests to avoid reading `~/.dalang/sessions/` from the
-    /// developer's machine, which makes tests non-deterministic.
     #[cfg(test)]
     pub fn new_empty() -> Self {
         use crate::adapters::outbound::persistence::{CwdReportStorage, KeyringAuthPersistence};
@@ -115,7 +83,6 @@ impl AppState {
             cmd_timeout,
         };
         self.sessions.insert(session.id, session.clone());
-        // Persist to disk immediately
         persistence::save_session_meta(&session);
         session
     }
@@ -138,7 +105,6 @@ impl AppState {
             .get_endpoint_mode()
             .unwrap_or_else(|_| "openai_compat".to_string());
 
-        // Resolve auth token
         let auth = resolve_auth_token(self.auth.as_ref(), &auth_method);
         if matches!(auth, AuthToken::None) {
             return Err(anyhow::anyhow!(

@@ -4,6 +4,7 @@ members = [
   "crates/dalang-application",
   "crates/dalang-cli",
   "crates/dalang-domain",
+  "crates/dalang-skills",
 ]
 default-members = [
   "crates/dalang-cli",

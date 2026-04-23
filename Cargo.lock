@@ -722,6 +722,7 @@ dependencies = [
  "clap",
  "dalang-application",
  "dalang-domain",
+ "dalang-skills",
  "dashmap",
  "dirs",
  "futures",
@@ -754,12 +755,12 @@ dependencies = [
  "async-trait",
  "chrono",
  "dalang-domain",
+ "dalang-skills",
  "futures",
  "is_elevated",
  "libc",
  "serde",
  "serde_json",
- "serde_yaml",
  "tokio",
  "uuid",
 ]
@@ -788,6 +789,16 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "url",
+]
+
+[[package]]
+name = "dalang-skills"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dalang-domain",
+ "serde",
+ "serde_yaml",
 ]
 
 [[package]]

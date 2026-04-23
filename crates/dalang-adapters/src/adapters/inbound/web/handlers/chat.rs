@@ -1,6 +1,6 @@
 //! WebSocket chat handler — bridges browser ↔ DalangOrchestrator via channels.
 
-use crate::adapters::inbound::web::events::{ClientMessage, EngineEvent};
+use crate::adapters::inbound::web::events::{ClientMessage, EngineEvent, WsEngineEvent};
 use crate::adapters::inbound::web::persistence;
 use crate::adapters::inbound::web::state::{AppState, SessionMode};
 use crate::adapters::outbound::os_command::OsCommandExecutor;
@@ -11,6 +11,7 @@ use dalang_application::application::ports::llm_port::LlmPort;
 use dalang_application::application::usecases::orchestrator::{
     DalangOrchestrator, OrchestratorConfig,
 };
+use dalang_application::skills_parser::FileSystemSkillCatalog;
 use futures::SinkExt;
 use futures::stream::StreamExt;
 use std::sync::Arc;
@@ -49,7 +50,7 @@ async fn handle_socket(socket: WebSocket, session_id: Uuid, state: AppState) {
                 }
             }
 
-            let json = match serde_json::to_string(&event) {
+            let json = match serde_json::to_string(&WsEngineEvent::from(&event)) {
                 Ok(j) => j,
                 Err(e) => {
                     eprintln!("[web] Failed to serialize event: {}", e);
@@ -148,6 +149,7 @@ fn build_orchestrator(
         llm,
         executor,
         Some(browser),
+        Arc::new(FileSystemSkillCatalog),
         OrchestratorConfig {
             cmd_timeout,
             verbose: state.verbose,

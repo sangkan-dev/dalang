@@ -14,6 +14,15 @@ pub enum DalangError {
     #[error("Failed to parse skill file '{0}': {1}")]
     SkillParseError(String, String),
 
+    #[error("Tool call JSON is invalid: {0}")]
+    InvalidToolCallJson(String),
+
+    #[error("Tool call object is missing the 'tool' name field")]
+    ToolCallMissingName,
+
+    #[error("No recognizable tool call found in LLM response")]
+    ToolCallNotFound,
+
     #[error("Skill '{0}' requires root privileges but the process is not running as root")]
     RequiresRoot(String),
 
