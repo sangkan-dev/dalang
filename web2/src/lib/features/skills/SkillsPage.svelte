@@ -29,7 +29,7 @@
 			skills = await apiClient.listSkills();
 			error = '';
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load skills';
+			error = err instanceof Error ? err.message : 'Gagal memuat alat pemeriksaan';
 		} finally {
 			loading = false;
 		}
@@ -40,7 +40,9 @@
 			selectedSkill = await apiClient.getSkill(name);
 			detailMode = 'formatted';
 		} catch (err) {
-			toast.error(`Failed to load skill: ${err instanceof Error ? err.message : 'unknown error'}`);
+			toast.error(
+				`Gagal memuat alat: ${err instanceof Error ? err.message : 'kesalahan tidak diketahui'}`
+			);
 		}
 	}
 
@@ -60,10 +62,10 @@
 		try {
 			await apiClient.updateSkill(name, enabled);
 			skills = skills.map((skill) => (skill.name === name ? { ...skill, enabled } : skill));
-			toast.success(`${name} ${enabled ? 'enabled' : 'disabled'}`);
+			toast.success(`${name} ${enabled ? 'diaktifkan' : 'dinonaktifkan'}`);
 		} catch (err) {
 			toast.error(
-				`Failed to update skill: ${err instanceof Error ? err.message : 'unknown error'}`
+				`Gagal memperbarui alat: ${err instanceof Error ? err.message : 'kesalahan tidak diketahui'}`
 			);
 		}
 	}
@@ -76,33 +78,35 @@
 		class="surface-panel dashboard-warboard flex flex-wrap items-center justify-between gap-3 p-4"
 	>
 		<div>
-			<p class="text-xs tracking-[0.2em] text-(--color-ash) uppercase">Dashboard / Skills</p>
-			<h2 class="text-xl font-semibold text-(--color-text)">Skill Catalog</h2>
-			<p class="text-xs text-(--color-ash)">
-				Composable operator primitives and execution constraints.
+			<p class="text-xs tracking-[0.2em] text-(--color-ash) uppercase">Dasbor / Alat pemeriksaan</p>
+			<h2 class="text-xl font-semibold text-(--color-text)">Alat bantu AI</h2>
+			<p class="max-w-2xl text-xs leading-relaxed text-(--color-ash)">
+				Inilah kemampuan teknis yang dipakai AI saat memeriksa target. Nama tiap entri mungkin terdengar
+				asing; yang penting, Anda bisa menyalakan atau mematikan alat sesuai kebutuhan tanpa mengubah
+				kode program.
 			</p>
 		</div>
 		<div class="flex gap-2">
 			<input
 				bind:value={search}
-				placeholder="Search skills..."
+				placeholder="Cari alat…"
 				class="rounded-lg border border-(--color-border) bg-transparent px-3 py-2 text-sm text-(--color-base-text)"
 			/>
 			<button class="control-chip" onclick={toggleViewMode}>
-				{viewMode === 'list' ? 'Grid' : 'List'}
+				{viewMode === 'list' ? 'Tampilan kartu' : 'Tampilan daftar'}
 			</button>
 		</div>
 	</header>
 
 	{#if loading}
-		<div class="surface-panel p-4 text-sm text-(--color-ash)">Loading skills...</div>
+		<div class="surface-panel p-4 text-sm text-(--color-ash)">Memuat alat…</div>
 	{:else if error}
 		<div class="surface-panel p-4 text-sm text-(--color-rust)">{error}</div>
 	{:else if viewMode === 'list'}
 		<div class="grid gap-3 lg:grid-cols-[320px_1fr]">
 			<div class="surface-panel max-h-[72vh] overflow-auto p-2">
 				{#if filteredSkills.length === 0}
-					<p class="px-2 py-2 text-sm text-(--color-ash)">No matching skills</p>
+					<p class="px-2 py-2 text-sm text-(--color-ash)">Tidak ada alat yang cocok</p>
 				{:else}
 					{#each filteredSkills as skill (skill.name)}
 						<button
@@ -119,7 +123,7 @@
 								{#if skill.enabled === false}
 									<span
 										class="rounded bg-(--color-rust)/20 px-1.5 py-0.5 text-[10px] text-(--color-rust)"
-										>off</span
+										>mati</span
 									>
 								{/if}
 							</div>
@@ -147,8 +151,8 @@
 							}}
 						>
 							{skills.find((entry) => entry.name === selectedSkill?.name)?.enabled === false
-								? 'Enable'
-								: 'Disable'}
+								? 'Aktifkan'
+								: 'Nonaktifkan'}
 						</button>
 					</div>
 
@@ -156,25 +160,25 @@
 						<button
 							class="control-chip"
 							onclick={setDetailModeFormatted}
-							disabled={detailMode === 'formatted'}>Formatted</button
+							disabled={detailMode === 'formatted'}>Ringkas</button
 						>
 						<button class="control-chip" onclick={setDetailModeRaw} disabled={detailMode === 'raw'}
-							>Raw</button
+							>Mentah</button
 						>
 					</div>
 
 					<div class="space-y-2 text-sm">
 						<p>
-							<span class="text-(--color-ash)">Tool:</span>
-							<code>{selectedSkill.tool_path ?? 'Browser-native'}</code>
+							<span class="text-(--color-ash)">Perintah / program:</span>
+							<code>{selectedSkill.tool_path ?? 'Peramban (bawaan)'}</code>
 						</p>
 						<p>
-							<span class="text-(--color-ash)">Root required:</span>
-							{selectedSkill.requires_root ? 'Yes' : 'No'}
+							<span class="text-(--color-ash)">Butuh akses root:</span>
+							{selectedSkill.requires_root ? 'Ya' : 'Tidak'}
 						</p>
 						{#if selectedSkill.args?.length}
 							<p>
-								<span class="text-(--color-ash)">Args:</span>
+								<span class="text-(--color-ash)">Argumen:</span>
 								<code>{selectedSkill.args.join(' ')}</code>
 							</p>
 						{/if}
@@ -183,7 +187,7 @@
 					<div class="mt-4 space-y-3">
 						{#if selectedSkill.role}
 							<article class="rounded-lg border border-(--color-border) p-3">
-								<p class="mb-1 text-xs tracking-[0.12em] text-(--color-ash) uppercase">Role</p>
+								<p class="mb-1 text-xs tracking-[0.12em] text-(--color-ash) uppercase">Peran</p>
 								{#if detailMode === 'raw'}
 									<pre class="dashboard-raw text-xs" dir="auto">{renderMarkdownRaw(
 											selectedSkill.role
@@ -198,7 +202,7 @@
 						{/if}
 						{#if selectedSkill.task}
 							<article class="rounded-lg border border-(--color-border) p-3">
-								<p class="mb-1 text-xs tracking-[0.12em] text-(--color-ash) uppercase">Task</p>
+								<p class="mb-1 text-xs tracking-[0.12em] text-(--color-ash) uppercase">Tugas</p>
 								{#if detailMode === 'raw'}
 									<pre class="dashboard-raw text-xs" dir="auto">{renderMarkdownRaw(
 											selectedSkill.task
@@ -213,7 +217,7 @@
 						{/if}
 						<article class="rounded-lg border border-(--color-border) p-3">
 							<p class="mb-1 text-xs tracking-[0.12em] text-(--color-ash) uppercase">
-								System Prompt
+								Instruksi sistem
 							</p>
 							{#if detailMode === 'raw'}
 								<pre class="dashboard-raw text-xs" dir="auto">{renderMarkdownRaw(
@@ -228,7 +232,7 @@
 						</article>
 					</div>
 				{:else}
-					<p class="text-sm text-(--color-ash)">Select a skill to view details.</p>
+					<p class="text-sm text-(--color-ash)">Pilih sebuah alat di daftar untuk melihat detail.</p>
 				{/if}
 			</div>
 		</div>
@@ -243,7 +247,7 @@
 						{#if skill.enabled === false}
 							<span
 								class="rounded bg-(--color-rust)/20 px-1.5 py-0.5 text-[10px] text-(--color-rust)"
-								>off</span
+								>mati</span
 							>
 						{/if}
 					</div>

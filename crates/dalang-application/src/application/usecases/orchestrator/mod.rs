@@ -243,6 +243,8 @@ impl DalangOrchestrator {
         upper.contains("VULNERABILITY REPORT")
             || upper.contains("PENETRATION TEST REPORT")
             || upper.contains("LAPORAN PENETRATION TEST")
+            || upper.contains("LAPORAN KERENTANAN")
+            || upper.contains("RINGKASAN UNTUK PIHAK NON-TEKNIS")
     }
 
     // ── Execute a native skill command ─────────────────────────────────────────

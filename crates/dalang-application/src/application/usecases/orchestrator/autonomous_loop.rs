@@ -60,16 +60,21 @@ impl DalangOrchestrator {
             2. Use `execute_skill` tool to run specific skills from the catalog.\n\
             3. Analyze observations to determine the next step.\n\
             4. For each vulnerability found, verify it with a PoC before reporting.\n\
-            5. When done, produce a final VULNERABILITY REPORT.\n\
+            5. When done, produce a final report whose title line is `VULNERABILITY REPORT` or `LAPORAN KERENTANAN`.\n\
             6. You can execute multiple tool calls CONCURRENTLY. If you need to perform several independent actions (e.g., scanning multiple ports, checking multiple endpoints), you MUST return a JSON array containing multiple tool/skill call objects.\n\n\
             7. NEVER claim a tool is queued/completed unless the observation has already been returned by the engine.\n\
             8. Prefer step-by-step execution. Do not schedule a long multi-phase plan in one response.\n\
             9. If you are executing tools, output ONLY JSON (no prose around it).\n\n\
-            ### VULNERABILITY REPORT FORMAT:\n\
-            When you have gathered enough evidence:\n\n\
+            ### FINAL REPORT FORMAT (mandatory structure):\n\
+            When you have gathered enough evidence, use markdown with this order:\n\n\
             ```\n\
             VULNERABILITY REPORT\n\
-            ## Executive Summary\n\n\
+            (or: LAPORAN KERENTANAN)\n\n\
+            ## Ringkasan untuk pihak non-teknis\n\
+            - 3–6 bullet points in simple Bahasa Indonesia: apakah ada temuan serius; dampak kasar bagi bisnis atau pengguna; langkah perbaikan besar yang sebaiknya didahulukan.\n\
+            - Tulis untuk pembaca non-teknis (manajemen, hukum); hindari singkatan tanpa penjelasan.\n\n\
+            ## Executive Summary\n\
+            (Ringkasan teknis singkat; English atau Indonesian.)\n\n\
             ## Findings\n\
             ### [VULN-01] <Title> (Severity: CRITICAL|HIGH|MEDIUM|LOW)\n\
             - Affected URL: <exact URL with parameters>\n\
@@ -192,11 +197,8 @@ impl DalangOrchestrator {
             messages.push(Message::assistant(&response_text));
 
             // Check if it's a final report
-            if response_text
-                .to_uppercase()
-                .contains("VULNERABILITY REPORT")
-            {
-                println!("[✓] FINAL VULNERABILITY REPORT generated!");
+            if Self::is_final_report(&response_text) {
+                println!("[✓] Final assessment report generated!");
                 let filename = Self::save_report(target, &response_text);
                 if let Some(tx) = &tx {
                     let _ = tx
@@ -354,8 +356,9 @@ impl DalangOrchestrator {
                     }
                     // Ask AI to produce the report or continue
                     messages.push(Message::user(
-                        "Please produce a final VULNERABILITY REPORT now, or if you have more tools to run, \
-                    execute the next skill using the JSON tool call format."
+                        "Please produce the final report now (title: VULNERABILITY REPORT or LAPORAN KERENTANAN; \
+must include section `## Ringkasan untuk pihak non-teknis` in Indonesian for lay readers), \
+or if you have more tools to run, execute the next skill using the JSON tool call format."
                     ));
                 }
             }

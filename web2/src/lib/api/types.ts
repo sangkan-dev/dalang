@@ -116,4 +116,6 @@ export interface ChatMessage {
 	bytes?: number;
 	skill?: string;
 	filename?: string;
+	/** Perintah lengkap untuk role tool — ditampilkan di blok lipat */
+	toolCommand?: string;
 }

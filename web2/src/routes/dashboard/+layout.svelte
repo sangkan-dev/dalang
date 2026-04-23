@@ -27,19 +27,44 @@
 		| '/dashboard/settings';
 
 	const navItems: Array<{ route: DashboardRoute; label: string }> = [
-		{ route: '/dashboard', label: 'Overview' },
-		{ route: '/dashboard/chat', label: 'Chat' },
-		{ route: '/dashboard/skills', label: 'Skills' },
-		{ route: '/dashboard/reports', label: 'Reports' },
-		{ route: '/dashboard/settings', label: 'Settings' }
+		{ route: '/dashboard', label: 'Ringkasan' },
+		{ route: '/dashboard/chat', label: 'Percakapan pemeriksaan' },
+		{ route: '/dashboard/skills', label: 'Alat pemeriksaan' },
+		{ route: '/dashboard/reports', label: 'Laporan' },
+		{ route: '/dashboard/settings', label: 'Pengaturan' }
 	];
 
 	const paletteItems: Array<{ route: DashboardRoute; label: string; desc: string }> = [
-		{ route: '/dashboard/chat', label: 'Open Chat', desc: 'Interactive console' },
-		{ route: '/dashboard/skills', label: 'Browse Skills', desc: 'Skill catalog and toggles' },
-		{ route: '/dashboard/reports', label: 'Open Reports', desc: 'Saved report artifacts' },
-		{ route: '/dashboard/settings', label: 'Open Settings', desc: 'Provider and model config' },
-		{ route: '/dashboard/chat', label: 'New Session', desc: 'Start fresh target session' }
+		{
+			route: '/dashboard',
+			label: 'Buka ringkasan',
+			desc: 'Angka singkat dan pintasan ke fitur utama'
+		},
+		{
+			route: '/dashboard/chat',
+			label: 'Percakapan pemeriksaan',
+			desc: 'Mulai atau lanjutkan pemeriksaan keamanan'
+		},
+		{
+			route: '/dashboard/skills',
+			label: 'Alat pemeriksaan',
+			desc: 'Daftar kemampuan yang dipakai AI'
+		},
+		{
+			route: '/dashboard/reports',
+			label: 'Laporan',
+			desc: 'Arsip laporan yang sudah dibuat'
+		},
+		{
+			route: '/dashboard/settings',
+			label: 'Pengaturan',
+			desc: 'Penyedia AI dan model'
+		},
+		{
+			route: '/dashboard/chat',
+			label: 'Sesi baru',
+			desc: 'Buka halaman chat untuk target baru'
+		}
 	];
 
 	const filteredPalette = $derived.by(() => {
@@ -64,10 +89,10 @@
 		try {
 			await apiClient.deleteSession(id);
 			sessions = sessions.filter((session) => session.id !== id);
-			toast.success('Session deleted');
+			toast.success('Sesi dihapus');
 		} catch (error) {
 			toast.error(
-				`Failed to delete session: ${error instanceof Error ? error.message : 'unknown'}`
+				`Gagal menghapus sesi: ${error instanceof Error ? error.message : 'tidak diketahui'}`
 			);
 		}
 	}
@@ -154,13 +179,14 @@
 <div class="dashboard-shell">
 	<header class="dashboard-header dashboard-command-frame">
 		<div>
-			<p class="dashboard-kicker">DALANG DASHBOARD</p>
-			<h1 class="dashboard-title">Operational Console</h1>
+			<p class="dashboard-kicker">DASBOR DALANG</p>
+			<h1 class="dashboard-title">Pemeriksaan keamanan situs</h1>
 		</div>
 		<div class="flex items-center gap-2">
 			<button
 				class="inline-flex items-center justify-center rounded-md border border-(--color-gold)/30 bg-white/5 px-3 py-2 font-mono text-xs tracking-[0.08em] text-(--color-gold-bright) uppercase transition hover:-translate-y-px hover:border-(--color-gold)/50"
-				onclick={openPalette}>Command Palette</button
+				title="Ctrl+K / ⌘K"
+				onclick={openPalette}>Cari halaman</button
 			>
 			<button
 				class="inline-flex items-center justify-center rounded-md border border-(--color-gold)/30 bg-white/5 px-3 py-2 font-mono text-xs tracking-[0.08em] text-(--color-gold-bright) uppercase transition hover:-translate-y-px hover:border-(--color-gold)/50 lg:hidden"

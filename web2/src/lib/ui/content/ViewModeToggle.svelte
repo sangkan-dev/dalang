@@ -24,13 +24,13 @@
 		onclick={onFormatted}
 		disabled={mode === 'formatted'}
 	>
-		Formatted
+		Ringkas
 	</button>
 	<button
 		class={`${baseClass()} ${mode === 'raw' ? 'bg-(--color-gold)/15 text-(--color-gold-bright)' : 'text-(--color-ash) hover:text-(--color-gold-bright)'}`}
 		onclick={onRaw}
 		disabled={mode === 'raw'}
 	>
-		Raw
+		Mentah
 	</button>
 </div>

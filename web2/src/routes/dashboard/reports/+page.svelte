@@ -31,7 +31,7 @@
 			reports = await apiClient.listReports();
 			error = '';
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load reports';
+			error = err instanceof Error ? err.message : 'Gagal memuat daftar laporan';
 		} finally {
 			loading = false;
 		}
@@ -50,7 +50,9 @@
 			selectedReport = filename;
 			reportView = 'formatted';
 		} catch (err) {
-			toast.error(`Failed to load report: ${err instanceof Error ? err.message : 'unknown error'}`);
+			toast.error(
+				`Gagal memuat laporan: ${err instanceof Error ? err.message : 'kesalahan tidak diketahui'}`
+			);
 		} finally {
 			loadingReport = false;
 		}
@@ -67,7 +69,9 @@
 			anchor.click();
 			URL.revokeObjectURL(url);
 		} catch (err) {
-			toast.error(`Download failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+			toast.error(
+				`Unduhan gagal: ${err instanceof Error ? err.message : 'kesalahan tidak diketahui'}`
+			);
 		}
 	}
 
@@ -88,12 +92,15 @@
 
 <section class="space-y-4">
 	<header class="surface-panel dashboard-warboard space-y-2 p-4">
-		<p class="text-xs tracking-[0.2em] text-(--color-ash) uppercase">Dashboard / Reports</p>
+		<p class="text-xs tracking-[0.2em] text-(--color-ash) uppercase">Dasbor / Laporan</p>
 		<div class="flex flex-wrap items-center justify-between gap-2">
-			<h2 class="text-xl font-semibold text-(--color-base-text)">Reports Archive</h2>
-			<a href={resolve('/dashboard/chat')} class="control-chip">Go To Chat</a>
+			<h2 class="text-xl font-semibold text-(--color-base-text)">Arsip laporan pemeriksaan</h2>
+			<a href={resolve('/dashboard/chat')} class="control-chip">Ke percakapan</a>
 		</div>
-		<p class="text-xs text-(--color-ash)">Inspect, diff, and export reproducible audit evidence.</p>
+		<p class="max-w-3xl text-xs leading-relaxed text-(--color-ash)">
+			Di sini tersimpan ringkasan dan temuan teknis dari pemeriksaan. Bagian tengah biasanya memakai
+			istilah keamanan; unduh berkas Markdown atau HTML untuk dibagikan ke tim IT atau direksi.
+		</p>
 	</header>
 
 	<div class="grid gap-3 lg:grid-cols-[300px_1fr]">

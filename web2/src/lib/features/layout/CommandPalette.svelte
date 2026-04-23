@@ -41,7 +41,7 @@
 			<div class="border-b border-(--color-border) px-4 py-3">
 				<input
 					value={paletteQuery}
-					placeholder="Search command..."
+					placeholder="Cari halaman atau perintah…"
 					oninput={(event) => {
 						onPaletteQueryChange((event.currentTarget as HTMLInputElement).value);
 						onPaletteInput();
@@ -51,7 +51,7 @@
 			</div>
 			<div class="max-h-72 overflow-y-auto p-2">
 				{#if filteredPalette.length === 0}
-					<p class="px-2 py-3 text-sm text-(--color-ash)">No matches</p>
+					<p class="px-2 py-3 text-sm text-(--color-ash)">Tidak ada yang cocok</p>
 				{:else}
 					{#each filteredPalette as item, index (item.route + index)}
 						<button

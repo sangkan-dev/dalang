@@ -40,7 +40,11 @@ impl DalangOrchestrator {
                 - Never claim a tool is queued/completed before observation exists.\n\
                 - Prefer at most 1-2 tool calls per response.\n\
                 - If executing tools, output ONLY JSON (no narrative text).\n\
-                For each finding, include the exact URL, parameter, PoC, and severity."
+                For each finding, include the exact URL, parameter, PoC, and severity.\n\n\
+                FINAL REPORT: When the user asks for a report or you conclude the assessment, output markdown with title line \
+`VULNERABILITY REPORT` or `LAPORAN KERENTANAN`, then mandatory section `## Ringkasan untuk pihak non-teknis` \
+(3–6 bullets in simple Bahasa Indonesia for non-technical readers: serious issues yes/no, rough impact, priority fixes), \
+then `## Findings` with technical detail (URLs, PoC, severity) as usual."
             );
             messages.insert(0, Message::system(&system_prompt));
         }

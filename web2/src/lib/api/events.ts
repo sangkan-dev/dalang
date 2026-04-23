@@ -7,8 +7,8 @@ export function eventToChatMessages(event: EngineEvent): ChatMessage[] {
 				{
 					role: 'status',
 					content: event.max_iter
-						? `Reasoning (iteration ${event.iteration}/${event.max_iter})...`
-						: `Reasoning (iteration ${event.iteration})...`
+						? `Berpikir (langkah ${event.iteration} dari ${event.max_iter})…`
+						: `Berpikir (langkah ${event.iteration})…`
 				}
 			];
 		case 'assistant_message':
@@ -17,7 +17,9 @@ export function eventToChatMessages(event: EngineEvent): ChatMessage[] {
 			return [
 				{
 					role: 'tool',
-					content: `Executing skill: **${event.skill}**\n\`\`\`bash\n${event.command}\n\`\`\``
+					content: `Menjalankan pemeriksaan: **${event.skill}**`,
+					skill: event.skill,
+					toolCommand: event.command
 				}
 			];
 		case 'observation':
@@ -33,16 +35,20 @@ export function eventToChatMessages(event: EngineEvent): ChatMessage[] {
 			return [
 				{
 					role: 'warning',
-					content: `Safety filter triggered (retry ${event.retry}). Re-prompting...`
+					content: `Filter keamanan model aktif (percobaan ulang ke-${event.retry}). Mengarahkan ulang…`
 				}
 			];
-		case 'browser_action':
+		case 'browser_action': {
+			const preview = event.content.slice(0, 500);
+			const more = event.content.length > 500;
 			return [
 				{
 					role: 'tool',
-					content: `Browser: ${event.action} - ${event.success ? 'OK' : 'FAIL'}\n${event.content.slice(0, 500)}`
+					content: `Aksi peramban: **${event.action}** — ${event.success ? 'berhasil' : 'gagal'}${more ? '\n\n*(cuplikan di bawah; buka detail untuk selengkapnya)*' : ''}\n\n${preview}${more ? '…' : ''}`,
+					toolCommand: more ? event.content : undefined
 				}
 			];
+		}
 		case 'report':
 			return [
 				{
@@ -56,7 +62,7 @@ export function eventToChatMessages(event: EngineEvent): ChatMessage[] {
 		case 'error':
 			return [{ role: 'error', content: event.message }];
 		case 'done':
-			return [{ role: 'status', content: `OK ${event.reason}` }];
+			return [{ role: 'status', content: `Selesai: ${event.reason}` }];
 		default:
 			return [];
 	}
@@ -64,4 +70,28 @@ export function eventToChatMessages(event: EngineEvent): ChatMessage[] {
 
 export function replayEvents(events: EngineEvent[]): ChatMessage[] {
 	return events.flatMap((event) => eventToChatMessages(event));
+}
+
+/** Label UI Bahasa Indonesia untuk badge pesan chat */
+export function chatRoleLabel(role: ChatMessage['role']): string {
+	switch (role) {
+		case 'user':
+			return 'Anda';
+		case 'assistant':
+			return 'Asisten';
+		case 'status':
+			return 'Status';
+		case 'tool':
+			return 'Pemeriksaan';
+		case 'observation':
+			return 'Hasil teknis';
+		case 'warning':
+			return 'Peringatan';
+		case 'error':
+			return 'Kesalahan';
+		case 'report':
+			return 'Laporan';
+		default:
+			return role;
+	}
 }

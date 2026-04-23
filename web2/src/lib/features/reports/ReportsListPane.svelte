@@ -18,14 +18,14 @@
 
 <div class="surface-panel max-h-[72vh] min-w-0 overflow-auto p-2">
 	<div class="px-2 py-1 text-[10px] tracking-[0.13em] text-(--color-ash) uppercase">
-		Indexed Reports: {reports.length}
+		Laporan tersimpan: {reports.length}
 	</div>
 	{#if loading}
-		<p class="px-2 py-2 text-sm text-(--color-ash)">Loading reports...</p>
+		<p class="px-2 py-2 text-sm text-(--color-ash)">Memuat laporan…</p>
 	{:else if error}
 		<p class="px-2 py-2 text-sm text-(--color-rust)">{error}</p>
 	{:else if reports.length === 0}
-		<p class="px-2 py-2 text-sm text-(--color-ash)">No reports yet</p>
+		<p class="px-2 py-2 text-sm text-(--color-ash)">Belum ada laporan</p>
 	{:else}
 		{#each reports as report (report.filename)}
 			<button
