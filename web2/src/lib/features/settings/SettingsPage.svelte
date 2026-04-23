@@ -14,6 +14,7 @@
 	};
 
 	let loading = $state(true);
+	let loadError = $state('');
 	let saving = $state(false);
 	let testing = $state(false);
 	let testResult = $state<TestConnectionResult | null>(null);
@@ -36,14 +37,15 @@
 
 	async function loadSettings(): Promise<void> {
 		loading = true;
+		loadError = '';
 		try {
 			settings = await apiClient.getSettings();
 			const models = PROVIDER_MODELS[settings.provider] ?? [];
 			useCustomModel = models.length > 0 && !models.includes(settings.model);
 		} catch (err) {
-			toast.error(
-				`Failed to load settings: ${err instanceof Error ? err.message : 'unknown error'}`
-			);
+			const message = err instanceof Error ? err.message : 'unknown error';
+			loadError = message;
+			toast.error(`Failed to load settings: ${message}`);
 		} finally {
 			loading = false;
 		}
@@ -135,6 +137,19 @@
 
 	{#if loading}
 		<div class="surface-panel p-4 text-sm text-[color:var(--color-ash)]">Loading settings...</div>
+	{:else if loadError}
+		<div
+			class="surface-panel space-y-3 border border-[color:var(--color-rust)]/40 bg-[color:var(--color-rust)]/10 p-4 text-sm text-[color:var(--color-rust)]"
+		>
+			<p>Could not load settings from the server: {loadError}</p>
+			<button
+				type="button"
+				class="rounded-lg border border-[color:var(--color-border)] px-3 py-1.5 text-xs text-[color:var(--color-text)]"
+				onclick={() => loadSettings()}
+			>
+				Retry
+			</button>
+		</div>
 	{:else}
 		<div class="space-y-4">
 			<div class="surface-panel dashboard-warboard space-y-3 p-4">

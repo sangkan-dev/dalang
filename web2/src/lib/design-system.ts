@@ -54,6 +54,9 @@ export const motionTokens = {
 	slow: '400ms'
 } as const;
 
+/** Max width for dashboard shell (keep in sync with `layout.css` `.dashboard-shell`) */
+export const dashboardContentMaxWidth = 'min(1280px, calc(100% - 2 * var(--space-lg)))';
+
 export type Platform = 'desktop' | 'mobile';
 
 export function getUiFallbackChain(platform: Platform): readonly string[] {

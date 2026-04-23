@@ -393,8 +393,7 @@ $ dalang web --port 8080 --open</code
 			<a
 				class="hover:brightness-110"
 				href="https://docs-dalang.sangkan.dev/skills/overview"
-				onclick={onActionClick}
-				>API</a
+				onclick={onActionClick}>API</a
 			>
 			<a
 				class="hover:brightness-110"

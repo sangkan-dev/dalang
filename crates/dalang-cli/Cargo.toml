@@ -1,0 +1,18 @@
+[package]
+name = "dalang-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "dalang"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+dialoguer.workspace = true
+open.workspace = true
+tokio.workspace = true
+
+dalang-adapters = { path = "../dalang-adapters" }
+dalang-application = { path = "../dalang-application" }

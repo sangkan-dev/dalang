@@ -11,12 +11,10 @@ FROM rust:1.94-slim-bookworm AS backend-builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock ./
-# Pre-build dependencies for caching
-RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
-COPY src/ ./src/
+COPY crates ./crates
 COPY skills/ ./skills/
 COPY --from=frontend-builder /app/web2/build-dashboard ./web2/build-dashboard
-RUN touch src/main.rs && cargo build --release
+RUN cargo build --release -p dalang-cli
 
 # --- Stage 3: Final Runtime ---
 FROM debian:bookworm-slim

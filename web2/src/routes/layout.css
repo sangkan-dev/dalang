@@ -162,10 +162,18 @@ code {
 	color: var(--color-gold-bright);
 }
 
-.landing-shell,
-.dashboard-shell {
+.landing-shell {
 	max-width: 980px;
 	margin: 0 auto;
+}
+
+/* Dashboard: allow wider canvas for chat / warboard without touching landing width */
+.dashboard-shell {
+	width: 100%;
+	max-width: min(1280px, calc(100% - 2 * var(--space-lg)));
+	margin: 0 auto;
+	padding-inline: var(--space-md);
+	padding-bottom: var(--space-xl);
 }
 
 .landing-root {

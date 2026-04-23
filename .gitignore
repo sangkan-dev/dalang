@@ -1,3 +1,5 @@
 target/
 node_modules/
 dist/
+web2/build-dashboard/*
+!web2/build-dashboard/.gitkeep

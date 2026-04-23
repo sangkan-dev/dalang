@@ -5,15 +5,17 @@
 		"dev": "vite dev",
 		"build": "npm run build:dashboard",
 		"build:dashboard": "cross-env DALANG_BUILD_TARGET=dashboard vite build",
-    	"build:landing": "cross-env DALANG_BUILD_TARGET=landing vite build",
+		"build:landing": "cross-env DALANG_BUILD_TARGET=landing vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
+		"quality": "npm run check && npm run lint",
 		"test:e2e": "playwright test",
-		"test": "npm run test:e2e"
+		"test": "npm run test:e2e",
+		"test:ci": "npm run quality && npm run test:e2e"
 	},
 	"type": "module",
 	"peerDependencies": {

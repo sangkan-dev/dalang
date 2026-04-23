@@ -1,0 +1,40 @@
+[package]
+name = "dalang-adapters"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+clap.workspace = true
+base64.workspace = true
+chrono.workspace = true
+chromiumoxide.workspace = true
+dashmap.workspace = true
+dirs.workspace = true
+futures.workspace = true
+include_dir.workspace = true
+keyring.workspace = true
+lazy_static.workspace = true
+mime_guess.workspace = true
+open.workspace = true
+pulldown-cmark.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+rust-embed.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+tiny_http.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+dalang-application = { path = "../dalang-application" }
+dalang-domain = { path = "../dalang-domain" }
+
+[dev-dependencies]
+tower = { workspace = true }

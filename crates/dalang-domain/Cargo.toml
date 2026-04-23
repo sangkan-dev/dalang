@@ -1,0 +1,13 @@
+[package]
+name = "dalang-domain"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+lazy_static.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+url.workspace = true

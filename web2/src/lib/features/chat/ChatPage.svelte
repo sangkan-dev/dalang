@@ -361,23 +361,39 @@
 				bind:this={chatContainer}
 				class="max-h-[62vh] min-h-[45vh] space-y-2 overflow-auto px-4 py-3"
 			>
-				{#each messages as message, index (`${message.role}-${index}`)}
+				{#if messages.length === 0}
 					<div
-						class="max-w-full overflow-x-hidden rounded-lg border border-(--color-border) p-3 text-sm"
+						class="flex min-h-[40vh] flex-col items-center justify-center gap-2 px-4 text-center"
 					>
-						<p class="mb-1 text-xs tracking-[0.12em] text-(--color-ash) uppercase">
-							{message.role}
+						<p class="text-sm text-(--color-ash)">
+							{#if isThinking}
+								Waiting for the first event from the engine…
+							{:else if !isConnected}
+								Not connected. If this persists, check that the Dalang backend is running.
+							{:else}
+								No messages in this session yet. Send a prompt below or wait for scan output.
+							{/if}
 						</p>
-						{#if messageView === 'raw'}
-							<pre class="dashboard-raw" dir="auto">{renderMarkdownRaw(message.content)}</pre>
-						{:else}
-							<div class="dashboard-markdown" dir="auto">
-								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-								{@html renderMarkdown(message.content)}
-							</div>
-						{/if}
 					</div>
-				{/each}
+				{:else}
+					{#each messages as message, index (`${message.role}-${index}`)}
+						<div
+							class="max-w-full overflow-x-hidden rounded-lg border border-(--color-border) p-3 text-sm"
+						>
+							<p class="mb-1 text-xs tracking-[0.12em] text-(--color-ash) uppercase">
+								{message.role}
+							</p>
+							{#if messageView === 'raw'}
+								<pre class="dashboard-raw" dir="auto">{renderMarkdownRaw(message.content)}</pre>
+							{:else}
+								<div class="dashboard-markdown" dir="auto">
+									<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+									{@html renderMarkdown(message.content)}
+								</div>
+							{/if}
+						</div>
+					{/each}
+				{/if}
 			</div>
 
 			<div class="flex items-end gap-2 border-t border-(--color-border) px-4 py-3">

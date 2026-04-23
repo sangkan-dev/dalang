@@ -733,6 +733,54 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
   - Jalur build/deploy resmi dikunci ke `web2` dan direktori legacy `web/` disunset dari repository.
   - Dokumentasi dan panduan developer disinkronkan agar tidak lagi merujuk frontend legacy.
 
+---
+
+## Sprint 35: Monorepo Restructure + Rust Clean Architecture + Dashboard UI Cleanup ✅
+
+**Goal:** Merapikan monorepo agar folder jelas (apps / crates / docs), memecah Rust runtime ke struktur clean architecture yang konsisten (workspace + crate boundaries), dan merapikan UI dashboard agar lebih maintainable, konsisten, dan siap scale.
+
+> **Status sprint:** Selesai untuk ruang lingkup yang didefinisikan di tiket di bawah. Tes Chromium integrasi tetap **opsional** (`cargo test -p dalang-adapters --test browser_chromium_smoke -- --ignored`) agar CI default tidak membutuhkan browser.
+
+- ✅ **[DAL-3501] - Refactor - Monorepo Layout Standardization (move Rust into dedicated folder)**
+  - Rust dipusatkan di `crates/*` dengan root `Cargo.toml` sebagai workspace; `web2/`, `docs/`, `skills/` tetap di root.
+  - Binary utama: `crates/dalang-cli` (artifact `target/release/dalang`).
+  - `Dockerfile`, `Makefile`, dan `.gitignore`/`web2/build-dashboard` diselaraskan agar build tetap jalan tanpa duplikat `src/` root.
+
+- ✅ **[DAL-3502] - Refactor - Rust Workspace Split (core vs adapters vs app)**
+  - Workspace: `dalang-domain`, `dalang-application`, `dalang-adapters`, `dalang-cli` (`default-members`).
+  - `skills_parser` inti di `dalang-application`; `bundled` + embed tetap di `dalang-adapters`.
+  - Arah dependensi: domain ← application ← adapters (tanpa siklus).
+
+- ✅ **[DAL-3503] - Refactor - Clean Architecture Boundaries & Naming Consistency**
+  - Pedoman di `crates/dalang-application/src/application/mod.rs`: istilah **port** (bukan “interface”), **usecases**, dan arah **inbound vs outbound**.
+  - `crates/dalang-adapters/src/adapters/mod.rs`: inbound = CLI/Web; outbound = LLM, OS, browser/CDP, persistence.
+  - *Opsional lanjutan:* rename modul besar atau ekstrak “policy” domain lebih keras bila tim ingin konsistensi file-per-file.
+
+- ✅ **[DAL-3504] - Refactor - Configuration & Runtime Wiring (single composition root)**
+  - `crates/dalang-cli/src/runtime.rs`: `ResolvedLlmRuntime`, `resolve_runtime_config`, helper model.
+  - `orchestrator_wiring.rs`: `wire_orchestrator` untuk scan/interact.
+  - `login_flow.rs` + `init_env.rs`: alur login/init terpisah dari `main.rs`.
+
+- ✅ **[DAL-3505] - Refactor - Storage & Persistence Boundary Cleanup**
+  - `schema_version` pada `session.json`; port **`ReportStorage`** + `CwdReportStorage` di `dalang-application::ports` / `dalang-adapters` outbound persistence; handler reports memakai `AppState.reports`.
+  - **`AuthPersistence`** disuntikkan ke **`AppState`**; handler settings + `create_llm_provider` memakai `state.auth` (bukan panggilan statis langsung).
+  - **`load_all_skills`** / path skill di web: fallback `../../skills` dari manifest crate agar tes & server konsisten saat cwd bukan root repo.
+
+- ✅ **[DAL-3506] - Refactor - Browser/CDP Adapter Isolation & Testability**
+  - `browser_tool_dispatch` + unit test stub port (gelombang sebelumnya); modul CDP terdokumentasi.
+  - **`tests/browser_chromium_smoke.rs`** (ignored): smoke headless `navigate` + `evaluate_js` bila Chromium terpasang lokal.
+
+- ✅ **[DAL-3507] - Frontend - Dashboard UI Cleanup & Design Consistency Pass (`web2/`)**
+  - **Selesai:** lebar shell + token layout (sprint sebelumnya); **chat** empty/disconnected/thinking state; **settings** error load + tombol Retry; skills/reports sudah punya loading/error/empty di fitur terkait.
+
+- ✅ **[DAL-3508] - Frontend - DX & Quality Gates (lint, typecheck, e2e smoke)**
+  - `package.json`: script `quality` (= `check` + `lint`), `test:ci` (= `quality` + `test:e2e`).
+  - Playwright: smoke dashboard (`/dashboard`, `/dashboard/chat`, `/dashboard/skills`) pada build statis.
+
+- ✅ **[DAL-3509] - Infrastructure - Docker/CI Alignment after Restructure**
+  - `Dockerfile`: `COPY crates`, `cargo build --release -p dalang-cli`.
+  - `Makefile`: build/run mengacu ke `-p dalang-cli`.
+
 ## Ringkasan Status
 
 | Sprint | Nama                                                | Status  |
@@ -771,7 +819,8 @@ Berikut adalah rincian Sprint Planning untuk mengimplementasikan fungsionalitas 
 | 32     | Landing Experience & Signature Effects              | ✅ Done |
 | 33     | Dashboard Migration & Backend Embedding             | ✅ Done |
 | 34     | Repository Rebrand & Docs Migration                 | ✅ Done |
+| 35     | Monorepo Restructure + Clean Architecture + UI      | ✅ Done |
 
-**Total: 34 Sprint — 34 ✅ Selesai, 0 🔄 Sedang Dikerjakan, 0 ⬜ Belum Dimulai**
+**Total: 35 Sprint — 35 ✅ Selesai**
 
 ---

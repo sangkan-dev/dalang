@@ -12,7 +12,7 @@ web-build:
 # Build the Rust binary (embeds web2/build/)
 cargo-build:
 	@echo "[*] Building Rust binary..."
-	cargo build --release
+	cargo build --release -p dalang-cli
 	@echo "[+] Binary at target/release/dalang"
 
 # Clean all build artifacts
@@ -23,4 +23,4 @@ clean:
 dev:
 	@echo "[*] Starting dev mode..."
 	@echo "    Run 'cd web2 && npm run dev' in one terminal"
-	@echo "    Run 'cargo run -- web --port 8080' in another"
+	@echo "    Run 'cargo run -p dalang-cli -- web --port 8080' in another"
