@@ -129,10 +129,12 @@ pub struct CopilotProvider {
     model: String,
     /// The long-lived GitHub OAuth token (from Device Flow or keychain)
     github_token: String,
+    /// If true, use CAPI messages endpoint (/chat/completions/{model}/messages)
+    use_capi_messages: bool,
 }
 
 impl CopilotProvider {
-    pub fn new(model: String, github_token: String) -> Result<Self> {
+    pub fn new(model: String, github_token: String, use_capi_messages: bool) -> Result<Self> {
         let mut headers = header::HeaderMap::new();
         // Match exact baseHeaders from CLI source (Dj.baseHeaders)
         headers.insert(
@@ -170,6 +172,7 @@ impl CopilotProvider {
             client,
             model,
             github_token,
+            use_capi_messages,
         })
     }
 
@@ -193,8 +196,17 @@ impl CopilotProvider {
         // Per-request X-Interaction-Id (UUID), same as CLI defaultHeaders
         let interaction_id = Uuid::new_v4().to_string();
 
+        // Copilot CLI uses `capi:<model>` for some newer models (eg gpt-5.3-codex).
+        // When `use_capi_messages` is enabled, we always send the `capi:`-prefixed model id.
+        let model_id = self.model.trim();
+        let capi_model = if self.use_capi_messages && !model_id.starts_with("capi:") {
+            format!("capi:{}", model_id)
+        } else {
+            model_id.to_string()
+        };
+
         let req_body = OpenAiRequest {
-            model: &self.model,
+            model: &capi_model,
             messages,
             temperature: Some(0.0),
             tools: tools.clone(),

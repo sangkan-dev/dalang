@@ -324,7 +324,6 @@ code {
 	color: var(--color-gold-bright);
 }
 
-.dashboard-main,
 .dashboard-placeholder {
 	margin-top: 1rem;
 	padding: 1.1rem 1.15rem;
@@ -334,6 +333,11 @@ code {
 	background: linear-gradient(180deg, rgb(255 255 255 / 2%), rgb(255 255 255 / 1%));
 	box-shadow: var(--shadow-hairline), var(--shadow-panel);
 	overflow-x: hidden;
+}
+
+.dashboard-main {
+	min-width: 0;
+	margin-top: 1rem;
 }
 
 .dashboard-placeholder h2 {

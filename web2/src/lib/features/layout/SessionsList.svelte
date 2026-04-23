@@ -13,12 +13,12 @@
 	} = $props();
 </script>
 
-<div class="mt-4 border-t border-(--color-border) pt-3">
+<div>
 	<div class="mb-2 flex items-center justify-between">
 		<p class="text-[10px] tracking-[0.16em] text-(--color-ash) uppercase">Sesi</p>
 		<a href={resolve('/dashboard/chat')} class="text-xs text-(--color-gold-bright)">baru</a>
 	</div>
-	<div class="space-y-1">
+	<div class="max-h-64 space-y-1 overflow-auto pr-1">
 		{#if sessions.length === 0}
 			<p class="px-2 py-1 text-xs text-(--color-ash)">Belum ada sesi</p>
 		{:else}

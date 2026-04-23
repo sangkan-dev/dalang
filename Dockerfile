@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y \
     hydra \
     smbclient \
     snmp \
+    dirb \
     chromium \
     libssl3 \
     ca-certificates \
@@ -162,7 +163,7 @@ RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "aw
 # ── Misc Tools ──
 # Add common wordlists for directory brute-forcing (used by dalang and others)
 RUN mkdir -p /usr/share/wordlists/dirb
-RUN wget -q https://raw.githubusercontent.com/v0re/dirb/refs/heads/master/wordlists/common.txt -O /usr/share/wordlists/dirb/common.txt
+RUN cp /usr/share/dirb/wordlists/common.txt /usr/share/wordlists/dirb/common.txt
 
 # ── Environment ──
 ENV CHROME_PATH=/usr/bin/chromium

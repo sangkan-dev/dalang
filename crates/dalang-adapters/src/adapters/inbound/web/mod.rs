@@ -52,6 +52,11 @@ pub fn build_router(state: AppState) -> Router {
         // Settings
         .route("/settings", get(handlers::settings::get_settings))
         .route("/settings", put(handlers::settings::update_settings))
+        .route("/settings/auth/start", post(handlers::settings::auth_start))
+        .route(
+            "/settings/auth/copilot/poll",
+            post(handlers::settings::copilot_poll),
+        )
         .route(
             "/settings/test-connection",
             post(handlers::settings::test_connection),

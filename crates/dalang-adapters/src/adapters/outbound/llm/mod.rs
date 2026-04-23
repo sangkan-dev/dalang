@@ -51,6 +51,7 @@ pub fn get_default_model(provider: &str) -> String {
 /// Create the appropriate LLM provider adapter based on endpoint mode.
 ///
 /// - `endpoint_mode == "copilot"` → `CopilotProvider`
+/// - `endpoint_mode == "copilot_capi"` → `CopilotProvider` (CAPI messages endpoint)
 /// - `endpoint_mode == "cloudcode"` → `GeminiCodeAssistProvider`
 /// - anything else → `OpenAiCompatibleProvider`
 pub fn create_provider(
@@ -61,7 +62,7 @@ pub fn create_provider(
     codeassist_endpoint: Option<String>,
     gcp_project: Option<String>,
 ) -> Result<Arc<dyn LlmPort>> {
-    if endpoint_mode == "copilot" {
+    if endpoint_mode == "copilot" || endpoint_mode == "copilot_capi" {
         // GitHub Copilot provider with auto-refreshing session tokens
         let github_token = match &auth {
             AuthToken::Bearer(t) | AuthToken::ApiKey(t) => t.clone(),
@@ -71,7 +72,8 @@ pub fn create_provider(
                 ));
             }
         };
-        let provider = copilot::CopilotProvider::new(model, github_token)?;
+        let use_capi = endpoint_mode == "copilot_capi";
+        let provider = copilot::CopilotProvider::new(model, github_token, use_capi)?;
         return Ok(Arc::new(provider));
     }
 

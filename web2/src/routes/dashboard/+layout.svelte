@@ -195,14 +195,32 @@
 		</div>
 	</header>
 
-	<div class="grid gap-4 lg:grid-cols-[230px_1fr]">
-		<aside class="surface-panel dashboard-nav-panel p-3 {mobileOpen ? 'block' : 'hidden'} lg:block">
-			<DashboardNav {navItems} activePath={page.url.pathname} onNavigate={closeMobileMenu} />
-			<SessionsList {sessions} onOpenSession={openSession} onDeleteSession={deleteSession} />
-		</aside>
+		<div class="relative">
+			{#if mobileOpen}
+				<div
+					class="fixed inset-0 z-40 bg-black/60 lg:hidden"
+					role="presentation"
+					onclick={closeMobileMenu}
+					onkeydown={() => {}}
+				></div>
+			{/if}
 
-		<main class="dashboard-main">{@render children()}</main>
-	</div>
+			<div class="grid items-start gap-4 lg:grid-cols-[minmax(230px,280px)_minmax(0,1fr)]">
+				<aside
+					class="z-50 space-y-4 lg:z-auto lg:block lg:static lg:translate-x-0
+					{mobileOpen ? 'fixed left-3 top-24 block w-[min(18rem,calc(100%-1.5rem))] translate-x-0' : 'hidden -translate-x-2'} lg:!w-auto lg:!top-auto"
+				>
+					<div class="surface-panel dashboard-nav-panel p-3">
+						<DashboardNav {navItems} activePath={page.url.pathname} onNavigate={closeMobileMenu} />
+					</div>
+					<div class="surface-panel p-3">
+						<SessionsList {sessions} onOpenSession={openSession} onDeleteSession={deleteSession} />
+					</div>
+				</aside>
+
+				<main class="dashboard-main min-w-0">{@render children()}</main>
+			</div>
+		</div>
 </div>
 
 <CommandPalette
